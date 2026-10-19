@@ -26,6 +26,10 @@ export const useSettingsStore = defineStore('settings', () =>
     const vignette = useLocalStorage('settings.vignette', true);
     const sweep = useLocalStorage('settings.sweep', true);
     const curvature = useLocalStorage('settings.curvature', false);
+    // curvature tuning, all 0..100: SVG bend, corner radius and edge darkness
+    const curvatureBend = useLocalStorage('settings.curvatureBend', 50);
+    const curvatureCorners = useLocalStorage('settings.curvatureCorners', 50);
+    const curvatureShade = useLocalStorage('settings.curvatureShade', 50);
     const showIcons = useLocalStorage('settings.showIcons', false);
     const soundUi = useLocalStorage('settings.soundUi', false);
     const soundAmbient = useLocalStorage('settings.soundAmbient', false);
@@ -82,5 +86,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { imageFilter, sortMode, listMode, aliases, folders, folderBoxes, layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { imageFilter, sortMode, listMode, aliases, folders, folderBoxes, layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

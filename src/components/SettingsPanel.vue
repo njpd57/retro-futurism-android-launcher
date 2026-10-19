@@ -46,6 +46,12 @@ function nextPhosphor()
 }
 
 const onOff = (v: boolean) => v ? '[X]' : '[ ]';
+const CURVE_SLIDERS = [
+    { key: 'curvatureBend', label: 'DOBLEZ' },
+    { key: 'curvatureCorners', label: 'ESQUINAS' },
+    { key: 'curvatureShade', label: 'SOMBRA' },
+] as const;
+
 const bloomPct = computed({
     get: () => Math.round(settings.bloom * 100),
     set: v => { settings.bloom = v / 100; },
@@ -69,6 +75,13 @@ const bloomPct = computed({
         <MenuItem @click="settings.vignette = !settings.vignette"><span>VIÑETA</span><span>{{ onOff(settings.vignette) }}</span></MenuItem>
         <MenuItem @click="settings.sweep = !settings.sweep"><span>BARRIDO</span><span>{{ onOff(settings.sweep) }}</span></MenuItem>
         <MenuItem @click="settings.curvature = !settings.curvature"><span>CURVATURA</span><span>{{ onOff(settings.curvature) }}</span></MenuItem>
+        <template v-if="settings.curvature">
+            <div v-for="c in CURVE_SLIDERS" :key="c.key" class="slider">
+                <span>{{ c.label }}</span>
+                <input v-model.number="settings[c.key]" type="range" min="0" max="100" step="5" />
+                <span>{{ settings[c.key] }}%</span>
+            </div>
+        </template>
         <MenuItem @click="settings.imageFilter = nextFilter(settings.imageFilter)">
             <span>FILTRO IMÁGENES</span><span>{{ IMAGE_FILTERS.find(f => f.id === settings.imageFilter)?.label }}</span>
         </MenuItem>
