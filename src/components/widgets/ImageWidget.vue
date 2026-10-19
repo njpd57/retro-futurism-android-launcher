@@ -4,6 +4,7 @@ import { useLocalStorage } from '@vueuse/core';
 import { useImagesStore } from '@/stores/useImagesStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { displayName, indexLabel, wrapIndex } from '@/utils/images';
+import { usePausableInterval } from '@/composables/usePausableInterval';
 import CrtImage from '@/components/CrtImage.vue';
 
 const props = defineProps<{ id: string }>();
@@ -22,7 +23,22 @@ function step(by: number)
     if (next >= 0) chosen.value = store.images[next].id;
 }
 
-onMounted(() => { if (!store.loaded) store.load(); });
+// slideshow: advance on its own, a manual step restarts the countdown
+const ROTATE_MS = 10000;
+const rotation = usePausableInterval(() => step(1), ROTATE_MS);
+
+function stepManual(by: number)
+{
+    step(by);
+    rotation.stop();
+    rotation.start();
+}
+
+onMounted(() =>
+{
+    if (!store.loaded) store.load();
+    rotation.start();
+});
 </script>
 
 <template>
@@ -32,9 +48,9 @@ onMounted(() => { if (!store.loaded) store.load(); });
                 <CrtImage :blob="current.blob" :filter="settings.imageFilter" />
             </div>
             <div class="bar">
-                <span class="pressable" @click="step(-1)">[«]</span>
+                <span class="pressable" @click="stepManual(-1)">[«]</span>
                 <span class="name">{{ indexLabel(index) }} {{ displayName(current.name, 14) }}</span>
-                <span class="pressable" @click="step(1)">[»]</span>
+                <span class="pressable" @click="stepManual(1)">[»]</span>
             </div>
         </template>
         <div v-else class="empty pressable" @click="store.show()">
