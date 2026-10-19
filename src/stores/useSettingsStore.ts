@@ -3,6 +3,7 @@ import { useLocalStorage } from "@vueuse/core";
 import { computed } from "vue";
 import type { SortMode } from "@/utils/appSearch";
 import type { Folders } from "@/utils/folders";
+import type { ImageFilter } from "@/utils/crtFilter";
 import { activePanel, createLayoutSet, normalizeLayoutSet, setActivePanelItems, type DashboardItem, type LayoutSet } from "@/utils/dashboardLayout";
 
 export type Phosphor = 'amber' | 'green' | 'white' | 'blue' | 'red';
@@ -48,11 +49,14 @@ export const useSettingsStore = defineStore('settings', () =>
     const listMode = useLocalStorage<'simple' | 'long'>('settings.listMode', 'simple');
     const aliases = useLocalStorage<Record<string, string>>('settings.aliases', {});
     const folders = useLocalStorage<Folders>('settings.folders', {});
+    /** Folders of the APPS tab as boxes (true) or as an inline accordion (false). */
+    const folderBoxes = useLocalStorage('settings.folderBoxes', true);
     const idleMinutes = useLocalStorage('settings.idleMinutes', 0);
     const bootSequence = useLocalStorage('settings.bootSequence', true);
     const haptics = useLocalStorage('settings.haptics', false);
     const nightShift = useLocalStorage('settings.nightShift', false);
     const activeTab = useLocalStorage<Tab>('settings.activeTab', 'panel');
+    const imageFilter = useLocalStorage<ImageFilter>('settings.imageFilter', 'phosphor');
 
     function hideApp(packageName: string)
     {
@@ -78,5 +82,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { sortMode, listMode, aliases, folders, layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { imageFilter, sortMode, listMode, aliases, folders, folderBoxes, layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

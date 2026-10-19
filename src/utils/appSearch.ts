@@ -14,6 +14,8 @@ export const SORT_MODES: { id: SortMode; label: string }[] = [
     { id: 'recent', label: 'INSTALADAS RECIENTES' },
 ];
 
+export const nextSortMode = (current: SortMode) => SORT_MODES[(SORT_MODES.findIndex(m => m.id === current) + 1) % SORT_MODES.length].id;
+
 export interface SearchOptions
 {
     sort?: SortMode;

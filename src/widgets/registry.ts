@@ -23,6 +23,7 @@ import CountdownWidget from '@/components/widgets/CountdownWidget.vue';
 import MoonWidget from '@/components/widgets/MoonWidget.vue';
 import ProtocolWidget from '@/components/widgets/ProtocolWidget.vue';
 import WorldClockWidget from '@/components/widgets/WorldClockWidget.vue';
+import ImageWidget from '@/components/widgets/ImageWidget.vue';
 import TimerWidget from '@/components/widgets/TimerWidget.vue';
 import TrackerWidget from '@/components/widgets/TrackerWidget.vue';
 
@@ -63,5 +64,6 @@ export const WIDGETS: Record<string, WidgetDef> = {
     timer: { title: 'TEMPORIZADOR', component: TimerWidget, span: 1 },
     tracker: { title: 'DETECTOR', component: TrackerWidget, span: 2 },
     reroute: { title: 'REENRUTAR', component: RerouteWidget, span: 2 },
+    images: { title: 'IMÁGENES', component: ImageWidget, span: 2 },
     nostromo: { title: 'NOSTROMO', component: NostromoWidget, span: 2 },
 };

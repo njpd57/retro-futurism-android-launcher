@@ -10,7 +10,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useUsageStore } from '@/stores/useUsageStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
 import { useWindowInsetsStore } from '@/stores/useWindowInsetsStore';
-import { searchApps } from '@/utils/appSearch';
+import { nextSortMode, searchApps } from '@/utils/appSearch';
 import { px } from '@/utils/el-utils';
 import AppList from '@/components/AppList.vue';
 import CrtScreen from '@/components/CrtScreen.vue';
@@ -28,6 +28,10 @@ import BootSequence from '@/components/BootSequence.vue';
 import ExtraResults from '@/components/ExtraResults.vue';
 import MotherOrganizer from '@/components/MotherOrganizer.vue';
 import { useOrganizerStore } from '@/stores/useOrganizerStore';
+import ImageViewer from '@/components/ImageViewer.vue';
+import { useImagesStore } from '@/stores/useImagesStore';
+import { useAppsViewStore } from '@/stores/useAppsViewStore';
+import { parseSlash } from '@/mother/slash';
 import MotherSessions from '@/components/MotherSessions.vue';
 import AppRename from '@/components/AppRename.vue';
 import AppFolderMenu from '@/components/AppFolderMenu.vue';
@@ -53,6 +57,8 @@ const mother = useMotherStore();
 const notificationsOpen = ref(false);
 const sessionsOpen = ref(false);
 const organizer = useOrganizerStore();
+const imagesStore = useImagesStore();
+const appsView = useAppsViewStore();
 
 useOwnStatusBar(computed(() => settings.ownStatusBar));
 
@@ -90,7 +96,7 @@ const results = computed(() => isCommandInput(query.value) ? [] : searchApps(app
 const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
     ? [
         { label: editing.value ? 'LISTO' : 'EDITAR', action: () => { editing.value = !editing.value; } },
-        { label: 'NOTIF', action: () => { notificationsOpen.value = true; } },
+        { label: 'MOTHER', action: () => { settings.activeTab = 'mother'; } },
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]
     : settings.activeTab === 'mother'
@@ -99,12 +105,18 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'SESIONES', action: () => { sessionsOpen.value = true; } },
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]
+    : appsView.box !== null && !query.value
+    ? [
+        { label: 'ATRÁS', action: () => appsView.close() },
+        { label: 'ORDEN', action: () => { settings.sortMode = nextSortMode(settings.sortMode); } },
+        { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
+    ]
     : [
         { label: 'BUSCAR', action: () => prompt.value?.focus() },
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value || organizer.open);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open);
 
 function launch(app: InstalledAppInfo)
 {
@@ -140,7 +152,18 @@ const booting = ref(settings.bootSequence && !window.matchMedia('(prefers-reduce
 
 const idleStore = useIdleStore();
 
-const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch, organize: request => organizer.show(request) });
+const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch, organize: request => organizer.show(request), showImages: () => imagesStore.show() });
+
+// the typed text goes to the MOTHER chat as a question
+function askMother(text: string)
+{
+    query.value = '';
+    settings.activeTab = 'mother';
+    const slash = parseSlash(text);
+    if (slash?.type === 'sessions') { sessionsOpen.value = true; return; }
+    if (slash?.type === 'organize') { organizer.show(slash.request); return; }
+    mother.send(text);
+}
 
 function launchFirst()
 {
@@ -158,6 +181,7 @@ function closeOverlays()
     folderApp.value = null;
     sessionsOpen.value = false;
     organizer.close();
+    imagesStore.close();
 }
 
 function menuAction(action: (packageName: string) => void)
@@ -167,29 +191,47 @@ function menuAction(action: (packageName: string) => void)
     closeOverlays();
 }
 
-// Bridge forwards the back button to the WebView history: one entry per open overlay.
-let historyEntryPushed = false;
+// Bridge forwards the back button to the WebView history: one entry per layer that back should close
+// (the open overlay and the open box of the APPS tab). Closing a layer from the UI pops its entry with
+// history.back(); `expectedPops` makes the popstate that causes skip the handler.
+let overlayPushed = false;
+let boxPushed = false;
+let expectedPops = 0;
 
-watch(overlayOpen, open =>
+function syncHistory(open: boolean, pushed: boolean)
 {
-    if (open && !historyEntryPushed)
-    {
+    if (open && !pushed)
         history.pushState({}, '');
-        historyEntryPushed = true;
-    }
-    else if (!open && historyEntryPushed)
+    else if (!open && pushed)
     {
-        historyEntryPushed = false;
+        expectedPops++;
         history.back();
     }
-});
+    return open;
+}
+
+watch(overlayOpen, open => { overlayPushed = syncHistory(open, overlayPushed); });
+watch(() => appsView.box !== null, open => { boxPushed = syncHistory(open, boxPushed); });
+
+// the box belongs to the APPS tab: leaving it closes the box so back never closes something out of sight
+watch(() => settings.activeTab, tab => { if (tab !== 'apps') appsView.close(); });
 
 function onPopState()
 {
-    if (historyEntryPushed)
+    if (expectedPops > 0)
     {
-        historyEntryPushed = false;
+        expectedPops--;
+        return;
+    }
+    if (overlayPushed)
+    {
+        overlayPushed = false;
         closeOverlays();
+    }
+    else if (boxPushed)
+    {
+        boxPushed = false;
+        appsView.close();
     }
 }
 
@@ -199,6 +241,7 @@ bridgeEvents.addEventListener(ev =>
     if (ev.name === 'newIntent')
     {
         closeOverlays();
+        appsView.close();
         query.value = '';
         settings.activeTab = 'panel';
         editing.value = false;
@@ -242,8 +285,8 @@ onUnmounted(() =>
                 <div v-if="commandConsole.command.value" class="console">
                     <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
                 </div>
-                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()">
-                    <ExtraResults v-if="query.trim()" :query="query" :top-app="results[0] ?? null" />
+                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()" @images="imagesStore.show()">
+                    <ExtraResults v-if="query.trim()" :query="query" :top-app="results[0] ?? null" @ask="askMother" />
                 </AppList>
             </template>
             <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" />
@@ -256,6 +299,7 @@ onUnmounted(() =>
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 
         <MotherOrganizer v-if="organizer.open" />
+        <ImageViewer v-if="imagesStore.open" />
         <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
         <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />

@@ -25,6 +25,7 @@ export const COMMANDS: Record<CommandScope, CommandDef[]> = {
         { name: 'clima', args: '', hint: 'TIEMPO ACTUAL', example: 'clima' },
         { name: 'nota', args: '<TEXTO>', hint: 'AÑADE UNA NOTA', example: 'nota ' },
         { name: 'mother', args: '<ORDEN>', hint: 'MOTHER ORGANIZA TUS APPS', example: 'mother ' },
+        { name: 'imagenes', args: '', hint: 'VISOR DE IMÁGENES CRT', example: 'imagenes' },
         { name: 'ayuda', args: '', hint: 'LISTA DE ÓRDENES', example: 'ayuda' },
     ],
     mother: [
@@ -44,7 +45,7 @@ export const COMMANDS: Record<CommandScope, CommandDef[]> = {
 
 /** The chips shown when the input is empty. */
 const SHORTCUTS: Record<CommandScope, string[]> = {
-    console: ['calc', 'orden', 'lista', 'clima', 'mother', 'ayuda'],
+    console: ['calc', 'orden', 'lista', 'clima', 'imagenes', 'mother', 'ayuda'],
     mother: ['estado', 'informe', 'temp', 'ordenar', 'sesiones', 'ayuda'],
 };
 

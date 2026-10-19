@@ -3,6 +3,7 @@ import { simplifyString } from '../misc-utils';
 import { displayName, searchApps } from '../appSearch';
 import { isNewApp, pruneFirstSeen, updateFirstSeen } from '../newApps';
 import { assignToFolder, buildRows, cleanFolderName, folderOf } from '../folders';
+import { buildBoxes, looseApps } from '../appGroups';
 import { firstIndexOf, indexLetter, letterAt, presentLetters } from '../alphaIndex';
 
 const app = (packageName: string, label: string) => ({ packageName, label, labelSimplified: simplifyString(label) });
@@ -86,6 +87,61 @@ describe('folders', () =>
         ]);
         const open = buildRows(apps, folders, new Set(['JUEGOS']));
         expect(open.map(r => r.type === 'folder' ? r.name : `${r.app.packageName}${r.depth}`)).toEqual(['JUEGOS', 'b1', 'c1', 'a0']);
+    });
+});
+
+describe('app boxes', () =>
+{
+    const day = 86_400_000;
+    const base = { folders: {}, favorites: [], recents: [], firstSeen: {}, usage: {}, now: 100 * day };
+
+    it('has no boxes when there is nothing to group', () =>
+    {
+        expect(buildBoxes(apps, base)).toEqual([]);
+    });
+
+    it('builds system boxes as filters, skipping empty ones', () =>
+    {
+        const boxes = buildBoxes(apps, { ...base, favorites: ['c'], recents: ['b', 'zzz', 'a'], firstSeen: { a: 99 * day } });
+        expect(boxes.map(b => [b.id, b.apps.map(a => a.packageName)])).toEqual([
+            ['sys:favorites', ['c']],
+            ['sys:recents', ['b', 'a']],
+            ['sys:new', ['a']],
+        ]);
+        expect(boxes[0]).toMatchObject({ kind: 'system', label: 'FAVORITAS', count: 1 });
+    });
+
+    it('lists folders alphabetically after the system boxes', () =>
+    {
+        const boxes = buildBoxes(apps, { ...base, folders: { ZETA: ['a'], ALFA: ['b', 'c'] } });
+        expect(boxes.map(b => b.id)).toEqual(['dir:ALFA', 'dir:ZETA']);
+        expect(boxes[0]).toMatchObject({ kind: 'folder', label: 'ALFA', count: 2 });
+    });
+
+    it('drops folder members that are not in the visible list', () =>
+    {
+        const visible = apps.filter(a => a.packageName !== 'b');
+        expect(buildBoxes(visible, { ...base, folders: { X: ['b'] } })).toEqual([]);
+        expect(buildBoxes(visible, { ...base, folders: { X: ['b', 'c'] } })[0].apps.map(a => a.packageName)).toEqual(['c']);
+    });
+
+    it('flags folders that hold a new app, but not the NUEVAS box itself', () =>
+    {
+        const boxes = buildBoxes(apps, { ...base, folders: { X: ['a'], Y: ['b'] }, firstSeen: { a: 99 * day } });
+        expect(boxes.find(b => b.id === 'dir:X')?.hasNew).toBe(true);
+        expect(boxes.find(b => b.id === 'dir:Y')?.hasNew).toBe(false);
+        expect(boxes.find(b => b.id === 'sys:new')?.hasNew).toBe(false);
+    });
+
+    it('scales use relative to the busiest box', () =>
+    {
+        const boxes = buildBoxes(apps, { ...base, folders: { X: ['a'], Y: ['b'], Z: ['c'] }, usage: { a: 10, b: 5 } });
+        expect(boxes.map(b => b.usageFraction)).toEqual([1, 0.5, 0]);
+    });
+
+    it('lists the apps that are in no folder', () =>
+    {
+        expect(looseApps(apps, { X: ['b'] }).map(a => a.packageName)).toEqual(['a', 'c']);
     });
 });
 

@@ -1,21 +1,28 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { useAppsStore } from '@/stores/useAppsStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useUsageStore } from '@/stores/useUsageStore';
-import { displayName, SORT_MODES } from '@/utils/appSearch';
+import { useLaunchStore } from '@/stores/useLaunchStore';
+import { useAppsViewStore } from '@/stores/useAppsViewStore';
+import { displayName, nextSortMode, SORT_MODES } from '@/utils/appSearch';
+import { buildBoxes, looseApps } from '@/utils/appGroups';
 import { indexLetter, letterAt, presentLetters } from '@/utils/alphaIndex';
 import { buildRows } from '@/utils/folders';
 import { isNewApp } from '@/utils/newApps';
 import AppRow from './AppRow.vue';
+import FolderBox from './FolderBox.vue';
 
 const props = defineProps<{ apps: InstalledAppInfo[]; highlightFirst: boolean; searching: boolean }>();
-defineEmits<{ (e: 'launch', app: InstalledAppInfo): void; (e: 'menu', app: InstalledAppInfo): void; (e: 'mother'): void }>();
+defineEmits<{ (e: 'launch', app: InstalledAppInfo): void; (e: 'menu', app: InstalledAppInfo): void; (e: 'mother'): void; (e: 'images'): void }>();
 
 const settings = useSettingsStore();
 const appsStore = useAppsStore();
 const usage = useUsageStore();
+
+const view = useAppsViewStore();
+const launchStore = useLaunchStore();
 
 const openFolders = ref(new Set<string>());
 function toggleFolder(name: string)
@@ -25,24 +32,52 @@ function toggleFolder(name: string)
     openFolders.value = next;
 }
 
-// folders only organize the browsing view; a search is always flat
-const rows = computed(() => props.searching
-    ? props.apps.map(app => ({ type: 'app' as const, app, depth: 0 as const }))
-    : buildRows(props.apps, settings.folders, openFolders.value));
-
 const usageByPackage = computed(() => Object.fromEntries(usage.apps.map(a => [a.packageName, a.totalTimeMs])));
 const now = Date.now();
+
+// folders as boxes: the root shows the boxes and the apps in no folder; opening a box lists only its apps
+const boxMode = computed(() => settings.folderBoxes && !props.searching);
+const boxes = computed(() => buildBoxes(props.apps, {
+    folders: settings.folders,
+    favorites: settings.favorites,
+    recents: launchStore.recents,
+    firstSeen: appsStore.firstSeen,
+    usage: usageByPackage.value,
+    now,
+}));
+const openBox = computed(() => boxMode.value ? boxes.value.find(b => b.id === view.box) ?? null : null);
+
+// the open box vanished (emptied folder, no favorites left)
+watch([boxes, boxMode], () =>
+{
+    if (view.box !== null && !openBox.value) view.close();
+});
+watch(() => view.box, async () =>
+{
+    await nextTick();
+    if (scroller.value) scroller.value.scrollTop = 0;
+});
+
+// folders only organize the browsing view; a search is always flat
+const rows = computed(() =>
+{
+    if (props.searching) return props.apps.map(app => ({ type: 'app' as const, app, depth: 0 as const }));
+    if (!boxMode.value) return buildRows(props.apps, settings.folders, openFolders.value);
+    const list = openBox.value ? openBox.value.apps : looseApps(props.apps, settings.folders);
+    return list.map(app => ({ type: 'app' as const, app, depth: 0 as const }));
+});
+
 const sortLabel = computed(() => SORT_MODES.find(m => m.id === settings.sortMode)?.label ?? '');
 
 function nextSort()
 {
-    const i = SORT_MODES.findIndex(m => m.id === settings.sortMode);
-    settings.sortMode = SORT_MODES[(i + 1) % SORT_MODES.length].id;
+    settings.sortMode = nextSortMode(settings.sortMode);
 }
 
 // A–Z strip: only when browsing alphabetically
 const scroller = ref<HTMLElement | null>(null);
-const letters = computed(() => props.searching || settings.sortMode !== 'alpha' ? [] : presentLetters(
+// (the recents box is ordered by recency, so letters would not match)
+const letters = computed(() => props.searching || settings.sortMode !== 'alpha' || openBox.value?.id === 'sys:recents' ? [] : presentLetters(
     rows.value.filter(r => r.type === 'app' && r.depth === 0).map(r => displayName((r as { app: InstalledAppInfo }).app, settings.aliases))));
 const activeLetter = ref<string | null>(null);
 
@@ -70,11 +105,29 @@ function onStripMove(e: PointerEvent)
 <template>
     <div class="app-list-wrap">
         <div ref="scroller" class="app-list">
+            <div v-if="openBox" class="box-head pressable" @click="view.close()">
+                <span>‹ {{ openBox.label }}</span><span>({{ openBox.count }})</span>
+            </div>
             <div v-if="!searching" class="toolbar">
                 <span class="pressable" @click="nextSort">ORDEN: {{ sortLabel }}</span>
-                <span class="pressable" @click="$emit('mother')">[MOTHER]</span>
+                <template v-if="!openBox">
+                    <span class="pressable" @click="$emit('mother')">[MOTHER]</span>
+                    <span class="pressable" @click="$emit('images')">[IMÁGENES]</span>
+                </template>
                 <span class="pressable" @click="settings.listMode = settings.listMode === 'long' ? 'simple' : 'long'">{{ settings.listMode === 'long' ? '[LS -L]' : '[LISTA]' }}</span>
             </div>
+            <div v-if="boxMode && !openBox && boxes.length" class="boxes" :class="{ indexed: letters.length > 1 }">
+                <FolderBox
+                    v-for="b in boxes"
+                    :key="b.id"
+                    :label="b.label"
+                    :count="b.count"
+                    :fraction="b.usageFraction"
+                    :has-new="b.hasNew"
+                    :system="b.kind === 'system'"
+                    @open="view.open(b.id)" />
+            </div>
+            <div v-if="boxMode && !openBox && boxes.length && rows.length" class="divider">── SIN CARPETA ──</div>
             <div v-if="settings.listMode === 'long' && !searching" class="head"><span>NOMBRE</span><span class="usage">USO</span><span>TIPO</span></div>
 
             <template v-for="row in rows" :key="row.type === 'folder' ? `f:${row.name}` : row.app.packageName">
@@ -150,6 +203,32 @@ function onStripMove(e: PointerEvent)
 
         > span:first-child { flex: 1; }
         > .usage { width: 4.5em; text-align: right; margin-right: 12px; }
+    }
+
+    > .box-head {
+        display: flex;
+        justify-content: space-between;
+        padding: 3px 10px;
+        margin-bottom: 4px;
+        font-weight: bold;
+        @include inverse;
+    }
+
+    > .boxes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        padding: 0 10px 6px;
+
+        &.indexed { padding-right: 32px; }
+    }
+
+    > .divider {
+        padding: 0 10px 2px;
+        color: var(--ph-dim);
+        font-size: 0.8em;
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     > .folder {

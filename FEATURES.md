@@ -29,6 +29,7 @@ Nada de esto se ha probado en un teléfono real; el desarrollo se hizo con el mo
 
 ## Ideas nuevas
 
+- **IMÁGENES**: listar la galería real con un `getImagesURL()` en el fork (MediaStore, permiso `READ_MEDIA_IMAGES`) como segunda fuente del visor,.
 - **ESCÁNER**: tocar una app del radar para ver sus notificaciones.
 - **DIRECTORIOS**: arrastrar una app a una carpeta en vez de usar el menú.
 - **REENRUTAR**: eventos de la nave (fallo de puerta, alarma de sensores) con texto de MOTHER.

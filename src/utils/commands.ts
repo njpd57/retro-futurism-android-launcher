@@ -13,6 +13,7 @@ export type Command =
     | { type: 'sort'; mode: SortMode | null; arg: string }
     | { type: 'list'; mode: 'simple' | 'long' | null; arg: string }
     | { type: 'mother'; request: string }
+    | { type: 'images' }
     | { type: 'unknown'; word: string };
 
 export const COMMAND_HELP = [
@@ -24,6 +25,7 @@ export const COMMAND_HELP = [
     'ORDEN <ALFA|USO|RECIENTE>',
     'LISTA <SIMPLE|LARGA>',
     'MOTHER <ORDEN PARA TUS APPS>',
+    'IMAGENES',
     'AYUDA',
 ];
 
@@ -72,6 +74,7 @@ const ALIASES: Record<string, string> = {
     orden: 'sort', ordenar: 'sort',
     lista: 'list',
     mother: 'mother', m: 'mother',
+    imagenes: 'images', imagen: 'images', fotos: 'images', visor: 'images',
     ayuda: 'help', help: 'help', '?': 'help',
 };
 
@@ -107,6 +110,7 @@ export function parseCommand(input: string): Command | null
         case 'sort': return { type: 'sort', mode: parseSortMode(rest), arg: rest };
         case 'list': return { type: 'list', mode: parseListMode(rest), arg: rest };
         case 'mother': return { type: 'mother', request: rest };
+        case 'images': return { type: 'images' };
         default: return { type: 'unknown', word };
     }
 }

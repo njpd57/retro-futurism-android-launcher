@@ -9,6 +9,7 @@ import { primaryNumber } from '@/utils/contacts';
 import { webSearchUrl } from '@/utils/webSearch';
 
 const props = defineProps<{ query: string; topApp: { packageName: string; label: string } | null }>();
+defineEmits<{ (e: 'ask', query: string): void }>();
 
 const contacts = useContactsStore();
 
@@ -51,6 +52,9 @@ const matchingContacts = computed(() => found.value.filter(c => primaryNumber(c)
         <div v-if="canSearchWeb && url" class="row pressable web" @click="searchWeb">
             <span>[BUSCAR EN RED]</span><span class="dim">{{ query.trim().toUpperCase() }}</span>
         </div>
+        <div class="row pressable mother" @click="$emit('ask', query.trim())">
+            <span>[PREGUNTAR A MOTHER]</span><span class="dim">{{ query.trim().toUpperCase() }}</span>
+        </div>
     </div>
 </template>
 
@@ -60,4 +64,5 @@ const matchingContacts = computed(() => found.value.filter(c => primaryNumber(c)
 .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 10px; &:active { @include inverse; } }
 .dim { opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .web { margin-top: 4px; }
+.mother { margin-bottom: 4px; }
 </style>

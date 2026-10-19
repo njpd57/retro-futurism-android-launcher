@@ -14,6 +14,8 @@ export function useCommandConsole(options: {
     launch: (app: InstalledAppInfo) => void;
     /** opens MOTHER's app organizer, with the request typed after `> mother` */
     organize: (request: string) => void;
+    /** opens the image viewer */
+    showImages: () => void;
 })
 {
     const settings = useSettingsStore();
@@ -47,6 +49,7 @@ export function useCommandConsole(options: {
             case 'sort': return [c.mode ? `ORDEN ${SORT_MODES.find(m => m.id === c.mode)?.label}` : c.arg ? `ORDEN DESCONOCIDO: ${c.arg.toUpperCase()}` : 'ORDEN <ALFA|USO|RECIENTE>'];
             case 'list': return [c.mode ? `LISTA ${c.mode === 'long' ? 'LARGA (LS -L)' : 'SIMPLE'}` : c.arg ? `VISTA DESCONOCIDA: ${c.arg.toUpperCase()}` : 'LISTA <SIMPLE|LARGA>'];
             case 'mother': return [c.request ? `MOTHER ORGANIZA: ${c.request.toUpperCase()}` : 'MOTHER <ORDEN PARA TUS APPS>, P. EJ. AGRUPA POR TIPO'];
+            case 'images': return ['VISOR DE IMÁGENES'];
             case 'unknown': return [`ORDEN DESCONOCIDA: ${c.word.toUpperCase()}`, 'ESCRIBE > AYUDA'];
         }
     });
@@ -96,6 +99,10 @@ export function useCommandConsole(options: {
                 break;
             case 'mother':
                 if (c.request) { options.organize(c.request); options.query.value = ''; }
+                break;
+            case 'images':
+                options.showImages();
+                options.query.value = '';
                 break;
         }
         return true;

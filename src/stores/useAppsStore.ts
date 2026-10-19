@@ -20,6 +20,10 @@ export enum RequestStatus
 
 const MAX_RETRIES = 4;
 const RETRY_MS = 1500;
+// Bridge fills its app list in the background at startup and answers with whatever it has so far
+// (a successful, partial list), so after a load that changed the list we ask again until the size settles.
+const SETTLE_MS = 800;
+const MAX_SETTLE = 6;
 
 export const useAppsStore = defineStore('apps', () =>
 {
@@ -33,9 +37,17 @@ export const useAppsStore = defineStore('apps', () =>
     const requestErrorMessage = ref('');
 
     let retries = 0;
+    let settling = 0;
     let retryTimer: number | undefined;
 
-    async function requestAppsAsync()
+    /** Reloads the list; after a change in its size it checks again a few times (see SETTLE_MS). */
+    function requestAppsAsync()
+    {
+        settling = 0;
+        return loadApps();
+    }
+
+    async function loadApps()
     {
         if (requestStatus.value === RequestStatus.InProgress) return;
         window.clearTimeout(retryTimer);
@@ -56,10 +68,17 @@ export const useAppsStore = defineStore('apps', () =>
             }
 
             retries = 0;
+            const previousSize = apps.value.size;
             apps.value = newApps;
             if (newApps.size)
                 firstSeen.value = pruneFirstSeen(updateFirstSeen(firstSeen.value, [...newApps.keys()], Date.now()), new Set(newApps.keys()));
             requestStatus.value = RequestStatus.Idle;
+
+            if (newApps.size !== previousSize && settling < MAX_SETTLE)
+            {
+                settling++;
+                retryTimer = window.setTimeout(loadApps, SETTLE_MS);
+            }
         }
         catch (err)
         {
@@ -69,7 +88,7 @@ export const useAppsStore = defineStore('apps', () =>
 
             // Bridge may not be ready yet at startup: retry a few times instead of staying with an empty list
             if (retries < MAX_RETRIES)
-                retryTimer = window.setTimeout(requestAppsAsync, RETRY_MS * ++retries);
+                retryTimer = window.setTimeout(loadApps, RETRY_MS * ++retries);
         }
     }
 

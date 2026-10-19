@@ -1,49 +1,25 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
-import { useAppsStore } from '@/stores/useAppsStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
 import { bridgeHas } from '@/utils/bridgeHas';
 import BackupMenu from './BackupMenu.vue';
+import HiddenAppsMenu from './HiddenAppsMenu.vue';
 import PermissionsMenu from './PermissionsMenu.vue';
 import MotherSettings from './MotherSettings.vue';
 import TermMenu from './TermMenu.vue';
 import MenuItem from './MenuItem.vue';
 import { canVibrate } from '@/utils/haptics';
 import { nextIdleMinutes } from '@/utils/idle';
+import { IMAGE_FILTERS, nextFilter } from '@/utils/crtFilter';
 
 defineEmits<{ (e: 'close'): void }>();
 
 const settings = useSettingsStore();
-const appsStore = useAppsStore();
 const toggles = useTogglesStore();
 
 // the value only changes once Bridge sends the event back
 const bridgeButtonShown = computed(() => toggles.bridgeButtonVisibility === 'shown');
-
-const hidden = computed(() => settings.hiddenApps.map(p => ({ packageName: p, label: appsStore.apps.get(p)?.label ?? p })));
-
-// Unhiding takes two taps on the same row, so a stray tap doesn't bring an app back.
-const ARM_MS = 3000;
-const armed = ref<string | null>(null);
-let armTimer: number | undefined;
-
-function onHiddenTap(packageName: string)
-{
-    window.clearTimeout(armTimer);
-
-    if (armed.value === packageName)
-    {
-        armed.value = null;
-        settings.unhideApp(packageName);
-        return;
-    }
-
-    armed.value = packageName;
-    armTimer = window.setTimeout(() => { armed.value = null; }, ARM_MS);
-}
-
-onBeforeUnmount(() => window.clearTimeout(armTimer));
 
 // Which fork methods the installed Bridge has, to see what the launcher can use on this device.
 const DIAGNOSTIC_METHODS = [
@@ -55,6 +31,7 @@ const diagnosticOpen = ref(false);
 const motherOpen = ref(false);
 const backupOpen = ref(false);
 const permissionsOpen = ref(false);
+const hiddenOpen = ref(false);
 const diagnostic = computed(() => DIAGNOSTIC_METHODS.map(m => ({ method: m, ok: bridgeHas(m) })));
 
 const volumePct = computed({
@@ -92,6 +69,9 @@ const bloomPct = computed({
         <MenuItem @click="settings.vignette = !settings.vignette"><span>VIÑETA</span><span>{{ onOff(settings.vignette) }}</span></MenuItem>
         <MenuItem @click="settings.sweep = !settings.sweep"><span>BARRIDO</span><span>{{ onOff(settings.sweep) }}</span></MenuItem>
         <MenuItem @click="settings.curvature = !settings.curvature"><span>CURVATURA</span><span>{{ onOff(settings.curvature) }}</span></MenuItem>
+        <MenuItem @click="settings.imageFilter = nextFilter(settings.imageFilter)">
+            <span>FILTRO IMÁGENES</span><span>{{ IMAGE_FILTERS.find(f => f.id === settings.imageFilter)?.label }}</span>
+        </MenuItem>
         <MenuItem @click="settings.showIcons = !settings.showIcons"><span>ICONOS</span><span>{{ onOff(settings.showIcons) }}</span></MenuItem>
         <MenuItem @click="settings.labelCase = settings.labelCase === 'upper' ? 'normal' : 'upper'">
             <span>NOMBRES</span><span>{{ settings.labelCase === 'upper' ? 'MAYÚSCULAS' : 'NORMAL' }}</span>
@@ -112,6 +92,7 @@ const bloomPct = computed({
         </MenuItem>
         <MenuItem @click="settings.nightShift = !settings.nightShift"><span>TURNO NOCTURNO</span><span>{{ onOff(settings.nightShift) }}</span></MenuItem>
         <MenuItem @click="settings.showType = !settings.showType"><span>COLUMNA TIPO</span><span>{{ onOff(settings.showType) }}</span></MenuItem>
+        <MenuItem @click="settings.folderBoxes = !settings.folderBoxes"><span>CARPETAS EN CAJAS</span><span>{{ onOff(settings.folderBoxes) }}</span></MenuItem>
 
         <MenuItem @click="toggles.bridgeButtonVisibility = bridgeButtonShown ? 'hidden' : 'shown'">
             <span>BOTÓN BRIDGE</span><span>{{ onOff(bridgeButtonShown) }}</span>
@@ -119,12 +100,7 @@ const bloomPct = computed({
 
         <MenuItem @click="settings.ownStatusBar = !settings.ownStatusBar"><span>BARRA PROPIA</span><span>{{ onOff(settings.ownStatusBar) }}</span></MenuItem>
 
-        <template v-if="hidden.length">
-            <div class="section">APPS OCULTAS (TOCA DOS VECES PARA MOSTRAR)</div>
-            <MenuItem v-for="h in hidden" :key="h.packageName" :class="{ armed: armed === h.packageName }" @click="onHiddenTap(h.packageName)">
-                <span>{{ h.label }}</span><span>{{ armed === h.packageName ? '¿MOSTRAR?' : '+' }}</span>
-            </MenuItem>
-        </template>
+        <MenuItem @click="hiddenOpen = true"><span>APPS OCULTAS ({{ settings.hiddenApps.length }})</span><span>›</span></MenuItem>
 
         <MenuItem @click="motherOpen = true"><span>MOTHER</span><span>›</span></MenuItem>
         <MenuItem @click="permissionsOpen = true"><span>PERMISOS</span><span>›</span></MenuItem>
@@ -135,6 +111,7 @@ const bloomPct = computed({
         <MotherSettings v-if="motherOpen" @close="motherOpen = false" />
         <BackupMenu v-if="backupOpen" @close="backupOpen = false" />
         <PermissionsMenu v-if="permissionsOpen" @close="permissionsOpen = false" />
+        <HiddenAppsMenu v-if="hiddenOpen" @close="hiddenOpen = false" />
 
         <TermMenu v-if="diagnosticOpen" title="DIAGNÓSTICO" @close="diagnosticOpen = false">
             <MenuItem v-for="d in diagnostic" :key="d.method"><span class="method">{{ d.method }}</span><span>{{ d.ok ? 'OK' : '--' }}</span></MenuItem>
@@ -152,8 +129,5 @@ const bloomPct = computed({
     > input { flex: 1; min-width: 0; accent-color: var(--ph); }
 }
 
-.section { padding: 6px 10px 2px; opacity: 0.7; }
-
-.armed { @include inverse; }
 .method { font-size: 0.8em; overflow: hidden; text-overflow: ellipsis; }
 </style>
