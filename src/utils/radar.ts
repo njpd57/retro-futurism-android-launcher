@@ -18,6 +18,32 @@ export function blipFromKey(key: string): RadarBlip
     return { angle: (h % 3600) / 3600 * TAU, radius: 0.3 + ((h >>> 12) % 700) / 1000 };
 }
 
+/** The grid cell (column `c`, row `r`) where a blip is drawn on a radar of the given radius. */
+export function blipCell(radius: number, blip: RadarBlip): { c: number; r: number }
+{
+    return {
+        c: Math.round(radius * 2 + Math.cos(blip.angle) * blip.radius * radius * 2),
+        r: Math.round(radius + Math.sin(blip.angle) * blip.radius * radius),
+    };
+}
+
+/**
+ * Index of the blip closest to a tapped cell, or -1 when none is near. Distance is measured in rows, so a column
+ * counts for half (characters are about twice as tall as wide); `reach` is generous because fingers are fat.
+ */
+export function nearestBlip(radius: number, col: number, row: number, blips: readonly RadarBlip[], reach = 1.6): number
+{
+    let best = -1;
+    let bestDist = reach;
+    blips.forEach((blip, i) =>
+    {
+        const { c, r } = blipCell(radius, blip);
+        const d = Math.hypot((col - c) / 2, row - r);
+        if (d <= bestDist) { best = i; bestDist = d; }
+    });
+    return best;
+}
+
 /**
  * ASCII radar: `4*radius + 1` columns by `2*radius + 1` rows (characters are about twice as tall as wide).
  * The sweep is a bright wedge at `sweep` radians with a fading trail behind it; blips light up when it passes.
@@ -29,10 +55,6 @@ export function radarFrame(radius: number, sweep: number, blips: readonly RadarB
     const grid: string[][] = Array.from({ length: rows }, () => Array<string>(cols).fill(' '));
 
     const norm = (a: number) => ((a % TAU) + TAU) % TAU;
-    const cell = (angle: number, r: number) => ({
-        c: Math.round(radius * 2 + Math.cos(angle) * r * radius * 2),
-        r: Math.round(radius + Math.sin(angle) * r * radius),
-    });
 
     for (let r = 0; r < rows; r++)
     {
@@ -55,7 +77,7 @@ export function radarFrame(radius: number, sweep: number, blips: readonly RadarB
 
     for (const blip of blips)
     {
-        const { c, r } = cell(blip.angle, blip.radius);
+        const { c, r } = blipCell(radius, blip);
         if (r < 0 || r >= rows || c < 0 || c >= cols) continue;
         const behind = norm(sweep - blip.angle);
         grid[r][c] = behind < 1 ? '◉' : behind < 3 ? 'o' : '·';

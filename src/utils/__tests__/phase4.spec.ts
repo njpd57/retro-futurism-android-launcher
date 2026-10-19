@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BridgeAppUsage, BridgeContact } from '@/types/bridge-fork';
-import { blipFromKey, radarFrame } from '../radar';
+import { blipCell, blipFromKey, nearestBlip, radarFrame } from '../radar';
 import { primaryNumber, shortName } from '../contacts';
 import { formatUsage, topUsage, totalUsageMs } from '../usage';
 import { formatTimer, isFinished, remainingMs } from '../timer';
@@ -33,6 +33,24 @@ describe('radar', () =>
     {
         const f = radarFrame(6, 0.05, [{ angle: 0, radius: 0.8 }]);
         expect(f.join('')).toContain('◉');
+    });
+});
+
+describe('radar scanner', () =>
+{
+    const blips = [{ angle: 0, radius: 0.8 }, { angle: Math.PI, radius: 0.8 }];
+
+    it('picks the blip under or next to the tap', () =>
+    {
+        const { c, r } = blipCell(5, blips[1]);
+        expect(nearestBlip(5, c, r, blips)).toBe(1);
+        expect(nearestBlip(5, c + 2, r + 1, blips)).toBe(1);
+    });
+
+    it('returns -1 when nothing is near', () =>
+    {
+        expect(nearestBlip(5, 10, 5, blips)).toBe(-1);
+        expect(nearestBlip(5, 0, 0, [])).toBe(-1);
     });
 });
 
