@@ -3,16 +3,21 @@ import { ref } from 'vue';
 import { useLocalStorage } from '@vueuse/core';
 import { usePausableInterval } from '@/composables/usePausableInterval';
 import { MAX_LEVEL, POWER, SYSTEMS, adjust, freePower, newGame, score, step, type RerouteState } from '@/games/reroute';
+import { rerouteMessages } from '@/games/rerouteLog';
+import { useLogStore } from '@/stores/useLogStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import { bar } from '@/utils/tui';
 
 defineProps<{ id: string }>();
 
 const sound = useSoundStore();
+const log = useLogStore();
 const best = useLocalStorage('widget.reroute.best', 0);
 
 const state = ref<RerouteState>(newGame(Math.random));
 const started = ref(false);
+/** The latest ship message, also sent to the LOG widget. */
+const message = ref('');
 
 const TICK_MS = 250;
 let last = 0;
@@ -25,6 +30,11 @@ const loop = usePausableInterval(() =>
     last = now;
 
     const result = step(state.value, dt, Math.random);
+    for (const line of rerouteMessages(state.value, result.state, result.events, Math.random))
+    {
+        message.value = line;
+        log.push('MOTHER', line);
+    }
     state.value = result.state;
     if (result.events.includes('demand')) sound.playAlways('ping');
     if (result.events.includes('lost'))
@@ -39,6 +49,7 @@ function start()
 {
     state.value = newGame(Math.random);
     started.value = true;
+    message.value = '';
     last = performance.now();
     loop.start();
 }
@@ -60,6 +71,7 @@ const levelBar = (n: number) => bar(n / MAX_LEVEL, MAX_LEVEL);
                 <span>REENRUTAR · LIBRE {{ freePower(state) }}</span>
                 <span>{{ score(state) }} S</span>
             </div>
+            <div class="msg">{{ message || 'SISTEMAS NOMINALES.' }}</div>
             <div v-for="(name, i) in SYSTEMS" :key="name" class="sys" :class="{ short: state.need[i] > state.alloc[i], failing: state.integrity[i] < 35 }">
                 <div class="name">
                     <span>{{ name }}</span>
@@ -83,6 +95,7 @@ const levelBar = (n: number) => bar(n / MAX_LEVEL, MAX_LEVEL);
 
 <style scoped lang="scss">
 .dim { color: var(--ph-dim); }
+.msg { min-height: 2.4em; color: var(--ph-dim); }
 .head { display: flex; justify-content: space-between; color: var(--ph-dim); }
 .sys { padding: 2px 0; &.short .need { animation: blink 0.8s steps(2) infinite; } &.failing .name { animation: blink 0.5s steps(2) infinite; } }
 .name { display: flex; justify-content: space-between; }
