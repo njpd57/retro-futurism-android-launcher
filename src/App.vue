@@ -24,6 +24,8 @@ import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
 import BootSequence from '@/components/BootSequence.vue';
+import IdleClock from '@/components/IdleClock.vue';
+import { useIdleStore } from '@/stores/useIdleStore';
 import { useAppShortcuts } from '@/composables/useAppShortcuts';
 import { useCommandConsole } from '@/composables/useCommandConsole';
 import { isCommandInput } from '@/utils/commands';
@@ -108,6 +110,8 @@ const swipe = useSwipe(screenEl, kind =>
 
 // boot screen once per load; never with reduced motion
 const booting = ref(settings.bootSequence && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+const idleStore = useIdleStore();
 
 const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch });
 
@@ -214,6 +218,7 @@ onUnmounted(() =>
         </div>
 
         <BootSequence v-if="booting" @done="booting = false" />
+        <IdleClock v-if="idleStore.idle" @wake="idleStore.wake()" />
         <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 

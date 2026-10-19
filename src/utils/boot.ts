@@ -18,5 +18,5 @@ export function bootLines(memoryKb = 640): string[]
 /** How many lines are visible after `elapsedMs`. */
 export function visibleBootLines(total: number, elapsedMs: number, stepMs = BOOT_STEP_MS)
 {
-    return Math.min(total, Math.max(0, Math.floor(elapsedMs / stepMs) + 1));
+    return Math.min(total, Math.max(1, Math.floor(elapsedMs / stepMs) + 1));
 }
