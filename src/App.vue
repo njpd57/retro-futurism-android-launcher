@@ -176,7 +176,7 @@ onUnmounted(() =>
             class="screen"
             :style="{ 'padding-top': px(insetTop), 'padding-bottom': px(insetBottom) }">
             <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
-            <TopBar :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" />
+            <TopBar :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" @open-notifications="notificationsOpen = true" />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
             <MotherTerminal v-else-if="settings.activeTab === 'mother'" />
             <AppList v-else :apps="results" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" />
