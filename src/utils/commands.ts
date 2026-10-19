@@ -28,6 +28,12 @@ const THEMES: Record<string, Phosphor> = {
     rojo: 'red', red: 'red',
 };
 
+/** `verde`, `Ámbar`... to a phosphor id; null when unknown. */
+export function parsePhosphor(text: string): Phosphor | null
+{
+    return THEMES[text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()] ?? null;
+}
+
 const ALIASES: Record<string, string> = {
     abrir: 'open', open: 'open', a: 'open',
     calc: 'calc', calcular: 'calc', c: 'calc',
@@ -63,7 +69,7 @@ export function parseCommand(input: string): Command | null
         case 'help': return { type: 'help' };
         case 'open': return { type: 'open', query: rest };
         case 'calc': return { type: 'calc', expr: rest, result: evaluateExpression(rest) };
-        case 'theme': return { type: 'theme', phosphor: THEMES[stripAccents(rest.toLowerCase())] ?? null, arg: rest };
+        case 'theme': return { type: 'theme', phosphor: parsePhosphor(rest), arg: rest };
         case 'weather': return { type: 'weather' };
         case 'note': return { type: 'note', text: rest };
         default: return { type: 'unknown', word };

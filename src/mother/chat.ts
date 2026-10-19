@@ -36,3 +36,6 @@ export function httpErrorMessage(status: number)
     if (status >= 500) return `ERROR ${status} · FALLO DEL SERVIDOR`;
     return `ERROR ${status}`;
 }
+
+/** Models offered in the settings; any other id can still be typed. */
+export const MODEL_PRESETS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'];
