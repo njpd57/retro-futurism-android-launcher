@@ -139,3 +139,38 @@ describe('parseAction tolerance', () =>
         expect(parseAction('temporizador', '{}')).toMatchObject({ ok: false });
     });
 });
+
+import { pickVoice, voiceStatus, type VoiceProbe } from '../voice';
+
+describe('voiceStatus', () =>
+{
+    const none: VoiceProbe = { webApi: false, webVoices: [], bridgeApi: false, bridgeReady: false };
+    const es = { lang: 'es-MX', name: 'Mex' };
+    const en = { lang: 'en-US', name: 'Eng' };
+
+    it('prefers the WebView when it has a Spanish voice', () =>
+    {
+        expect(voiceStatus({ ...none, webApi: true, webVoices: [en, es], bridgeApi: true, bridgeReady: true })).toEqual({ engine: 'web', status: 'ok' });
+    });
+
+    it('falls back to the Bridge engine', () =>
+    {
+        expect(voiceStatus({ ...none, bridgeApi: true, bridgeReady: true })).toEqual({ engine: 'bridge', status: 'ok' });
+        expect(voiceStatus({ ...none, webApi: true, webVoices: [en], bridgeApi: true, bridgeReady: true })).toEqual({ engine: 'bridge', status: 'ok' });
+    });
+
+    it('explains why it cannot speak', () =>
+    {
+        expect(voiceStatus(none)).toEqual({ engine: 'none', status: 'no-api' });
+        expect(voiceStatus({ ...none, webApi: true })).toEqual({ engine: 'none', status: 'no-voices' });
+        expect(voiceStatus({ ...none, bridgeApi: true })).toEqual({ engine: 'none', status: 'no-voices' });
+        expect(voiceStatus({ ...none, webApi: true, webVoices: [en] })).toEqual({ engine: 'none', status: 'no-spanish' });
+    });
+
+    it('picks es-ES before other Spanish voices', () =>
+    {
+        expect(pickVoice([en, es, { lang: 'es_ES', name: 'Spain' }])?.name).toBe('Spain');
+        expect(pickVoice([en, es])?.name).toBe('Mex');
+        expect(pickVoice([en])).toBeNull();
+    });
+});

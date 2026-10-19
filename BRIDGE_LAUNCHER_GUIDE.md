@@ -248,6 +248,7 @@ Each state has a getter, usually a setter, and a `…Changed` event with `newVal
 ### Storage
 
 - `getStorageStats()` → JSON `{ totalBytes, freeBytes }` of the internal storage (`StatFs` on the data partition). No permission and no event: read it on `afterResume`.
+- Speech (`TextToSpeech`, no runtime permission; it needs an installed engine and the language's voice data): `getTtsAvailable()` (true once the engine has bound; the first call starts it), `requestSpeak(text, languageTag, pitch, rate)` (replaces what is being said; false without engine or voice), `requestStopSpeaking()` and `requestOpenTtsSettings()`. Added to the Kotlin of the fork but not compiled or verified on a phone yet.
 
 ### Alarms
 

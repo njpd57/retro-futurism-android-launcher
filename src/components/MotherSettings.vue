@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { maskKey, MODEL_PRESETS } from '@/mother/chat';
 import { useShipSnapshot } from '@/composables/useShipSnapshot';
 import { contextBlock } from '@/mother/local';
-import { canSpeak } from '@/mother/voice';
+import { useSpeechStore } from '@/stores/useSpeechStore';
 import { useMotherStore } from '@/stores/useMotherStore';
 import MenuItem from './MenuItem.vue';
 import TermMenu from './TermMenu.vue';
@@ -14,7 +14,7 @@ const mother = useMotherStore();
 const snapshot = useShipSnapshot();
 const onOff = (v: boolean) => v ? '[X]' : '[ ]';
 const preview = computed(() => contextBlock(snapshot()));
-const voiceAvailable = canSpeak();
+const speech = useSpeechStore();
 
 // the key is never shown again after saving: only a masked version
 const keyDraft = ref('');
@@ -50,7 +50,8 @@ function save()
             <template v-else>SOLO SE ENVÍA TU TEXTO.</template>
         </div>
         <MenuItem @click="mother.actionsEnabled = !mother.actionsEnabled"><span>ACCIONES (CON CONFIRMACIÓN)</span><span>{{ onOff(mother.actionsEnabled) }}</span></MenuItem>
-        <MenuItem @click="voiceAvailable && (mother.voice = !mother.voice)"><span>VOZ</span><span>{{ voiceAvailable ? onOff(mother.voice) : 'NO DISPONIBLE' }}</span></MenuItem>
+        <MenuItem @click="speech.available && (mother.voice = !mother.voice)"><span>VOZ</span><span>{{ speech.available ? onOff(mother.voice) : 'NO DISPONIBLE' }}</span></MenuItem>
+        <div class="dim">{{ speech.message }} · VER AJUSTES › PERMISOS</div>
 
         <MenuItem @click="save"><span>GUARDAR</span></MenuItem>
         <MenuItem v-if="mother.hasKey" @click="mother.clearKey()"><span>BORRAR CLAVE</span></MenuItem>

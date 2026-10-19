@@ -210,5 +210,13 @@ declare module '@bridgelauncher/api'
 
         /** A URL that makes Bridge download an http(s) URL natively (GET), for sites the WebView can't read because of CORS. */
         getProxyURL(url: string): string;
+
+        /** True once an Android text-to-speech engine is bound (the first call starts it). */
+        getTtsAvailable(): boolean;
+        /** Speaks the text with Android's engine, replacing what is being said. False if there is no engine or no voice for the language. */
+        requestSpeak(text: string, languageTag: string, pitch: number, rate: number): boolean;
+        requestStopSpeaking(): void;
+        /** Opens Android's text-to-speech settings. */
+        requestOpenTtsSettings(showToastIfFailed?: boolean): boolean;
     }
 }

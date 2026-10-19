@@ -10,12 +10,12 @@ import { contextBlock, localReply } from "@/mother/local";
 import { MOTHER_PERSONA } from "@/mother/persona";
 import { archiveSession, removeSession, restoreSession, type Session } from "@/mother/sessions";
 import { createSseParser, extractDelta, extractToolCallDeltas, extractUsage } from "@/mother/sse";
-import { canSpeak, speakable, VOICE_LANG, VOICE_PITCH, VOICE_RATE } from "@/mother/voice";
 import { searchApps } from "@/utils/appSearch";
 import { useAppsStore } from "./useAppsStore";
 import { useLaunchStore } from "./useLaunchStore";
 import { useLogStore } from "./useLogStore";
 import { useSettingsStore } from "./useSettingsStore";
+import { useSpeechStore } from "./useSpeechStore";
 import { useSoundStore } from "./useSoundStore";
 
 const API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -42,6 +42,7 @@ export const useMotherStore = defineStore('mother', () =>
 {
     const log = useLogStore();
     const sound = useSoundStore();
+    const speech = useSpeechStore();
     const settings = useSettingsStore();
     const appsStore = useAppsStore();
     const launchStore = useLaunchStore();
@@ -87,18 +88,12 @@ export const useMotherStore = defineStore('mother', () =>
 
     function speak(text: string)
     {
-        if (!voice.value || !canSpeak()) return;
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(speakable(text));
-        u.lang = VOICE_LANG;
-        u.pitch = VOICE_PITCH;
-        u.rate = VOICE_RATE;
-        window.speechSynthesis.speak(u);
+        if (voice.value) speech.speak(text);
     }
 
     function stopSpeaking()
     {
-        if (canSpeak()) window.speechSynthesis.cancel();
+        speech.stop();
     }
 
     function tick()

@@ -5,6 +5,7 @@ import { useAppsStore } from '@/stores/useAppsStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
 import { bridgeHas } from '@/utils/bridgeHas';
 import BackupMenu from './BackupMenu.vue';
+import PermissionsMenu from './PermissionsMenu.vue';
 import MotherSettings from './MotherSettings.vue';
 import TermMenu from './TermMenu.vue';
 import MenuItem from './MenuItem.vue';
@@ -48,11 +49,12 @@ onBeforeUnmount(() => window.clearTimeout(armTimer));
 const DIAGNOSTIC_METHODS = [
     'getWindowInsetsSwapFixed', 'getBattery', 'getConnectivity',
     'getNotificationsURL', 'getMediaSession', 'getCalendarEventsURL', 'getNextAlarm', 'requestOpenUrl',
-    'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL',
+    'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL', 'getTtsAvailable',
 ] as const;
 const diagnosticOpen = ref(false);
 const motherOpen = ref(false);
 const backupOpen = ref(false);
+const permissionsOpen = ref(false);
 const diagnostic = computed(() => DIAGNOSTIC_METHODS.map(m => ({ method: m, ok: bridgeHas(m) })));
 
 const volumePct = computed({
@@ -125,12 +127,14 @@ const bloomPct = computed({
         </template>
 
         <MenuItem @click="motherOpen = true"><span>MOTHER</span><span>›</span></MenuItem>
+        <MenuItem @click="permissionsOpen = true"><span>PERMISOS</span><span>›</span></MenuItem>
         <MenuItem @click="backupOpen = true"><span>RESPALDO</span><span>›</span></MenuItem>
         <MenuItem @click="diagnosticOpen = true"><span>DIAGNÓSTICO</span><span>›</span></MenuItem>
         <MenuItem @click="$emit('close')"><span>CERRAR</span><span>ESC</span></MenuItem>
 
         <MotherSettings v-if="motherOpen" @close="motherOpen = false" />
         <BackupMenu v-if="backupOpen" @close="backupOpen = false" />
+        <PermissionsMenu v-if="permissionsOpen" @close="permissionsOpen = false" />
 
         <TermMenu v-if="diagnosticOpen" title="DIAGNÓSTICO" @close="diagnosticOpen = false">
             <MenuItem v-for="d in diagnostic" :key="d.method"><span class="method">{{ d.method }}</span><span>{{ d.ok ? 'OK' : '--' }}</span></MenuItem>
