@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
 import { useLocalStorage } from '@vueuse/core';
+import TermInput from '../TermInput.vue';
 import { INTRO, newGame, reduce, type NostromoState } from '@/games/nostromo';
 
 const props = defineProps<{ id: string }>();
@@ -20,9 +21,9 @@ const save = useLocalStorage<Save>(`widget.nostromo.${props.id}`, fresh());
 const input = ref('');
 const log = ref<HTMLElement | null>(null);
 
-function submit()
+function submit(value: string)
 {
-    const text = input.value.trim();
+    const text = value.trim();
     input.value = '';
     if (!text) return;
 
@@ -42,16 +43,7 @@ watch(() => save.value.lines.length, scrollDown, { immediate: true, flush: 'post
         </div>
         <div class="prompt">
             <span>&gt;</span>
-            <input
-                v-model="input"
-                type="text"
-                autocomplete="off"
-                autocapitalize="off"
-                autocorrect="off"
-                spellcheck="false"
-                enterkeyhint="send"
-                placeholder="comando"
-                @keydown.enter.prevent="submit" />
+            <TermInput v-model="input" enterkeyhint="send" placeholder="comando" @submit="submit" />
         </div>
     </div>
 </template>

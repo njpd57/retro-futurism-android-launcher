@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useLocalStorage } from '@vueuse/core';
+import TermInput from '../TermInput.vue';
 import { usePausableInterval } from '@/composables/usePausableInterval';
 import { DEFAULT_HOST, latencyStats, normalizeHost, pushSample, sparkValues, TIMEOUT_MS, type Sample } from '@/utils/telemetry';
 import { sparkline } from '@/utils/tui';
@@ -64,7 +65,7 @@ const hostLabel = computed(() => { try { return new URL(host.value).hostname.toU
     <div>
         <template v-if="editing">
             <div class="dim">HOST A MEDIR</div>
-            <input v-model="draft" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" @keydown.enter="save" />
+            <TermInput v-model="draft" @submit="save" />
             <div v-if="bad" class="dim">HOST NO VÁLIDO</div>
             <span class="action pressable" @click="save">[FIJAR]</span>
             <span class="action pressable" @click="editing = false">[ANULAR]</span>

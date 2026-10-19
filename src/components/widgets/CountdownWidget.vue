@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useLocalStorage, useNow } from '@vueuse/core';
+import TermInput from '../TermInput.vue';
 import { formatCountdown, parseDateInput, type Countdown } from '@/utils/countdown';
 
 const props = defineProps<{ id: string }>();
@@ -26,7 +27,7 @@ function save()
     <div>
         <template v-if="editing">
             <div class="dim">OBJETIVO Y FECHA</div>
-            <input v-model="labelDraft" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="NOMBRE" />
+            <TermInput v-model="labelDraft" maxlength="20" placeholder="NOMBRE" />
             <input v-model="dateDraft" type="date" />
             <div class="action pressable" @click="save">[FIJAR]</div>
         </template>

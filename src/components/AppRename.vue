@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import TermInput from './TermInput.vue';
 import MenuItem from './MenuItem.vue';
 import TermMenu from './TermMenu.vue';
 
@@ -28,7 +29,7 @@ function reset()
 <template>
     <TermMenu title="RENOMBRAR" @close="emit('close')">
         <div class="label">NOMBRE ORIGINAL: {{ app.label.toUpperCase() }}</div>
-        <input v-model="draft" type="text" autocomplete="off" spellcheck="false" maxlength="40" @keydown.enter="save" />
+        <TermInput v-model="draft" maxlength="40" @submit="save" />
         <MenuItem @click="save"><span>[GUARDAR]</span></MenuItem>
         <MenuItem v-if="settings.aliases[app.packageName]" @click="reset"><span>[RESTABLECER]</span></MenuItem>
     </TermMenu>

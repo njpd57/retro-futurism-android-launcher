@@ -7,6 +7,7 @@ import type { BridgeNotification } from '@/types/bridge-fork';
 import { clearableKeys } from '@/utils/notifications';
 import { formatClock } from '@/utils/tui';
 import MenuItem from './MenuItem.vue';
+import TermInput from './TermInput.vue';
 import TermMenu from './TermMenu.vue';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
@@ -120,7 +121,7 @@ function clearAll()
     <TermMenu v-if="replying" title="RESPONDER" @close="replying = null">
         <div class="reply">
             <span>&gt;</span>
-            <input v-model="replyText" type="text" autocomplete="off" spellcheck="false" enterkeyhint="send" @keydown.enter.prevent="sendReply" />
+            <TermInput v-model="replyText" enterkeyhint="send" @submit="sendReply" />
         </div>
         <MenuItem @click="sendReply"><span>ENVIAR</span></MenuItem>
     </TermMenu>

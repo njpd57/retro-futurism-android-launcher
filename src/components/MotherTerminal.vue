@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
+import TermInput from './TermInput.vue';
 import { useMotherStore } from '@/stores/useMotherStore';
 
 const mother = useMotherStore();
@@ -12,11 +13,10 @@ async function scrollToEnd()
     if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight;
 }
 
-function submit()
+function submit(value: string)
 {
-    const text = input.value;
     input.value = '';
-    mother.send(text);
+    mother.send(value);
 }
 
 watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.content, mother.status], scrollToEnd, { flush: 'post' });
@@ -45,16 +45,7 @@ watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.c
 
         <div class="prompt">
             <span>&gt;</span>
-            <input
-                v-model="input"
-                type="text"
-                autocomplete="off"
-                autocapitalize="off"
-                autocorrect="off"
-                spellcheck="false"
-                enterkeyhint="send"
-                placeholder="consulta"
-                @keydown.enter.prevent="submit" />
+            <TermInput v-model="input" enterkeyhint="send" placeholder="consulta" @submit="submit" />
         </div>
     </div>
 </template>

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { assignToFolder, cleanFolderName, folderOf } from '@/utils/folders';
+import TermInput from './TermInput.vue';
 import MenuItem from './MenuItem.vue';
 import TermMenu from './TermMenu.vue';
 
@@ -33,7 +34,7 @@ function create()
         </MenuItem>
         <MenuItem v-if="current" @click="move(null)"><span>[SACAR DE LA CARPETA]</span></MenuItem>
         <div class="label">NUEVA CARPETA</div>
-        <input v-model="draft" type="text" autocomplete="off" spellcheck="false" maxlength="16" placeholder="NOMBRE" @keydown.enter="create" />
+        <TermInput v-model="draft" maxlength="16" placeholder="NOMBRE" @submit="create" />
         <MenuItem @click="create"><span>[CREAR Y MOVER]</span></MenuItem>
     </TermMenu>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useLocalStorage, useNow } from '@vueuse/core';
+import TermInput from '../TermInput.vue';
 import { dayKey } from '@/utils/day';
 import { addItem, isDone, progress, removeItem, toggleItem, type ProtocolItem } from '@/utils/protocol';
 import { bar } from '@/utils/tui';
@@ -14,10 +15,13 @@ const today = computed(() => dayKey(now.value));
 const stats = computed(() => progress(items.value, today.value));
 
 const draft = ref('');
-function add()
+const field = ref<InstanceType<typeof TermInput> | null>(null);
+function add(text: string)
 {
-    items.value = addItem(items.value, draft.value);
+    items.value = addItem(items.value, text);
     draft.value = '';
+    // keep the keyboard open for the next task
+    field.value?.focus();
 }
 </script>
 
@@ -33,7 +37,7 @@ function add()
 
         <div class="add">
             <span>+</span>
-            <input v-model="draft" type="text" maxlength="28" autocomplete="off" spellcheck="false" placeholder="TAREA" @keydown.enter="add" />
+            <TermInput ref="field" v-model="draft" maxlength="28" placeholder="TAREA" @submit="add" />
         </div>
     </div>
 </template>
