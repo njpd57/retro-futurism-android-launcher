@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
-import { addWidget, moveWidget, removeWidget, toggleMinimized } from '@/utils/dashboardLayout';
+import { MAX_PANELS, addPanel, addWidgetToActive, moveWidget, removeActivePanel, removeWidget, selectPanel, toggleMinimized } from '@/utils/dashboardLayout';
 import { WIDGETS } from '@/widgets/registry';
 import MenuItem from './MenuItem.vue';
 import TermMenu from './TermMenu.vue';
@@ -19,13 +19,26 @@ const items = computed(() => settings.dashboard.filter(i => i.kind in WIDGETS));
 
 function add(kind: string)
 {
-    settings.dashboard = addWidget(settings.dashboard, kind);
+    settings.layouts = addWidgetToActive(settings.layouts, kind);
     adding.value = false;
 }
 </script>
 
 <template>
     <div class="dashboard">
+        <div v-if="settings.layouts.panels.length > 1 || editing" class="panel-tabs span-2">
+            <span
+                v-for="(_, i) in settings.layouts.panels"
+                :key="i"
+                class="panel-tab pressable"
+                :class="{ active: i === settings.layouts.active }"
+                @click="settings.layouts = selectPanel(settings.layouts, i)">{{ i === settings.layouts.active ? `[P${i + 1}]` : ` P${i + 1} ` }}</span>
+            <template v-if="editing">
+                <span v-if="settings.layouts.panels.length < MAX_PANELS" class="panel-tab pressable" @click="settings.layouts = addPanel(settings.layouts)">[+P]</span>
+                <span v-if="settings.layouts.panels.length > 1" class="panel-tab pressable" @click="settings.layouts = removeActivePanel(settings.layouts)">[-P]</span>
+            </template>
+        </div>
+
         <TuiWindow
             v-for="item in items"
             :key="item.id"
@@ -65,6 +78,10 @@ function add(kind: string)
     &::-webkit-scrollbar { display: none; }
 
     .span-2 { grid-column: 1 / -1; }
+
+    > .panel-tabs { display: flex; gap: 6px; white-space: pre; }
+    .panel-tab.active { font-weight: bold; }
+    .panel-tab:active { @include inverse; }
 
     > .add { padding: 6px; text-align: center; border: 1px dashed var(--ph); }
 }

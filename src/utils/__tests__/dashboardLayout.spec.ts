@@ -48,3 +48,65 @@ describe('dashboardLayout', () =>
         expect(toggleMinimized(next, 'b-1')[1].minimized).toBe(false);
     });
 });
+
+import { addPanel, addWidgetToActive, activePanel, createLayoutSet, MAX_PANELS, normalizeLayoutSet, removeActivePanel, selectPanel, setActivePanelItems } from '../dashboardLayout';
+
+describe('layout sets (several panels)', () =>
+{
+    const legacy = [{ id: 'clock-1', kind: 'clock', minimized: false }];
+
+    it('migrates the legacy single layout into panel 1', () =>
+    {
+        const set = createLayoutSet(legacy);
+        expect(set.panels).toEqual([legacy]);
+        expect(normalizeLayoutSet(undefined, legacy)).toEqual(set);
+        expect(normalizeLayoutSet({ active: 0, panels: [] }, legacy)).toEqual(set);
+    });
+
+    it('normalizing is idempotent and clamps active', () =>
+    {
+        const set = normalizeLayoutSet({ active: 9, panels: [legacy, []] });
+        expect(set.active).toBe(1);
+        expect(normalizeLayoutSet(set)).toEqual(set);
+    });
+
+    it('adds panels up to the limit and selects the new one', () =>
+    {
+        let set = createLayoutSet(legacy);
+        for (let i = 0; i < 10; i++) set = addPanel(set);
+        expect(set.panels).toHaveLength(MAX_PANELS);
+        expect(set.active).toBe(MAX_PANELS - 1);
+        expect(activePanel(set)).toEqual([]);
+    });
+
+    it('removes the visible panel but never the last one', () =>
+    {
+        let set = addPanel(createLayoutSet(legacy));
+        set = removeActivePanel(set);
+        expect(set.panels).toEqual([legacy]);
+        expect(removeActivePanel(set)).toBe(set);
+    });
+
+    it('selectPanel ignores out of range indexes', () =>
+    {
+        const set = addPanel(createLayoutSet(legacy));
+        expect(selectPanel(set, 0).active).toBe(0);
+        expect(selectPanel(set, 7)).toBe(set);
+    });
+
+    it('widget ids stay unique across panels', () =>
+    {
+        let set = addWidgetToActive(createLayoutSet(legacy), 'notes');
+        set = addPanel(set);
+        set = addWidgetToActive(set, 'notes');
+        expect(activePanel(set).map(i => i.id)).toEqual(['notes-2']);
+    });
+
+    it('editing the visible panel leaves the others alone', () =>
+    {
+        const set = addPanel(createLayoutSet(legacy));
+        const next = setActivePanelItems(set, [{ id: 'log-1', kind: 'log', minimized: false }]);
+        expect(next.panels[0]).toEqual(legacy);
+        expect(next.panels[1]).toHaveLength(1);
+    });
+});

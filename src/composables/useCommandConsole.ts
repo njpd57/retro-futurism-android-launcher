@@ -5,7 +5,7 @@ import { useWeatherStore } from '@/stores/useWeatherStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { searchApps } from '@/utils/appSearch';
 import { COMMAND_HELP, formatNumber, parseCommand } from '@/utils/commands';
-import { addWidget } from '@/utils/dashboardLayout';
+import { addWidgetToActive, allItems } from '@/utils/dashboardLayout';
 import { appendNoteLine } from '@/utils/notes';
 import { weatherText } from '@/utils/weather';
 
@@ -57,10 +57,10 @@ export function useCommandConsole(options: {
 
     function saveNote(text: string)
     {
-        let item = settings.dashboard.find(i => i.kind === 'notes');
+        let item = allItems(settings.layouts).find(i => i.kind === 'notes');
         if (!item)
         {
-            settings.dashboard = addWidget(settings.dashboard, 'notes');
+            settings.layouts = addWidgetToActive(settings.layouts, 'notes');
             item = settings.dashboard[settings.dashboard.length - 1];
         }
         const stored = useLocalStorage(`widget.notes.${item.id}`, '');

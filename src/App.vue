@@ -31,6 +31,7 @@ import { useCommandConsole } from '@/composables/useCommandConsole';
 import { isCommandInput } from '@/utils/commands';
 import { useSwipe } from '@/composables/useSwipe';
 import { neighbour } from '@/utils/swipe';
+import { selectPanel } from '@/utils/dashboardLayout';
 import type { Tab } from '@/stores/useSettingsStore';
 
 const insets = useWindowInsetsStore();
@@ -104,7 +105,14 @@ const screenEl = ref<HTMLElement | null>(null);
 const swipe = useSwipe(screenEl, kind =>
 {
     if (kind === 'pull-down') { openStatusBar(); return; }
-    const next = neighbour(TAB_ORDER, settings.activeTab, kind === 'left' ? 1 : -1);
+    const step = kind === 'left' ? 1 : -1;
+    // on the panel tab, swipes move through the panels first
+    if (settings.activeTab === 'panel')
+    {
+        const target = settings.layouts.active + step;
+        if (target >= 0 && target < settings.layouts.panels.length) { settings.layouts = selectPanel(settings.layouts, target); return; }
+    }
+    const next = neighbour(TAB_ORDER, settings.activeTab, step);
     if (next) settings.activeTab = next;
 }, () => !overlayOpen.value && !editing.value);
 

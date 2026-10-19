@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
-import { DEFAULT_LAYOUT, type DashboardItem } from "@/utils/dashboardLayout";
+import { computed } from "vue";
+import { activePanel, createLayoutSet, normalizeLayoutSet, setActivePanelItems, type DashboardItem, type LayoutSet } from "@/utils/dashboardLayout";
 
 export type Phosphor = 'amber' | 'green' | 'white' | 'blue' | 'red';
 export const PHOSPHORS: { id: Phosphor; label: string }[] = [
@@ -30,7 +31,16 @@ export const useSettingsStore = defineStore('settings', () =>
     const showType = useLocalStorage('settings.showType', true);
     const hiddenApps = useLocalStorage<string[]>('settings.hiddenApps', []);
     const favorites = useLocalStorage<string[]>('settings.favorites', []);
-    const dashboard = useLocalStorage<DashboardItem[]>('settings.dashboard', DEFAULT_LAYOUT);
+    // The single layout used before panels existed is migrated into panel 1 the first time.
+    let legacy: DashboardItem[] | null = null;
+    try { legacy = JSON.parse(localStorage.getItem('settings.dashboard') ?? 'null'); } catch { /* ignore */ }
+    const layouts = useLocalStorage<LayoutSet>('settings.layouts', createLayoutSet(legacy));
+    layouts.value = normalizeLayoutSet(layouts.value, legacy);
+    /** The visible panel's windows. */
+    const dashboard = computed({
+        get: () => activePanel(normalizeLayoutSet(layouts.value)),
+        set: items => { layouts.value = setActivePanelItems(normalizeLayoutSet(layouts.value), items); },
+    });
     const ownStatusBar = useLocalStorage('settings.ownStatusBar', false);
     const idleMinutes = useLocalStorage('settings.idleMinutes', 0);
     const bootSequence = useLocalStorage('settings.bootSequence', true);
@@ -56,5 +66,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });
