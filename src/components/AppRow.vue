@@ -2,15 +2,21 @@
 import { computed } from 'vue';
 import { useLongPress } from '@/composables/useLongPress';
 import { appTypeLabel } from '@/utils/appType';
+import { displayName } from '@/utils/appSearch';
+import { indexLetter } from '@/utils/alphaIndex';
+import { formatUsage } from '@/utils/usage';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 
-const props = defineProps<{ app: InstalledAppInfo; highlighted: boolean }>();
+const props = defineProps<{ app: InstalledAppInfo; highlighted: boolean; depth?: 0 | 1; isNew?: boolean; usageMs?: number }>();
 const emit = defineEmits<{ (e: 'launch'): void; (e: 'menu'): void }>();
 
 const settings = useSettingsStore();
 
-const label = computed(() => settings.labelCase === 'upper' ? props.app.label.toUpperCase() : props.app.label);
+const name = computed(() => displayName(props.app, settings.aliases));
+const label = computed(() => settings.labelCase === 'upper' ? name.value.toUpperCase() : name.value);
+const long = computed(() => settings.listMode === 'long');
+const usage = computed(() => props.usageMs ? formatUsage(props.usageMs) : '--');
 const type = computed(() => appTypeLabel(props.app.packageName));
 
 const press = useLongPress(() => emit('menu'));
@@ -25,7 +31,8 @@ function onClick()
 <template>
     <div
         class="app-row"
-        :class="{ highlighted }"
+        :class="{ highlighted, nested: depth === 1, long }"
+        :data-letter="depth ? undefined : indexLetter(name)"
         @pointerdown="press.onPointerDown"
         @pointermove="press.onPointerMove"
         @pointerup="press.onPointerUp"
@@ -33,9 +40,10 @@ function onClick()
         @contextmenu.prevent
         @click="onClick">
         <span class="label">
-            <span v-if="settings.showIcons" class="icon"><img :src="Bridge.getDefaultAppIconURL(app.packageName)" loading="lazy" alt="" /></span>{{ label }}
+            <span v-if="settings.showIcons" class="icon"><img :src="Bridge.getDefaultAppIconURL(app.packageName)" loading="lazy" alt="" /></span>{{ label }}<span v-if="isNew" class="new"> *NUEVO</span>
         </span>
-        <span v-if="settings.showType" class="type">{{ type }}</span>
+        <span v-if="long" class="usage">{{ usage }}</span>
+        <span v-if="long || settings.showType" class="type">{{ type }}</span>
     </div>
 </template>
 
@@ -60,6 +68,11 @@ function onClick()
 
     > .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     > .type { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.75; }
+
+    &.nested { padding-left: 28px; }
+    .new { font-size: 0.8em; opacity: 0.85; }
+    > .usage { flex: none; width: 4.5em; text-align: right; opacity: 0.75; }
+    &.long > .type { max-width: 28%; }
 
     &.highlighted,
     &:active {

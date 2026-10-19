@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
 import { computed } from "vue";
+import type { SortMode } from "@/utils/appSearch";
+import type { Folders } from "@/utils/folders";
 import { activePanel, createLayoutSet, normalizeLayoutSet, setActivePanelItems, type DashboardItem, type LayoutSet } from "@/utils/dashboardLayout";
 
 export type Phosphor = 'amber' | 'green' | 'white' | 'blue' | 'red';
@@ -42,6 +44,10 @@ export const useSettingsStore = defineStore('settings', () =>
         set: items => { layouts.value = setActivePanelItems(normalizeLayoutSet(layouts.value), items); },
     });
     const ownStatusBar = useLocalStorage('settings.ownStatusBar', false);
+    const sortMode = useLocalStorage<SortMode>('settings.sortMode', 'alpha');
+    const listMode = useLocalStorage<'simple' | 'long'>('settings.listMode', 'simple');
+    const aliases = useLocalStorage<Record<string, string>>('settings.aliases', {});
+    const folders = useLocalStorage<Folders>('settings.folders', {});
     const idleMinutes = useLocalStorage('settings.idleMinutes', 0);
     const bootSequence = useLocalStorage('settings.bootSequence', true);
     const haptics = useLocalStorage('settings.haptics', false);
@@ -59,6 +65,12 @@ export const useSettingsStore = defineStore('settings', () =>
         hiddenApps.value = hiddenApps.value.filter(p => p !== packageName);
     }
 
+    function setAlias(packageName: string, alias: string)
+    {
+        const { [packageName]: _old, ...rest } = aliases.value;
+        aliases.value = alias.trim() ? { ...rest, [packageName]: alias.trim() } : rest;
+    }
+
     function toggleFavorite(packageName: string)
     {
         favorites.value = favorites.value.includes(packageName)
@@ -66,5 +78,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { sortMode, listMode, aliases, folders, layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

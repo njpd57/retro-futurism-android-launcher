@@ -7,6 +7,7 @@ import { useAppsStore, type InstalledAppInfo } from '@/stores/useAppsStore';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useUsageStore } from '@/stores/useUsageStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
 import { useWindowInsetsStore } from '@/stores/useWindowInsetsStore';
 import { searchApps } from '@/utils/appSearch';
@@ -24,6 +25,8 @@ import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
 import BootSequence from '@/components/BootSequence.vue';
+import AppRename from '@/components/AppRename.vue';
+import AppFolderMenu from '@/components/AppFolderMenu.vue';
 import IdleClock from '@/components/IdleClock.vue';
 import { useIdleStore } from '@/stores/useIdleStore';
 import { useAppShortcuts } from '@/composables/useAppShortcuts';
@@ -52,6 +55,8 @@ const prompt = ref<InstanceType<typeof PromptBar> | null>(null);
 const editing = ref(false);
 const settingsOpen = ref(false);
 const menuApp = ref<InstalledAppInfo | null>(null);
+const renameApp = ref<InstalledAppInfo | null>(null);
+const folderApp = ref<InstalledAppInfo | null>(null);
 const { shortcuts: menuShortcuts, start: startShortcut } = useAppShortcuts(computed(() => menuApp.value?.packageName ?? null));
 
 const MIN_STATUS_BAR_PX = 24;
@@ -68,7 +73,14 @@ function openStatusBar()
 }
 const insetBottom = computed(() => Math.max(insets.navigationBars.bottom, insets.ime.bottom));
 
-const results = computed(() => isCommandInput(query.value) ? [] : searchApps(appsStore.apps.values(), query.value, settings.hiddenApps));
+const usageStore = useUsageStore();
+const searchOptions = computed(() => ({
+    sort: settings.sortMode,
+    aliases: settings.aliases,
+    firstSeen: appsStore.firstSeen,
+    usage: Object.fromEntries(usageStore.apps.map(a => [a.packageName, a.totalTimeMs])),
+}));
+const results = computed(() => isCommandInput(query.value) ? [] : searchApps(appsStore.apps.values(), query.value, settings.hiddenApps, searchOptions.value));
 const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
     ? [
         { label: editing.value ? 'LISTO' : 'EDITAR', action: () => { editing.value = !editing.value; } },
@@ -85,7 +97,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || notificationsOpen.value);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value);
 
 function launch(app: InstalledAppInfo)
 {
@@ -135,6 +147,8 @@ function closeOverlays()
     notificationsOpen.value = false;
     settingsOpen.value = false;
     menuApp.value = null;
+    renameApp.value = null;
+    folderApp.value = null;
 }
 
 function menuAction(action: (packageName: string) => void)
@@ -219,7 +233,7 @@ onUnmounted(() =>
                 <div v-if="commandConsole.command.value" class="console">
                     <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
                 </div>
-                <AppList v-else :apps="results" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" />
+                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" />
             </template>
             <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" />
             <SoftKeys :keys="softKeys" />
@@ -230,6 +244,9 @@ onUnmounted(() =>
         <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 
+        <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
+        <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />
+
         <TermMenu v-if="menuApp" :title="menuApp.label.toUpperCase()" @close="menuApp = null">
             <MenuItem v-for="sc in menuShortcuts" :key="sc.id" @click="menuAction(() => startShortcut(sc.id))">
                 <span>» {{ sc.shortLabel.toUpperCase() }}</span>
@@ -239,6 +256,8 @@ onUnmounted(() =>
                 <span>{{ settings.favorites.includes(menuApp.packageName) ? 'DESFIJAR' : 'FIJAR' }}</span>
             </MenuItem>
             <MenuItem @click="menuAction(p => Bridge.requestOpenAppInfo(p))"><span>INFO</span></MenuItem>
+            <MenuItem @click="renameApp = menuApp; menuApp = null"><span>RENOMBRAR</span></MenuItem>
+            <MenuItem @click="folderApp = menuApp; menuApp = null"><span>CARPETA</span></MenuItem>
             <MenuItem @click="menuAction(p => settings.hideApp(p))"><span>OCULTAR</span></MenuItem>
             <MenuItem @click="menuAction(p => Bridge.requestAppUninstall(p))"><span>DESINSTALAR</span></MenuItem>
         </TermMenu>

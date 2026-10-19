@@ -27,7 +27,7 @@ export function useCommandConsole(options: {
     {
         const c = command.value;
         if (c?.type !== 'open' || !c.query) return null;
-        return searchApps(options.apps(), c.query, settings.hiddenApps)[0] ?? null;
+        return searchApps(options.apps(), c.query, settings.hiddenApps, { aliases: settings.aliases })[0] ?? null;
     });
 
     const lines = computed<string[]>(() =>
