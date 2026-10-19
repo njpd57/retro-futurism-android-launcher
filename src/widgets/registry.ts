@@ -15,6 +15,7 @@ import NostromoWidget from '@/components/widgets/NostromoWidget.vue';
 import RadarWidget from '@/components/widgets/RadarWidget.vue';
 import ScreenTimeWidget from '@/components/widgets/ScreenTimeWidget.vue';
 import StorageWidget from '@/components/widgets/StorageWidget.vue';
+import RerouteWidget from '@/components/widgets/RerouteWidget.vue';
 import CompassWidget from '@/components/widgets/CompassWidget.vue';
 import ForecastWidget from '@/components/widgets/ForecastWidget.vue';
 import TelemetryWidget from '@/components/widgets/TelemetryWidget.vue';
@@ -61,5 +62,6 @@ export const WIDGETS: Record<string, WidgetDef> = {
     compass: { title: 'RUMBO', component: CompassWidget, span: 1 },
     timer: { title: 'TEMPORIZADOR', component: TimerWidget, span: 1 },
     tracker: { title: 'DETECTOR', component: TrackerWidget, span: 2 },
+    reroute: { title: 'REENRUTAR', component: RerouteWidget, span: 2 },
     nostromo: { title: 'NOSTROMO', component: NostromoWidget, span: 2 },
 };
