@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { BridgeNextAlarm } from "@/types/bridge-fork";
+import { readJson } from "@/utils/safeJson";
 import { bridgeHas } from "@/utils/bridgeHas";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 
@@ -13,8 +14,8 @@ export const useAlarmStore = defineStore('alarm', () =>
 
     function read()
     {
-        if (supported)
-            nextAlarm.value = JSON.parse(Bridge.getNextAlarm()) as BridgeNextAlarm | null;
+        if (!supported) return;
+        nextAlarm.value = readJson<BridgeNextAlarm>(() => Bridge.getNextAlarm());
     }
 
     read();

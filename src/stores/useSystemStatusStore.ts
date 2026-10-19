@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { BridgeBattery, BridgeConnectivity, BridgeConnectionType, BridgeStorageStats } from "@/types/bridge-fork";
+import { readJson } from "@/utils/safeJson";
 import { bridgeHas } from "@/utils/bridgeHas";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 import { useLogStore } from "./useLogStore";
@@ -31,17 +32,17 @@ export const useSystemStatusStore = defineStore('systemStatus', () =>
 
     function readBridgeStorage()
     {
-        if (hasBridgeStorage) storage.value = JSON.parse(Bridge.getStorageStats()) as BridgeStorageStats;
+        if (hasBridgeStorage) storage.value = readJson<BridgeStorageStats>(() => Bridge.getStorageStats());
     }
 
     function readBridgeBattery()
     {
-        battery.value = JSON.parse(Bridge.getBattery()) as BridgeBattery;
+        battery.value = readJson<BridgeBattery>(() => Bridge.getBattery());
     }
 
     function readBridgeConnectivity()
     {
-        connectivity.value = JSON.parse(Bridge.getConnectivity()) as BridgeConnectivity;
+        connectivity.value = readJson<BridgeConnectivity>(() => Bridge.getConnectivity());
     }
 
     function readWebConnectivity()

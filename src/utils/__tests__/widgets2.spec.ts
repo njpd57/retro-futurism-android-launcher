@@ -245,3 +245,18 @@ describe('describeFetchError', () =>
         expect(describeFetchError(undefined)).toBe('UNDEFINED');
     });
 });
+
+import { readJson } from '../safeJson';
+
+describe('readJson', () =>
+{
+    it('parses, and turns anything odd into null', () =>
+    {
+        expect(readJson<{ a: number }>(() => '{"a":1}')).toEqual({ a: 1 });
+        expect(readJson(() => '')).toBeNull();
+        expect(readJson(() => 'null')).toBeNull();
+        expect(readJson(() => undefined)).toBeNull();
+        expect(readJson(() => '{roto')).toBeNull();
+        expect(readJson(() => { throw new Error('boom'); })).toBeNull();
+    });
+});

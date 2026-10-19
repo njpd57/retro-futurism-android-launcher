@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { BridgeMediaAction, BridgeMediaSession } from "@/types/bridge-fork";
 import { bridgeHas } from "@/utils/bridgeHas";
+import { readJson } from "@/utils/safeJson";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 
 /** The current media session from the fork (needs notification access). Null when nothing plays or it isn't supported. */
@@ -15,7 +16,7 @@ export const useMediaStore = defineStore('media', () =>
     function read()
     {
         if (!supported) return;
-        session.value = JSON.parse(Bridge.getMediaSession()) as BridgeMediaSession | null;
+        session.value = readJson<BridgeMediaSession>(() => Bridge.getMediaSession());
     }
 
     read();

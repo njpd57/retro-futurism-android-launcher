@@ -7,6 +7,7 @@ import { WIDGETS } from '@/widgets/registry';
 import MenuItem from './MenuItem.vue';
 import TermMenu from './TermMenu.vue';
 import TuiWindow from './TuiWindow.vue';
+import WidgetBoundary from './WidgetBoundary.vue';
 
 defineProps<{ editing: boolean }>();
 defineEmits<{ (e: 'menu', app: InstalledAppInfo): void }>();
@@ -50,7 +51,9 @@ function add(kind: string)
             @toggle="settings.dashboard = toggleMinimized(settings.dashboard, item.id)"
             @close="settings.dashboard = removeWidget(settings.dashboard, item.id)"
             @move="settings.dashboard = moveWidget(settings.dashboard, item.id, $event)">
-            <component :is="WIDGETS[item.kind].component" v-bind="WIDGETS[item.kind].props" :id="item.id" @menu="$emit('menu', $event)" />
+            <WidgetBoundary :name="WIDGETS[item.kind].title">
+                <component :is="WIDGETS[item.kind].component" v-bind="WIDGETS[item.kind].props" :id="item.id" @menu="$emit('menu', $event)" />
+            </WidgetBoundary>
         </TuiWindow>
 
         <div v-if="editing" class="add span-2" @click="adding = true">[+ AÑADIR VENTANA]</div>
