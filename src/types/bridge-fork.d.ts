@@ -218,5 +218,8 @@ declare module '@bridgelauncher/api'
         requestStopSpeaking(): void;
         /** Opens Android's text-to-speech settings. */
         requestOpenTtsSettings(showToastIfFailed?: boolean): boolean;
+
+        /** Vibrates for the given milliseconds (1..500). False if the device can't vibrate. */
+        requestVibrate(ms: number): boolean;
     }
 }

@@ -25,7 +25,7 @@ const bridgeButtonShown = computed(() => toggles.bridgeButtonVisibility === 'sho
 const DIAGNOSTIC_METHODS = [
     'getWindowInsetsSwapFixed', 'getBattery', 'getConnectivity',
     'getNotificationsURL', 'getMediaSession', 'getCalendarEventsURL', 'getNextAlarm', 'requestOpenUrl',
-    'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL', 'getTtsAvailable',
+    'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL', 'getTtsAvailable', 'requestVibrate',
 ] as const;
 const diagnosticOpen = ref(false);
 const motherOpen = ref(false);

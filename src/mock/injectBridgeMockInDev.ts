@@ -233,6 +233,7 @@ class ForkBridgeMock extends BridgeMock
     getTtsAvailable() { return false; }
     requestSpeak(text: string) { console.info('[mock] speak', text); return false; }
     requestStopSpeaking() { /* nothing to stop */ }
+    requestVibrate(ms: number) { console.info('[mock] vibrate', ms); return true; }
     requestOpenTtsSettings() { alert('[mock] ajustes de voz'); return true; }
     getStorageStats() { return JSON.stringify({ totalBytes: 128 * 1024 ** 3, freeBytes: 47 * 1024 ** 3 }); }
 }
