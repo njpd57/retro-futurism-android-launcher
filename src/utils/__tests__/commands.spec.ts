@@ -30,6 +30,18 @@ describe('parseCommand', () =>
         expect(parseCommand('>tema morado')).toMatchObject({ type: 'theme', phosphor: null, arg: 'morado' });
     });
 
+    it('parses sort, list and mother', () =>
+    {
+        expect(parseCommand('>orden uso')).toMatchObject({ type: 'sort', mode: 'usage' });
+        expect(parseCommand('>orden Alfabético')).toMatchObject({ type: 'sort', mode: 'alpha' });
+        expect(parseCommand('>orden reciente')).toMatchObject({ type: 'sort', mode: 'recent' });
+        expect(parseCommand('>orden raro')).toMatchObject({ type: 'sort', mode: null, arg: 'raro' });
+        expect(parseCommand('>lista larga')).toMatchObject({ type: 'list', mode: 'long' });
+        expect(parseCommand('>lista simple')).toMatchObject({ type: 'list', mode: 'simple' });
+        expect(parseCommand('>mother agrupa por tipo')).toEqual({ type: 'mother', request: 'agrupa por tipo' });
+        expect(parseCommand('>mother')).toEqual({ type: 'mother', request: '' });
+    });
+
     it('reports unknown verbs', () =>
     {
         expect(parseCommand('>volar')).toEqual({ type: 'unknown', word: 'volar' });

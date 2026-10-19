@@ -55,6 +55,13 @@ describe('actions', () =>
         expect(parseAction('paleta', '{"color":"rosa"}')).toMatchObject({ ok: false });
     });
 
+    it('parses the app organizer tool', () =>
+    {
+        expect(parseAction('organizar_apps', '{"peticion":"agrupa por tipo"}')).toEqual({ ok: true, action: { type: 'organize', request: 'agrupa por tipo' } });
+        expect(parseAction('organizar_apps', '{}')).toMatchObject({ ok: false });
+        expect(describeAction({ type: 'organize', request: 'juegos' })).toBe('ORGANIZAR APPS: JUEGOS');
+    });
+
     it('rejects unknown tools and broken JSON', () =>
     {
         expect(parseAction('borrar_todo', '{}')).toMatchObject({ ok: false });

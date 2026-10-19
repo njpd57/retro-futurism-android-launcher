@@ -3,7 +3,7 @@ import { useDashboardActions } from './useDashboardActions';
 import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
-import { searchApps } from '@/utils/appSearch';
+import { SORT_MODES, searchApps } from '@/utils/appSearch';
 import { COMMAND_HELP, formatNumber, parseCommand } from '@/utils/commands';
 import { weatherText } from '@/utils/weather';
 
@@ -12,6 +12,8 @@ export function useCommandConsole(options: {
     query: Ref<string>;
     apps: () => Iterable<InstalledAppInfo>;
     launch: (app: InstalledAppInfo) => void;
+    /** opens MOTHER's app organizer, with the request typed after `> mother` */
+    organize: (request: string) => void;
 })
 {
     const settings = useSettingsStore();
@@ -42,6 +44,9 @@ export function useCommandConsole(options: {
             case 'theme': return [c.phosphor ? `TEMA ${PHOSPHORS.find(p => p.id === c.phosphor)?.label}` : c.arg ? `TEMA DESCONOCIDO: ${c.arg.toUpperCase()}` : `TEMA: ${PHOSPHORS.map(p => p.label).join(' · ')}`];
             case 'weather': return weatherLines();
             case 'note': return [c.text ? `NOTA: ${c.text.toUpperCase()}` : 'NOTA <TEXTO>'];
+            case 'sort': return [c.mode ? `ORDEN ${SORT_MODES.find(m => m.id === c.mode)?.label}` : c.arg ? `ORDEN DESCONOCIDO: ${c.arg.toUpperCase()}` : 'ORDEN <ALFA|USO|RECIENTE>'];
+            case 'list': return [c.mode ? `LISTA ${c.mode === 'long' ? 'LARGA (LS -L)' : 'SIMPLE'}` : c.arg ? `VISTA DESCONOCIDA: ${c.arg.toUpperCase()}` : 'LISTA <SIMPLE|LARGA>'];
+            case 'mother': return [c.request ? `MOTHER ORGANIZA: ${c.request.toUpperCase()}` : 'MOTHER <ORDEN PARA TUS APPS>, P. EJ. AGRUPA POR TIPO'];
             case 'unknown': return [`ORDEN DESCONOCIDA: ${c.word.toUpperCase()}`, 'ESCRIBE > AYUDA'];
         }
     });
@@ -82,6 +87,15 @@ export function useCommandConsole(options: {
                 break;
             case 'weather':
                 weather.refresh(true);
+                break;
+            case 'sort':
+                if (c.mode) { settings.sortMode = c.mode; options.query.value = ''; }
+                break;
+            case 'list':
+                if (c.mode) { settings.listMode = c.mode; options.query.value = ''; }
+                break;
+            case 'mother':
+                if (c.request) { options.organize(c.request); options.query.value = ''; }
                 break;
         }
         return true;

@@ -1,4 +1,5 @@
 import type { Phosphor } from '@/stores/useSettingsStore';
+import type { SortMode } from './appSearch';
 
 export const COMMAND_PREFIX = '>';
 
@@ -9,6 +10,9 @@ export type Command =
     | { type: 'theme'; phosphor: Phosphor | null; arg: string }
     | { type: 'weather' }
     | { type: 'note'; text: string }
+    | { type: 'sort'; mode: SortMode | null; arg: string }
+    | { type: 'list'; mode: 'simple' | 'long' | null; arg: string }
+    | { type: 'mother'; request: string }
     | { type: 'unknown'; word: string };
 
 export const COMMAND_HELP = [
@@ -17,6 +21,9 @@ export const COMMAND_HELP = [
     'TEMA <ÁMBAR|VERDE|BLANCO|AZUL|ROJO>',
     'CLIMA',
     'NOTA <TEXTO>',
+    'ORDEN <ALFA|USO|RECIENTE>',
+    'LISTA <SIMPLE|LARGA>',
+    'MOTHER <ORDEN PARA TUS APPS>',
     'AYUDA',
 ];
 
@@ -27,6 +34,28 @@ const THEMES: Record<string, Phosphor> = {
     azul: 'blue', blue: 'blue',
     rojo: 'red', red: 'red',
 };
+
+/** `alfa`, `uso`, `reciente`... to a sort mode; null when unknown. */
+export function parseSortMode(text: string): SortMode | null
+{
+    switch (stripAccents(text.trim().toLowerCase()))
+    {
+        case 'alfa': case 'alfabetico': case 'nombre': case 'az': return 'alpha';
+        case 'uso': case 'usadas': case 'mas usadas': return 'usage';
+        case 'reciente': case 'recientes': case 'nuevas': case 'instaladas': return 'recent';
+        default: return null;
+    }
+}
+
+export function parseListMode(text: string): 'simple' | 'long' | null
+{
+    switch (stripAccents(text.trim().toLowerCase()))
+    {
+        case 'simple': case 'corta': case 'normal': return 'simple';
+        case 'larga': case 'largo': case 'long': case 'ls': return 'long';
+        default: return null;
+    }
+}
 
 /** `verde`, `Ámbar`... to a phosphor id; null when unknown. */
 export function parsePhosphor(text: string): Phosphor | null
@@ -40,6 +69,9 @@ const ALIASES: Record<string, string> = {
     tema: 'theme', paleta: 'theme',
     clima: 'weather', tiempo: 'weather',
     nota: 'note', n: 'note',
+    orden: 'sort', ordenar: 'sort',
+    lista: 'list',
+    mother: 'mother', m: 'mother',
     ayuda: 'help', help: 'help', '?': 'help',
 };
 
@@ -72,6 +104,9 @@ export function parseCommand(input: string): Command | null
         case 'theme': return { type: 'theme', phosphor: parsePhosphor(rest), arg: rest };
         case 'weather': return { type: 'weather' };
         case 'note': return { type: 'note', text: rest };
+        case 'sort': return { type: 'sort', mode: parseSortMode(rest), arg: rest };
+        case 'list': return { type: 'list', mode: parseListMode(rest), arg: rest };
+        case 'mother': return { type: 'mother', request: rest };
         default: return { type: 'unknown', word };
     }
 }

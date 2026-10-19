@@ -11,7 +11,7 @@ import { isNewApp } from '@/utils/newApps';
 import AppRow from './AppRow.vue';
 
 const props = defineProps<{ apps: InstalledAppInfo[]; highlightFirst: boolean; searching: boolean }>();
-defineEmits<{ (e: 'launch', app: InstalledAppInfo): void; (e: 'menu', app: InstalledAppInfo): void }>();
+defineEmits<{ (e: 'launch', app: InstalledAppInfo): void; (e: 'menu', app: InstalledAppInfo): void; (e: 'mother'): void }>();
 
 const settings = useSettingsStore();
 const appsStore = useAppsStore();
@@ -72,6 +72,7 @@ function onStripMove(e: PointerEvent)
         <div ref="scroller" class="app-list">
             <div v-if="!searching" class="toolbar">
                 <span class="pressable" @click="nextSort">ORDEN: {{ sortLabel }}</span>
+                <span class="pressable" @click="$emit('mother')">[MOTHER]</span>
                 <span class="pressable" @click="settings.listMode = settings.listMode === 'long' ? 'simple' : 'long'">{{ settings.listMode === 'long' ? '[LS -L]' : '[LISTA]' }}</span>
             </div>
             <div v-if="settings.listMode === 'long' && !searching" class="head"><span>NOMBRE</span><span class="usage">USO</span><span>TIPO</span></div>

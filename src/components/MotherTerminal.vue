@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
-import TermInput from './TermInput.vue';
+import AssistedInput from './AssistedInput.vue';
+import { useOrganizerStore } from '@/stores/useOrganizerStore';
+import { parseSlash } from '@/mother/slash';
 import { useMotherStore } from '@/stores/useMotherStore';
 
 const mother = useMotherStore();
@@ -13,9 +15,16 @@ async function scrollToEnd()
     if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight;
 }
 
+const emit = defineEmits<{ (e: 'sessions'): void }>();
+const organizer = useOrganizerStore();
+
 function submit(value: string)
 {
     input.value = '';
+    // two commands open a window instead of answering in the chat
+    const slash = parseSlash(value);
+    if (slash?.type === 'sessions') { emit('sessions'); return; }
+    if (slash?.type === 'organize') { organizer.show(slash.request); return; }
     mother.send(value);
 }
 
@@ -43,10 +52,7 @@ watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.c
             <div v-if="mother.error" class="error">{{ mother.error }}</div>
         </div>
 
-        <div class="prompt">
-            <span>&gt;</span>
-            <TermInput v-model="input" enterkeyhint="send" placeholder="consulta" @submit="submit" />
-        </div>
+        <AssistedInput v-model="input" scope="mother" placeholder="consulta o /orden" enterkeyhint="send" @submit="submit" />
     </div>
 </template>
 
@@ -90,30 +96,6 @@ watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.c
         vertical-align: text-bottom;
         background: var(--ph);
         animation: blink $dur-cursor steps(2) infinite;
-    }
-
-    > .prompt {
-        display: flex;
-        gap: 8px;
-        padding: 4px 10px;
-        border-top: 1px solid var(--ph);
-        flex: none;
-
-        > input {
-            flex: 1;
-            min-width: 0;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: inherit;
-            font: inherit;
-            text-shadow: inherit;
-            caret-color: var(--ph);
-            caret-shape: block;
-            user-select: text;
-
-            &::placeholder { color: var(--ph-dim); }
-        }
     }
 }
 

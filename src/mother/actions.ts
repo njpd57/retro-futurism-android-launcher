@@ -6,7 +6,8 @@ export type MotherAction =
     | { type: 'open_app'; name: string }
     | { type: 'timer'; minutes: number }
     | { type: 'note'; text: string }
-    | { type: 'theme'; phosphor: Phosphor };
+    | { type: 'theme'; phosphor: Phosphor }
+    | { type: 'organize'; request: string };
 
 export const MAX_TIMER_MIN = 180;
 export const MAX_NOTE_CHARS = 200;
@@ -19,6 +20,7 @@ export const MOTHER_TOOLS = [
     fn('abrir_app', 'Abre una app instalada en el teléfono.', { nombre: { type: 'string', description: 'Nombre de la app' } }, ['nombre']),
     fn('temporizador', 'Pone un temporizador.', { minutos: { type: 'integer', description: `Minutos, de 1 a ${MAX_TIMER_MIN}` } }, ['minutos']),
     fn('nota', 'Añade una línea a las notas.', { texto: { type: 'string' } }, ['texto']),
+    fn('organizar_apps', 'Organiza las apps del launcher en carpetas o favoritas según una petición. El usuario verá una vista previa antes de aplicar nada.', { peticion: { type: 'string', description: 'Qué quiere el usuario, p. ej. agrupar por tipo' } }, ['peticion']),
     fn('paleta', 'Cambia el color de la pantalla.', { color: { type: 'string', enum: ['ámbar', 'verde', 'blanco', 'azul', 'rojo'] } }, ['color']),
 ];
 
@@ -86,6 +88,11 @@ export function parseAction(name: string, argsJson: string): ParsedAction
             const t = text(pick(args, ['texto', 'text', 'nota']));
             return t ? { ok: true, action: { type: 'note', text: t.slice(0, MAX_NOTE_CHARS) } } : { ok: false, error: 'FALTA EL TEXTO' };
         }
+        case 'organizar_apps':
+        {
+            const r = text(pick(args, ['peticion', 'petición', 'request', 'texto']));
+            return r ? { ok: true, action: { type: 'organize', request: r.slice(0, MAX_NOTE_CHARS) } } : { ok: false, error: 'FALTA LA PETICIÓN' };
+        }
         case 'paleta':
         {
             const c = text(pick(args, ['color', 'paleta', 'tema']));
@@ -108,5 +115,6 @@ export function describeAction(a: MotherAction): string
         case 'timer': return `TEMPORIZADOR ${a.minutes} MIN`;
         case 'note': return `NOTA: ${a.text.toUpperCase()}`;
         case 'theme': return `PALETA ${PHOSPHOR_LABEL[a.phosphor]}`;
+        case 'organize': return `ORGANIZAR APPS: ${a.request.toUpperCase()}`;
     }
 }

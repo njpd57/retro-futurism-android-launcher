@@ -8,12 +8,14 @@ import { buildMessages, httpErrorMessage, type ChatMessage } from "@/mother/chat
 import { ACTIONS_NOTE, buildPersona } from "@/mother/context";
 import { contextBlock, localReply } from "@/mother/local";
 import { MOTHER_PERSONA } from "@/mother/persona";
+import { parseSlash, SLASH_HELP, type SlashCommand } from "@/mother/slash";
 import { archiveSession, removeSession, restoreSession, type Session } from "@/mother/sessions";
 import { createSseParser, extractDelta, extractToolCallDeltas, extractUsage } from "@/mother/sse";
 import { searchApps } from "@/utils/appSearch";
 import { useAppsStore } from "./useAppsStore";
 import { useLaunchStore } from "./useLaunchStore";
 import { useLogStore } from "./useLogStore";
+import { useOrganizerStore } from "./useOrganizerStore";
 import { useSettingsStore } from "./useSettingsStore";
 import { useSpeechStore } from "./useSpeechStore";
 import { useSoundStore } from "./useSoundStore";
@@ -153,6 +155,10 @@ export const useMotherStore = defineStore('mother', () =>
             case 'theme':
                 settings.phosphor = action.phosphor;
                 return { ok: true, message: describeAction(action) };
+            case 'organize':
+                // the organizer shows its own preview; nothing changes until the user applies it
+                useOrganizerStore().show(action.request);
+                return { ok: true, message: 'ORGANIZADOR ABIERTO · REVISA LA VISTA PREVIA' };
         }
     }
 
@@ -185,6 +191,26 @@ export const useMotherStore = defineStore('mother', () =>
         speak(text);
     }
 
+    /** `/commands` of the MOTHER chat: they run on the phone, with no API and no key. */
+    function runSlash(content: string, cmd: SlashCommand)
+    {
+        const reply = (...lines: string[]) => answerLocally(content, lines);
+        switch (cmd.type)
+        {
+            case 'timer': reply(run({ type: 'timer', minutes: cmd.minutes }).message); break;
+            case 'note': reply(run({ type: 'note', text: cmd.text }).message); break;
+            case 'theme': reply(run({ type: 'theme', phosphor: cmd.phosphor }).message); break;
+            case 'open': reply(run({ type: 'open_app', name: cmd.query }).message); break;
+            case 'organize': useOrganizerStore().show(cmd.request); break;
+            case 'new': newSession(); note('SESIÓN ARCHIVADA'); break;
+            case 'clear': clear(); break;
+            case 'help': reply(...SLASH_HELP); break;
+            case 'invalid': reply(`USO: ${cmd.usage}`); break;
+            case 'unknown': reply(`ORDEN DESCONOCIDA: /${cmd.word.toUpperCase()}`, 'ESCRIBE /AYUDA'); break;
+            case 'sessions': reply('ABRE LAS SESIONES CON EL BOTÓN SESIONES'); break;
+        }
+    }
+
     async function send(text: string)
     {
         const content = text.trim();
@@ -195,6 +221,13 @@ export const useMotherStore = defineStore('mother', () =>
         // proposals left unanswered count as cancelled, and the model is told so
         for (const p of pending.value) note(`ANULADO: ${p.line}`);
         pending.value = [];
+
+        const slash = parseSlash(content);
+        if (slash)
+        {
+            runSlash(content, slash);
+            return;
+        }
 
         const snap = snapshot();
         const local = localReply(content, snap);

@@ -26,6 +26,8 @@ import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
 import BootSequence from '@/components/BootSequence.vue';
 import ExtraResults from '@/components/ExtraResults.vue';
+import MotherOrganizer from '@/components/MotherOrganizer.vue';
+import { useOrganizerStore } from '@/stores/useOrganizerStore';
 import MotherSessions from '@/components/MotherSessions.vue';
 import AppRename from '@/components/AppRename.vue';
 import AppFolderMenu from '@/components/AppFolderMenu.vue';
@@ -50,6 +52,7 @@ const notifications = useNotificationsStore();
 const mother = useMotherStore();
 const notificationsOpen = ref(false);
 const sessionsOpen = ref(false);
+const organizer = useOrganizerStore();
 
 useOwnStatusBar(computed(() => settings.ownStatusBar));
 
@@ -101,7 +104,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value || organizer.open);
 
 function launch(app: InstalledAppInfo)
 {
@@ -137,7 +140,7 @@ const booting = ref(settings.bootSequence && !window.matchMedia('(prefers-reduce
 
 const idleStore = useIdleStore();
 
-const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch });
+const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch, organize: request => organizer.show(request) });
 
 function launchFirst()
 {
@@ -154,6 +157,7 @@ function closeOverlays()
     renameApp.value = null;
     folderApp.value = null;
     sessionsOpen.value = false;
+    organizer.close();
 }
 
 function menuAction(action: (packageName: string) => void)
@@ -233,12 +237,12 @@ onUnmounted(() =>
             <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
             <TopBar :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" @open-notifications="notificationsOpen = true" />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
-            <MotherTerminal v-else-if="settings.activeTab === 'mother'" />
+            <MotherTerminal v-else-if="settings.activeTab === 'mother'" @sessions="sessionsOpen = true" />
             <template v-else>
                 <div v-if="commandConsole.command.value" class="console">
                     <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
                 </div>
-                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event">
+                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()">
                     <ExtraResults v-if="query.trim()" :query="query" :top-app="results[0] ?? null" />
                 </AppList>
             </template>
@@ -251,6 +255,7 @@ onUnmounted(() =>
         <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 
+        <MotherOrganizer v-if="organizer.open" />
         <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
         <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />
