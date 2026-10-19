@@ -1,4 +1,5 @@
 import type { BridgeCalendarEvent, BridgeConnectionType } from '@/types/bridge-fork';
+import { dayKey } from '@/utils/day';
 import { eventDayKey, eventTimeLabel } from '@/utils/agenda';
 import { bar, formatBytes, formatClock, formatDateTui } from '@/utils/tui';
 import { weatherText } from '@/utils/weather';
@@ -22,9 +23,7 @@ const CONNECTION: Record<BridgeConnectionType, string> = {
     wifi: 'WIFI', cellular: 'DATOS MÓVILES', ethernet: 'CABLE', other: 'OTRO', none: 'SIN ENLACE',
 };
 
-const pad = (n: number) => String(n).padStart(2, '0');
-/** `YYYY-MM-DD` in local time. */
-export const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export { dayKey };
 
 /** Events that fall on the day of `now`, in time order. */
 export function todayEvents(events: readonly BridgeCalendarEvent[], now: Date)

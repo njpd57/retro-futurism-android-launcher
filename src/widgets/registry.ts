@@ -15,6 +15,10 @@ import NostromoWidget from '@/components/widgets/NostromoWidget.vue';
 import RadarWidget from '@/components/widgets/RadarWidget.vue';
 import ScreenTimeWidget from '@/components/widgets/ScreenTimeWidget.vue';
 import StorageWidget from '@/components/widgets/StorageWidget.vue';
+import CountdownWidget from '@/components/widgets/CountdownWidget.vue';
+import MoonWidget from '@/components/widgets/MoonWidget.vue';
+import ProtocolWidget from '@/components/widgets/ProtocolWidget.vue';
+import WorldClockWidget from '@/components/widgets/WorldClockWidget.vue';
 import TimerWidget from '@/components/widgets/TimerWidget.vue';
 import TrackerWidget from '@/components/widgets/TrackerWidget.vue';
 
@@ -45,6 +49,10 @@ export const WIDGETS: Record<string, WidgetDef> = {
     storage: { title: 'ALMACÉN', component: StorageWidget, span: 1 },
     contacts: { title: 'CONTACTOS', component: ContactsWidget, span: 1 },
     screentime: { title: 'USO', component: ScreenTimeWidget, span: 2 },
+    protocol: { title: 'PROTOCOLO', component: ProtocolWidget, span: 1 },
+    countdown: { title: 'T-MENOS', component: CountdownWidget, span: 1 },
+    clocks: { title: 'COLONIAS', component: WorldClockWidget, span: 1 },
+    moon: { title: 'FASE LUNAR', component: MoonWidget, span: 1 },
     timer: { title: 'TEMPORIZADOR', component: TimerWidget, span: 1 },
     tracker: { title: 'DETECTOR', component: TrackerWidget, span: 2 },
     nostromo: { title: 'NOSTROMO', component: NostromoWidget, span: 2 },
