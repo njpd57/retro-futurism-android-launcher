@@ -20,7 +20,7 @@ defineExpose({ focus: () => input.value?.focus() });
             autocorrect="off"
             spellcheck="false"
             enterkeyhint="go"
-            placeholder="buscar"
+            placeholder="buscar o > orden"
             @keydown.enter.prevent="$emit('submit')" />
     </div>
 </template>

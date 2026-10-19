@@ -24,6 +24,8 @@ import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
 import { useAppShortcuts } from '@/composables/useAppShortcuts';
+import { useCommandConsole } from '@/composables/useCommandConsole';
+import { isCommandInput } from '@/utils/commands';
 
 const insets = useWindowInsetsStore();
 const appsStore = useAppsStore();
@@ -59,7 +61,7 @@ function openStatusBar()
 }
 const insetBottom = computed(() => Math.max(insets.navigationBars.bottom, insets.ime.bottom));
 
-const results = computed(() => searchApps(appsStore.apps.values(), query.value, settings.hiddenApps));
+const results = computed(() => isCommandInput(query.value) ? [] : searchApps(appsStore.apps.values(), query.value, settings.hiddenApps));
 const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
     ? [
         { label: editing.value ? 'LISTO' : 'EDITAR', action: () => { editing.value = !editing.value; } },
@@ -91,8 +93,11 @@ watch(query, q =>
         settings.activeTab = 'apps';
 });
 
+const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch });
+
 function launchFirst()
 {
+    if (commandConsole.run()) return;
     if (results.value.length)
         launch(results.value[0]);
 }
@@ -179,7 +184,12 @@ onUnmounted(() =>
             <TopBar :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" @open-notifications="notificationsOpen = true" />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
             <MotherTerminal v-else-if="settings.activeTab === 'mother'" />
-            <AppList v-else :apps="results" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" />
+            <template v-else>
+                <div v-if="commandConsole.command.value" class="console">
+                    <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
+                </div>
+                <AppList v-else :apps="results" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" />
+            </template>
             <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" />
             <SoftKeys :keys="softKeys" />
         </div>
@@ -207,5 +217,7 @@ onUnmounted(() =>
     display: flex;
     flex-direction: column;
     height: 100%;
+
+    > .console { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px; }
 }
 </style>
