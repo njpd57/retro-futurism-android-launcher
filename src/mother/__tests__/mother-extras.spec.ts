@@ -119,3 +119,23 @@ describe('speakable', () =>
         expect(speakable('MOTHER: ENERGÍA ▓▓░░ 50%')).toBe('ENERGÍA 50%');
     });
 });
+
+describe('parseAction tolerance', () =>
+{
+    it('accepts numbers as text and renamed arguments', () =>
+    {
+        expect(parseAction('temporizador', '{"minutos":"5"}')).toEqual({ ok: true, action: { type: 'timer', minutes: 5 } });
+        expect(parseAction('temporizador', '{"minutes":5}')).toEqual({ ok: true, action: { type: 'timer', minutes: 5 } });
+        expect(parseAction('temporizador', '{"min":"10 min"}')).toEqual({ ok: true, action: { type: 'timer', minutes: 10 } });
+        expect(parseAction('abrir_app', '{"app":"Chrome"}')).toEqual({ ok: true, action: { type: 'open_app', name: 'Chrome' } });
+        expect(parseAction('nota', '{"text":"pan"}')).toEqual({ ok: true, action: { type: 'note', text: 'pan' } });
+        expect(parseAction('paleta', '{"tema":"rojo"}')).toEqual({ ok: true, action: { type: 'theme', phosphor: 'red' } });
+    });
+
+    it('still rejects what is not a whole number of minutes', () =>
+    {
+        expect(parseAction('temporizador', '{"minutos":"cinco"}')).toMatchObject({ ok: false });
+        expect(parseAction('temporizador', '{"minutos":null}')).toMatchObject({ ok: false });
+        expect(parseAction('temporizador', '{}')).toMatchObject({ ok: false });
+    });
+});

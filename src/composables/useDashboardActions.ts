@@ -1,7 +1,18 @@
-import { useLocalStorage } from '@vueuse/core';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { addWidgetToActive, allItems } from '@/utils/dashboardLayout';
 import { appendNoteLine } from '@/utils/notes';
+
+function read(key: string)
+{
+    try { return localStorage.getItem(key); }
+    catch { return null; }
+}
+
+function write(key: string, value: string)
+{
+    try { localStorage.setItem(key, value); return true; }
+    catch { return false; }
+}
 
 /** Things the console and MOTHER can do to the dashboard widgets. */
 export function useDashboardActions()
@@ -20,16 +31,19 @@ export function useDashboardActions()
         return item;
     }
 
+    // The widgets read their storage when they mount, and none of them is on screen while these run (the
+    // console is on the APPS tab, MOTHER on its own tab), so the value is written straight to localStorage.
+
     function saveNote(text: string)
     {
-        const stored = useLocalStorage(`widget.notes.${ensureWidget('notes').id}`, '');
-        stored.value = appendNoteLine(stored.value, text);
+        const key = `widget.notes.${ensureWidget('notes').id}`;
+        return write(key, appendNoteLine(read(key), text));
     }
 
     function startTimer(minutes: number)
     {
-        const stored = useLocalStorage<number | null>(`widget.timer.${ensureWidget('timer').id}`, null);
-        stored.value = Date.now() + minutes * 60_000;
+        const key = `widget.timer.${ensureWidget('timer').id}`;
+        return write(key, JSON.stringify(Date.now() + minutes * 60_000));
     }
 
     return { saveNote, startTimer };

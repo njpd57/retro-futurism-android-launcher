@@ -109,32 +109,55 @@ export const useMotherStore = defineStore('mother', () =>
         sound.play('tick');
     }
 
-    function queueActions(calls: ToolCallAcc[])
+    /** Adds a line from MOTHER to the conversation, so the model knows what happened next turn. */
+    function note(content: string)
     {
+        history.value = [...history.value, { role: 'assistant', content }];
+        trimHistory();
+    }
+
+    /** Turns the model's tool calls into pending proposals; returns the new ones. Rejected calls are shown, not hidden. */
+    function queueActions(calls: ToolCallAcc[]): PendingAction[]
+    {
+        const added: PendingAction[] = [];
         for (const call of calls)
         {
             const parsed = parseAction(call.name, call.args);
             if (parsed.ok)
-                pending.value = [...pending.value, { id: call.id || `a${Date.now()}${pending.value.length}`, action: parsed.action, line: describeAction(parsed.action) }];
+                added.push({ id: call.id || `a${Date.now()}${pending.value.length + added.length}`, action: parsed.action, line: describeAction(parsed.action) });
             else
+            {
+                error.value = `ACCIÓN NO VÁLIDA: ${parsed.error}`;
                 log.push('MTR', `ACCIÓN RECHAZADA: ${parsed.error}`);
+            }
         }
+        pending.value = [...pending.value, ...added];
+        return added;
     }
 
-    function run(action: MotherAction)
+    /** Runs an accepted action; returns the line to tell the model and the user. */
+    function run(action: MotherAction): { ok: boolean; message: string }
     {
         switch (action.type)
         {
             case 'open_app':
             {
                 const app = searchApps(appsStore.apps.values(), action.name, settings.hiddenApps, { aliases: settings.aliases })[0];
-                if (app) launchStore.launch(app.packageName, app.label);
-                else error.value = `APP NO ENCONTRADA: ${action.name.toUpperCase()}`;
-                break;
+                if (!app) return { ok: false, message: `APP NO ENCONTRADA: ${action.name.toUpperCase()}` };
+                launchStore.launch(app.packageName, app.label);
+                return { ok: true, message: `ABIERTA: ${app.label.toUpperCase()}` };
             }
-            case 'timer': dashboardActions.startTimer(action.minutes); break;
-            case 'note': dashboardActions.saveNote(action.text); break;
-            case 'theme': settings.phosphor = action.phosphor; break;
+            case 'timer':
+                return dashboardActions.startTimer(action.minutes)
+                    ? { ok: true, message: `TEMPORIZADOR ${action.minutes} MIN ARRANCADO · VER PANEL` }
+                    : { ok: false, message: 'NO SE PUDO GUARDAR EL TEMPORIZADOR' };
+            case 'note':
+                return dashboardActions.saveNote(action.text)
+                    ? { ok: true, message: 'NOTA GUARDADA' }
+                    : { ok: false, message: 'NO SE PUDO GUARDAR LA NOTA' };
+            case 'theme':
+                settings.phosphor = action.phosphor;
+                return { ok: true, message: describeAction(action) };
         }
     }
 
@@ -145,13 +168,17 @@ export const useMotherStore = defineStore('mother', () =>
         pending.value = pending.value.filter(p => p.id !== id);
         if (!item) return;
         log.push('MTR', item.line);
-        run(item.action);
+        const result = run(item.action);
+        if (!result.ok) error.value = result.message;
+        note(`${result.ok ? 'EJECUTADO' : 'FALLO'}: ${result.message}`);
     }
 
     /** [ANULAR] */
     function dismissAction(id: string)
     {
+        const item = pending.value.find(p => p.id === id);
         pending.value = pending.value.filter(p => p.id !== id);
+        if (item) note(`ANULADO: ${item.line}`);
     }
 
     function answerLocally(content: string, lines: string[])
@@ -170,6 +197,8 @@ export const useMotherStore = defineStore('mother', () =>
 
         error.value = '';
         stopSpeaking();
+        // proposals left unanswered count as cancelled, and the model is told so
+        for (const p of pending.value) note(`ANULADO: ${p.line}`);
         pending.value = [];
 
         const snap = snapshot();
@@ -264,11 +293,16 @@ export const useMotherStore = defineStore('mother', () =>
         {
             status.value = 'idle';
             controller = null;
-            queueActions(calls);
-            // an answer that never came leaves an empty placeholder
+            const proposals = queueActions(calls);
             const last = history.value[history.value.length - 1];
             if (last?.role === 'assistant' && !last.content)
-                history.value = history.value.slice(0, -1);
+            {
+                // A tool-call-only answer keeps a line in the history; otherwise two user messages in a row make
+                // the model answer the first one again. An answer that never came leaves nothing behind.
+                history.value = proposals.length
+                    ? [...history.value.slice(0, -1), { role: 'assistant', content: `PROPUESTA: ${proposals.map(p => p.line).join(' · ')}` }]
+                    : history.value.slice(0, -1);
+            }
             else if (last?.role === 'assistant' && !error.value)
                 speak(last.content);
         }

@@ -45,6 +45,22 @@ export function accumulateToolCalls(acc: readonly ToolCallAcc[], deltas: readonl
 
 export type ParsedAction = { ok: true; action: MotherAction } | { ok: false; error: string };
 
+/** First of `keys` present in `args`: models sometimes rename an argument. */
+function pick(args: Record<string, unknown>, keys: readonly string[]): unknown
+{
+    for (const k of keys) if (args[k] !== undefined && args[k] !== null) return args[k];
+    return undefined;
+}
+
+/** A whole number from `5`, `"5"` or `"5 min"`; null otherwise. */
+function toInteger(value: unknown): number | null
+{
+    const n = typeof value === 'number' ? value : typeof value === 'string' ? parseFloat(value) : NaN;
+    return Number.isInteger(n) ? n : null;
+}
+
+const text = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : null;
+
 /** Validates what the model asked for. Anything off is rejected, never guessed. */
 export function parseAction(name: string, argsJson: string): ParsedAction
 {
@@ -56,17 +72,24 @@ export function parseAction(name: string, argsJson: string): ParsedAction
     switch (name)
     {
         case 'abrir_app':
-            return typeof args.nombre === 'string' && args.nombre.trim() ? { ok: true, action: { type: 'open_app', name: args.nombre.trim() } } : { ok: false, error: 'FALTA EL NOMBRE' };
+        {
+            const n = text(pick(args, ['nombre', 'app', 'name']));
+            return n ? { ok: true, action: { type: 'open_app', name: n } } : { ok: false, error: 'FALTA EL NOMBRE' };
+        }
         case 'temporizador':
         {
-            const m = Number(args.minutos);
-            return Number.isInteger(m) && m >= 1 && m <= MAX_TIMER_MIN ? { ok: true, action: { type: 'timer', minutes: m } } : { ok: false, error: 'MINUTOS FUERA DE RANGO' };
+            const m = toInteger(pick(args, ['minutos', 'minutes', 'min', 'duracion']));
+            return m !== null && m >= 1 && m <= MAX_TIMER_MIN ? { ok: true, action: { type: 'timer', minutes: m } } : { ok: false, error: 'MINUTOS FUERA DE RANGO' };
         }
         case 'nota':
-            return typeof args.texto === 'string' && args.texto.trim() ? { ok: true, action: { type: 'note', text: args.texto.trim().slice(0, MAX_NOTE_CHARS) } } : { ok: false, error: 'FALTA EL TEXTO' };
+        {
+            const t = text(pick(args, ['texto', 'text', 'nota']));
+            return t ? { ok: true, action: { type: 'note', text: t.slice(0, MAX_NOTE_CHARS) } } : { ok: false, error: 'FALTA EL TEXTO' };
+        }
         case 'paleta':
         {
-            const p = typeof args.color === 'string' ? parsePhosphor(args.color) : null;
+            const c = text(pick(args, ['color', 'paleta', 'tema']));
+            const p = c ? parsePhosphor(c) : null;
             return p ? { ok: true, action: { type: 'theme', phosphor: p } } : { ok: false, error: 'COLOR DESCONOCIDO' };
         }
         default:
