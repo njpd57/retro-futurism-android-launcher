@@ -1,16 +1,28 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useNow } from '@vueuse/core';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
+import { tick } from '@/utils/haptics';
+import { isNight, NIGHT_MAX_BLOOM } from '@/utils/nightShift';
 
 const settings = useSettingsStore();
 const sound = useSoundStore();
+
+// night shift: red phosphor and less bloom by schedule, without touching the user's own choice
+const now = useNow({ interval: 60_000 });
+const night = computed(() => settings.nightShift && isNight(now.value));
+const phosphor = computed(() => night.value ? 'red' : settings.phosphor);
+const bloom = computed(() => night.value ? Math.min(settings.bloom, NIGHT_MAX_BLOOM) : settings.bloom);
 
 // one delegated listener instead of a handler per component
 const PRESSABLE = '.menu-item, .soft-keys button, .tab, .btn, .app-row, .action, .pressable';
 
 function onPointerDown(e: PointerEvent)
 {
-    if ((e.target as Element | null)?.closest?.(PRESSABLE)) sound.play('select');
+    if (!(e.target as Element | null)?.closest?.(PRESSABLE)) return;
+    sound.play('select');
+    if (settings.haptics) tick();
 }
 
 function onInput(e: Event)
@@ -23,8 +35,8 @@ function onInput(e: Event)
     <div
         class="launcher-root crt-screen"
         :class="{ curved: settings.curvature }"
-        :data-phosphor="settings.phosphor"
-        :style="{ '--bloom': settings.bloom }"
+        :data-phosphor="phosphor"
+        :style="{ '--bloom': bloom }"
         @pointerdown.capture="onPointerDown"
         @input.capture="onInput">
 

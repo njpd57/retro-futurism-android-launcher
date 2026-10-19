@@ -7,6 +7,7 @@ import { bridgeHas } from '@/utils/bridgeHas';
 import MotherSettings from './MotherSettings.vue';
 import TermMenu from './TermMenu.vue';
 import MenuItem from './MenuItem.vue';
+import { canVibrate } from '@/utils/haptics';
 
 defineEmits<{ (e: 'close'): void }>();
 
@@ -97,6 +98,10 @@ const bloomPct = computed({
             <input v-model.number="volumePct" type="range" min="0" max="100" step="5" />
             <span>{{ volumePct }}%</span>
         </div>
+        <MenuItem @click="canVibrate() && (settings.haptics = !settings.haptics)">
+            <span>VIBRACIÓN</span><span>{{ canVibrate() ? onOff(settings.haptics) : 'NO DISPONIBLE' }}</span>
+        </MenuItem>
+        <MenuItem @click="settings.nightShift = !settings.nightShift"><span>TURNO NOCTURNO</span><span>{{ onOff(settings.nightShift) }}</span></MenuItem>
         <MenuItem @click="settings.showType = !settings.showType"><span>COLUMNA TIPO</span><span>{{ onOff(settings.showType) }}</span></MenuItem>
 
         <MenuItem @click="toggles.bridgeButtonVisibility = bridgeButtonShown ? 'hidden' : 'shown'">
