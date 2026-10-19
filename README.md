@@ -13,10 +13,20 @@ Tres pestañas en la barra superior:
   - **Apps y personas:** favoritas, recientes y contactos favoritos.
   - **Organización:** notas con tareas, agenda, temporizador, alarma y clima.
   - **Ocio:** reproductor y radar ASCII.
-  - **Juegos:** DETECTOR (detector de movimiento: sella la puerta donde aparezca el blip) y NOSTROMO (aventura de texto para escapar de la nave).
-  - **Ayudante:** el resumen de MOTHER.
-- **APPS:** la lista de apps (toca para abrir, mantén para opciones, fijar y los atajos de la app) con búsqueda en el prompt. Opcionalmente con iconos monocromos teñidos del color del fósforo.
-- **MOTHER:** una terminal de chat con OpenAI al estilo de la computadora de *Alien*: respuestas en mayúsculas y tono de nave.
+  - **Tiempo:** PROTOCOLO (checklist diario que se reinicia a medianoche), T-MENOS (cuenta atrás a una fecha), COLONIAS (reloj mundial), FASE LUNAR (calculada sin red), CLIMA 7 DÍAS, y el temporizador con modo CRONO y vueltas.
+  - **Sensores y red:** TELEMETRÍA (latencia a un host con su historial) y RUMBO (brújula ASCII).
+  - **Juegos:** DETECTOR (detector de movimiento: sella la puerta donde aparezca el blip), REENRUTAR (reparte la energía entre PUERTAS, SOPORTE VITAL y SENSORES) y NOSTROMO (aventura de texto para escapar de la nave).
+  - **Ayudante:** el resumen de MOTHER, que el primer día de cada jornada muestra el informe de turno (agenda, clima y alarma).
+  - **Varios paneles:** `P1`..`P4` (en EDITAR, `[+P]` y `[-P]`); se cambia con las pestañas o deslizando.
+- **APPS:** la lista de apps (toca para abrir, mantén para opciones: atajos, fijar, renombrar, mover a una carpeta, ocultar) con búsqueda en el prompt, que también busca por alias, contactos y atajos, y ofrece `[BUSCAR EN RED]`. Se ordena por nombre, uso de hoy o instalación reciente; `*NUEVO` marca las apps de los últimos 7 días; la tira A–Z salta por letra; `[LS -L]` muestra columnas de uso y tipo; las carpetas agrupan apps (`» JUEGOS/ (7)`). Opcionalmente con iconos monocromos teñidos del color del fósforo.
+- **MOTHER:** una terminal de chat con OpenAI al estilo de la computadora de *Alien*: respuestas en mayúsculas y tono de nave. `ESTADO`, `INFORME` y `ORDEN ESPECIAL 937` se contestan sin red. MOTHER puede proponer acciones (abrir una app, temporizador, nota, paleta) que solo se ejecutan con `[EJECUTAR]`. Las conversaciones se guardan como sesiones y se pueden exportar como texto.
+
+### Consola de comandos y gestos
+
+- **Consola:** en el prompt, `>` seguido de una orden: `> abrir <app>`, `> calc 2+2`, `> tema verde`, `> clima`, `> nota <texto>`, `> ayuda`.
+- **Gestos:** deslizar a los lados cambia de panel y de pestaña; deslizar hacia abajo desde el borde superior abre las notificaciones. El contador `!N` de la barra superior muestra las notificaciones pendientes.
+- **Reposo:** tras N minutos sin tocar, un reloj grande que se desplaza (anti-quemado). **Arranque:** secuencia de boot saltable con un toque. **Turno nocturno:** de 22:00 a 07:00 pasa a fósforo rojo con menos bloom. **Vibración:** pulso háptico al pulsar. Todo opcional en los ajustes.
+- **Respaldo:** `AJUSTES › RESPALDO` exporta e importa ajustes, paneles, notas y favoritos como texto JSON (sin la clave de MOTHER).
 
 ### Apariencia y sonido
 
@@ -38,14 +48,15 @@ Casi todo funciona sin permisos; estas partes los necesitan (y usan el fork de B
 - **Almacén:** requiere una versión del fork con `getStorageStats`; si no, el widget indica que no está disponible.
 - **Barra de estado propia:** `AJUSTES › BARRA PROPIA` oculta la barra de Android y dibuja una estilo terminal; al tocarla se abre el panel de notificaciones.
 - **Clima:** en el widget ALARMA · CLIMA, elige una ciudad (Open-Meteo, sin clave).
-- **MOTHER:** `AJUSTES › MOTHER` para escribir tu clave de API de OpenAI y el modelo. La clave se guarda solo en el teléfono, nunca en el repositorio ni en el build.
+- **MOTHER:** `AJUSTES › MOTHER` para escribir tu clave de API de OpenAI y elegir el modelo. La clave se guarda solo en el teléfono, nunca en el repositorio ni en el build. **Ojo:** el contexto de a bordo está activado por defecto y envía a la API la hora, la batería, la agenda del día, el clima y la alarma con cada consulta; se apaga en ese mismo menú, que muestra el texto exacto que se envía.
+- **Vibración, rumbo y voz:** dependen de APIs del WebView; si el dispositivo no las tiene, el ajuste o el widget dice `NO DISPONIBLE`.
 - **Diagnóstico:** `AJUSTES › DIAGNÓSTICO` muestra qué métodos del fork tiene el Bridge instalado.
 
 ## Cómo está hecho
 
 - **Stores de Pinia** que escuchan los eventos de Bridge: apps instaladas, márgenes del sistema, ajustes de Bridge, batería y red, notificaciones, reproductor, calendario, contactos, uso de apps, alarma, clima, MOTHER y sonido. Los que usan métodos del fork se protegen con `bridgeHas()` y, si falta el método, muestran un estado vacío.
 - **Mock de Bridge** para desarrollar en el navegador, con apps e iconos de ejemplo en `public/mock/` y datos falsos para los métodos del fork.
-- **Lógica pura con tests** (búsqueda de apps, diseño del panel, radar, temporizador, uso de apps, y los dos juegos).
+- **Lógica pura con tests** (búsqueda y orden de apps, paneles, comandos, gestos, respaldo, carpetas, radar, temporizador y cronómetro, clima, luna, brújula, MOTHER y los tres juegos).
 - **Estilos**: paletas de fósforo como variables CSS (`src/assets/styles/crt.scss`), tipografía VT323 y mixins de brillo y vídeo inverso.
 
 ## Desarrollo
