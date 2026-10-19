@@ -26,6 +26,9 @@ import TopBar from '@/components/TopBar.vue';
 import { useAppShortcuts } from '@/composables/useAppShortcuts';
 import { useCommandConsole } from '@/composables/useCommandConsole';
 import { isCommandInput } from '@/utils/commands';
+import { useSwipe } from '@/composables/useSwipe';
+import { neighbour } from '@/utils/swipe';
+import type { Tab } from '@/stores/useSettingsStore';
 
 const insets = useWindowInsetsStore();
 const appsStore = useAppsStore();
@@ -92,6 +95,15 @@ watch(query, q =>
     if (q && settings.activeTab === 'panel')
         settings.activeTab = 'apps';
 });
+
+const TAB_ORDER: Tab[] = ['panel', 'apps', 'mother'];
+const screenEl = ref<HTMLElement | null>(null);
+const swipe = useSwipe(screenEl, kind =>
+{
+    if (kind === 'pull-down') { openStatusBar(); return; }
+    const next = neighbour(TAB_ORDER, settings.activeTab, kind === 'left' ? 1 : -1);
+    if (next) settings.activeTab = next;
+}, () => !overlayOpen.value && !editing.value);
 
 const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch });
 
@@ -163,6 +175,7 @@ const previous = {
 onMounted(() =>
 {
     window.addEventListener('popstate', onPopState);
+    swipe.attach();
     toggles.drawSystemWallpaperBehindWebView = false;
     toggles.overscrollEffects = 'none';
 });
@@ -170,6 +183,7 @@ onMounted(() =>
 onUnmounted(() =>
 {
     window.removeEventListener('popstate', onPopState);
+    swipe.detach();
     toggles.drawSystemWallpaperBehindWebView = previous.wallpaper;
     toggles.overscrollEffects = previous.overscroll;
 });
@@ -178,6 +192,7 @@ onUnmounted(() =>
 <template>
     <CrtScreen :style="{ '--inset-top': px(insetTop), '--inset-bottom': px(insetBottom) }">
         <div
+            ref="screenEl"
             class="screen"
             :style="{ 'padding-top': px(insetTop), 'padding-bottom': px(insetBottom) }">
             <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
