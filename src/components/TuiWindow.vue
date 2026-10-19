@@ -95,7 +95,7 @@ onBeforeUnmount(() => observer?.disconnect());
         min-height: 0;
         border-top: 1px solid var(--ph);
 
-        > .body { flex: 1; min-width: 0; max-height: 45vh; overflow-y: auto; overscroll-behavior: none; scrollbar-width: none; padding: 4px 8px; touch-action: pan-y; }
+        > .body { flex: 1; min-width: 0; max-height: 45vh; overflow-y: auto; scrollbar-width: none; padding: 4px 8px; touch-action: pan-y; }
         > .body::-webkit-scrollbar { display: none; }
 
         > .track {

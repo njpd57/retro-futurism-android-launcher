@@ -10,6 +10,13 @@ import MotherWidget from '@/components/widgets/MotherWidget.vue';
 import NotesWidget from '@/components/widgets/NotesWidget.vue';
 import PowerWidget from '@/components/widgets/PowerWidget.vue';
 import ScopeWidget from '@/components/widgets/ScopeWidget.vue';
+import ContactsWidget from '@/components/widgets/ContactsWidget.vue';
+import NostromoWidget from '@/components/widgets/NostromoWidget.vue';
+import RadarWidget from '@/components/widgets/RadarWidget.vue';
+import ScreenTimeWidget from '@/components/widgets/ScreenTimeWidget.vue';
+import StorageWidget from '@/components/widgets/StorageWidget.vue';
+import TimerWidget from '@/components/widgets/TimerWidget.vue';
+import TrackerWidget from '@/components/widgets/TrackerWidget.vue';
 
 export interface WidgetDef
 {
@@ -34,4 +41,11 @@ export const WIDGETS: Record<string, WidgetDef> = {
     media: { title: 'REPRODUCTOR', component: MediaWidget, span: 1 },
     mother: { title: 'MOTHER', component: MotherWidget, span: 2 },
     alarm: { title: 'ALARMA · CLIMA', component: AlarmWeatherWidget, span: 1 },
+    radar: { title: 'RADAR', component: RadarWidget, span: 1 },
+    storage: { title: 'ALMACÉN', component: StorageWidget, span: 1 },
+    contacts: { title: 'CONTACTOS', component: ContactsWidget, span: 1 },
+    screentime: { title: 'USO', component: ScreenTimeWidget, span: 2 },
+    timer: { title: 'TEMPORIZADOR', component: TimerWidget, span: 1 },
+    tracker: { title: 'DETECTOR', component: TrackerWidget, span: 2 },
+    nostromo: { title: 'NOSTROMO', component: NostromoWidget, span: 2 },
 };

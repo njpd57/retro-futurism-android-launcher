@@ -93,6 +93,45 @@ export interface BridgeNextAlarm
     packageName: string;
 }
 
+export interface BridgeContactNumber
+{
+    number: string;
+    label: string | null;
+    isPrimary: boolean;
+}
+
+export interface BridgeContact
+{
+    id: number;
+    lookupKey: string;
+    name: string;
+    starred: boolean;
+    hasPhoto: boolean;
+    /** Default number first. */
+    phoneNumbers: BridgeContactNumber[];
+}
+
+export interface BridgeAppUsage
+{
+    packageName: string;
+    totalTimeMs: number;
+    openCount: number;
+    lastTimeUsed: number;
+}
+
+export interface BridgeAppShortcut
+{
+    id: string;
+    shortLabel: string;
+    longLabel: string | null;
+}
+
+export interface BridgeStorageStats
+{
+    totalBytes: number;
+    freeBytes: number;
+}
+
 export type BridgeForkEvent =
     | { name: 'batteryChanged'; newValue: BridgeBattery }
     | { name: 'connectivityChanged'; newValue: BridgeConnectivity }
@@ -102,7 +141,10 @@ export type BridgeForkEvent =
     | { name: 'mediaSessionChanged'; session: BridgeMediaSession | null }
     | { name: 'canReadCalendarChanged'; newValue: boolean }
     | { name: 'calendarChanged' }
-    | { name: 'nextAlarmChanged'; newValue: BridgeNextAlarm | null };
+    | { name: 'nextAlarmChanged'; newValue: BridgeNextAlarm | null }
+    | { name: 'canReadContactsChanged'; newValue: boolean }
+    | { name: 'contactsChanged' }
+    | { name: 'canReadUsageStatsChanged'; newValue: boolean };
 
 declare module '@bridgelauncher/api'
 {
@@ -143,5 +185,27 @@ declare module '@bridgelauncher/api'
         requestOpenAlarms(showToastIfFailed?: boolean): boolean;
 
         requestOpenUrl(url: string, showToastIfFailed?: boolean): boolean;
+
+        getCanReadContacts(): boolean;
+        requestContactsPermission(showToastIfFailed?: boolean): boolean;
+        /** URL of JSON `{ contacts: BridgeContact[] }`; only contacts with a phone number. `limit` 0 = none. */
+        getContactsURL(query?: string, starredOnly?: boolean, limit?: number): string;
+        getContactPhotoURL(lookupKey: string): string;
+        requestOpenContact(lookupKey: string, showToastIfFailed?: boolean): boolean;
+
+        getCanReadUsageStats(): boolean;
+        requestOpenUsageAccessSettings(showToastIfFailed?: boolean): boolean;
+        /** URL of JSON `{ apps: BridgeAppUsage[] }` for [from, to) in ms, most used first. */
+        getAppUsageURL(from: number, to: number): string;
+
+        /** True only when Bridge is the default launcher. */
+        getCanAccessAppShortcuts(): boolean;
+        /** URL of JSON `{ shortcuts: BridgeAppShortcut[] }`. */
+        getAppShortcutsURL(packageName: string): string;
+        getAppShortcutIconURL(packageName: string, shortcutId: string): string;
+        requestStartAppShortcut(packageName: string, shortcutId: string, showToastIfFailed?: boolean): boolean;
+
+        /** JSON of BridgeStorageStats (internal storage). */
+        getStorageStats(): string;
     }
 }

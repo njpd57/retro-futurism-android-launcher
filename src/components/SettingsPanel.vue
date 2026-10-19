@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { useSettingsStore } from '@/stores/useSettingsStore';
+import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
 import { useAppsStore } from '@/stores/useAppsStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
 import { bridgeHas } from '@/utils/bridgeHas';
@@ -45,10 +45,22 @@ onBeforeUnmount(() => window.clearTimeout(armTimer));
 const DIAGNOSTIC_METHODS = [
     'getWindowInsetsSwapFixed', 'getBattery', 'getConnectivity',
     'getNotificationsURL', 'getMediaSession', 'getCalendarEventsURL', 'getNextAlarm', 'requestOpenUrl',
+    'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats',
 ] as const;
 const diagnosticOpen = ref(false);
 const motherOpen = ref(false);
 const diagnostic = computed(() => DIAGNOSTIC_METHODS.map(m => ({ method: m, ok: bridgeHas(m) })));
+
+const volumePct = computed({
+    get: () => Math.round(settings.volume * 100),
+    set: v => { settings.volume = v / 100; },
+});
+
+function nextPhosphor()
+{
+    const i = PHOSPHORS.findIndex(p => p.id === settings.phosphor);
+    settings.phosphor = PHOSPHORS[(i + 1) % PHOSPHORS.length].id;
+}
 
 const onOff = (v: boolean) => v ? '[X]' : '[ ]';
 const bloomPct = computed({
@@ -59,8 +71,8 @@ const bloomPct = computed({
 
 <template>
     <TermMenu title="AJUSTES" @close="$emit('close')">
-        <MenuItem @click="settings.phosphor = settings.phosphor === 'amber' ? 'green' : 'amber'">
-            <span>COLOR</span><span>{{ settings.phosphor === 'amber' ? 'ÁMBAR' : 'VERDE' }}</span>
+        <MenuItem @click="nextPhosphor">
+            <span>COLOR</span><span>{{ PHOSPHORS.find(p => p.id === settings.phosphor)?.label }}</span>
         </MenuItem>
 
         <div class="slider">
@@ -72,9 +84,19 @@ const bloomPct = computed({
         <MenuItem @click="settings.scanlines = !settings.scanlines"><span>SCANLINES</span><span>{{ onOff(settings.scanlines) }}</span></MenuItem>
         <MenuItem @click="settings.flicker = !settings.flicker"><span>PARPADEO</span><span>{{ onOff(settings.flicker) }}</span></MenuItem>
         <MenuItem @click="settings.vignette = !settings.vignette"><span>VIÑETA</span><span>{{ onOff(settings.vignette) }}</span></MenuItem>
+        <MenuItem @click="settings.sweep = !settings.sweep"><span>BARRIDO</span><span>{{ onOff(settings.sweep) }}</span></MenuItem>
+        <MenuItem @click="settings.curvature = !settings.curvature"><span>CURVATURA</span><span>{{ onOff(settings.curvature) }}</span></MenuItem>
+        <MenuItem @click="settings.showIcons = !settings.showIcons"><span>ICONOS</span><span>{{ onOff(settings.showIcons) }}</span></MenuItem>
         <MenuItem @click="settings.labelCase = settings.labelCase === 'upper' ? 'normal' : 'upper'">
             <span>NOMBRES</span><span>{{ settings.labelCase === 'upper' ? 'MAYÚSCULAS' : 'NORMAL' }}</span>
         </MenuItem>
+        <MenuItem @click="settings.soundUi = !settings.soundUi"><span>SONIDO UI</span><span>{{ onOff(settings.soundUi) }}</span></MenuItem>
+        <MenuItem @click="settings.soundAmbient = !settings.soundAmbient"><span>AMBIENTE</span><span>{{ onOff(settings.soundAmbient) }}</span></MenuItem>
+        <div class="slider">
+            <span>VOLUMEN</span>
+            <input v-model.number="volumePct" type="range" min="0" max="100" step="5" />
+            <span>{{ volumePct }}%</span>
+        </div>
         <MenuItem @click="settings.showType = !settings.showType"><span>COLUMNA TIPO</span><span>{{ onOff(settings.showType) }}</span></MenuItem>
 
         <MenuItem @click="toggles.bridgeButtonVisibility = bridgeButtonShown ? 'hidden' : 'shown'">

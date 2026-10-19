@@ -23,6 +23,7 @@ import SoftKeys, { type SoftKey } from '@/components/SoftKeys.vue';
 import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
+import { useAppShortcuts } from '@/composables/useAppShortcuts';
 
 const insets = useWindowInsetsStore();
 const appsStore = useAppsStore();
@@ -42,6 +43,7 @@ const prompt = ref<InstanceType<typeof PromptBar> | null>(null);
 const editing = ref(false);
 const settingsOpen = ref(false);
 const menuApp = ref<InstalledAppInfo | null>(null);
+const { shortcuts: menuShortcuts, start: startShortcut } = useAppShortcuts(computed(() => menuApp.value?.packageName ?? null));
 
 const MIN_STATUS_BAR_PX = 24;
 const statusBarHeight = computed(() => Math.max(insets.statusBarsIgnoringVisibility.top, MIN_STATUS_BAR_PX));
@@ -186,6 +188,9 @@ onUnmounted(() =>
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 
         <TermMenu v-if="menuApp" :title="menuApp.label.toUpperCase()" @close="menuApp = null">
+            <MenuItem v-for="sc in menuShortcuts" :key="sc.id" @click="menuAction(() => startShortcut(sc.id))">
+                <span>» {{ sc.shortLabel.toUpperCase() }}</span>
+            </MenuItem>
             <MenuItem @click="menuAction(p => launchStore.launch(p, menuApp?.label))"><span>ABRIR</span></MenuItem>
             <MenuItem @click="menuAction(p => settings.toggleFavorite(p))">
                 <span>{{ settings.favorites.includes(menuApp.packageName) ? 'DESFIJAR' : 'FIJAR' }}</span>

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { BridgeBattery, BridgeConnectivity, BridgeConnectionType } from "@/types/bridge-fork";
+import type { BridgeBattery, BridgeConnectivity, BridgeConnectionType, BridgeStorageStats } from "@/types/bridge-fork";
 import { bridgeHas } from "@/utils/bridgeHas";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 import { useLogStore } from "./useLogStore";
@@ -25,6 +25,14 @@ export const useSystemStatusStore = defineStore('systemStatus', () =>
 
     const battery = ref<BridgeBattery | null>(null);
     const connectivity = ref<BridgeConnectivity | null>(null);
+    const storage = ref<BridgeStorageStats | null>(null);
+
+    const hasBridgeStorage = bridgeHas('getStorageStats');
+
+    function readBridgeStorage()
+    {
+        if (hasBridgeStorage) storage.value = JSON.parse(Bridge.getStorageStats()) as BridgeStorageStats;
+    }
 
     function readBridgeBattery()
     {
@@ -70,6 +78,7 @@ export const useSystemStatusStore = defineStore('systemStatus', () =>
     const hasBridgeBattery = bridgeHas('getBattery');
     const hasBridgeConnectivity = bridgeHas('getConnectivity');
 
+    readBridgeStorage();
     if (hasBridgeBattery) readBridgeBattery(); else initWebBattery();
     if (hasBridgeConnectivity) readBridgeConnectivity(); else readWebConnectivity();
 
@@ -97,11 +106,12 @@ export const useSystemStatusStore = defineStore('systemStatus', () =>
         }
         else if (ev.name === 'afterResume')
         {
+            readBridgeStorage();
             if (hasBridgeBattery) readBridgeBattery();
             if (hasBridgeConnectivity) readBridgeConnectivity(); else readWebConnectivity();
             log.push('SYS', 'REANUDADO');
         }
     });
 
-    return { battery, connectivity };
+    return { battery, connectivity, storage };
 });

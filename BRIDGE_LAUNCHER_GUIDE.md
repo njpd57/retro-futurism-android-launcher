@@ -245,6 +245,10 @@ Each state has a getter, usually a setter, and a `…Changed` event with `newVal
 
 - `getBattery()` → JSON `{ level 0-100, isCharging, pluggedType ('ac'|'usb'|'wireless'|'other'|null) }`; event `batteryChanged { newValue }`. No permission. On stock Bridge fall back to the web Battery Status API (`navigator.getBattery()`; not on every WebView).
 
+### Storage
+
+- `getStorageStats()` → JSON `{ totalBytes, freeBytes }` of the internal storage (`StatFs` on the data partition). No permission and no event: read it on `afterResume`.
+
 ### Alarms
 
 - `getNextAlarm()` → JSON `{ triggerTime (ms), packageName }` or `"null"`; event `nextAlarmChanged { newValue }`. `requestOpenAlarms()` opens the clock app's alarm list. Without the fork, launch a known clock app by package name.

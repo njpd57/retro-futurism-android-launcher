@@ -54,3 +54,14 @@ export function formatClock(d: Date, seconds = false)
     const p = (n: number) => String(n).padStart(2, '0');
     return `${p(d.getHours())}:${p(d.getMinutes())}${seconds ? `:${p(d.getSeconds())}` : ''}`;
 }
+
+/** `47.2 GB`, `512 MB`; binary units, one decimal from GB up. */
+export function formatBytes(bytes: number)
+{
+    const GB = 1024 ** 3;
+    const MB = 1024 ** 2;
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
+    if (bytes >= GB) return `${(bytes / GB).toFixed(1)} GB`;
+    if (bytes >= MB) return `${Math.round(bytes / MB)} MB`;
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}

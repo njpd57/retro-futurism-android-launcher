@@ -12,4 +12,25 @@
         --ph-dim: #1a9e3d;
         --ph-glow: rgba(51, 255, 102, 0.5);
     }
+
+    &[data-phosphor="white"] {
+        --ph-bg: #04050a;
+        --ph: #e8f0ff;
+        --ph-dim: #8d97ad;
+        --ph-glow: rgba(232, 240, 255, 0.45);
+    }
+
+    &[data-phosphor="blue"] {
+        --ph-bg: #00040a;
+        --ph: #5ab4ff;
+        --ph-dim: #2f6ea3;
+        --ph-glow: rgba(90, 180, 255, 0.5);
+    }
+
+    &[data-phosphor="red"] {
+        --ph-bg: #080201;
+        --ph: #ff4a3a;
+        --ph-dim: #a02a20;
+        --ph-glow: rgba(255, 74, 58, 0.5);
+    }
 }

@@ -1,6 +1,6 @@
 import { BridgeMock } from '@bridgelauncher/api-mock';
 import type {
-    BridgeBattery, BridgeCalendarEvent, BridgeConnectivity, BridgeMediaAction, BridgeMediaSession, BridgeNextAlarm, BridgeNotification,
+    BridgeAppShortcut, BridgeAppUsage, BridgeBattery, BridgeCalendarEvent, BridgeContact, BridgeConnectivity, BridgeMediaAction, BridgeMediaSession, BridgeNextAlarm, BridgeNotification,
 } from '@/types/bridge-fork';
 
 const jsonUrl = (data: unknown) => `data:application/json,${encodeURIComponent(JSON.stringify(data))}`;
@@ -159,6 +159,71 @@ class ForkBridgeMock extends BridgeMock
     requestOpenAlarms() { alert('[mock] abrir alarmas'); return true; }
 
     requestOpenUrl(url: string) { window.open(url, '_blank'); return true; }
+
+    // contacts
+    private canReadContacts = true;
+    getCanReadContacts() { return this.canReadContacts; }
+    requestContactsPermission()
+    {
+        this.canReadContacts = true;
+        this.emit({ name: 'canReadContactsChanged', newValue: true });
+        return true;
+    }
+    getContactsURL(query = '', starredOnly = false, limit = 0)
+    {
+        const make = (id: number, name: string, number: string, starred: boolean): BridgeContact => ({
+            id, lookupKey: `lk${id}`, name, starred, hasPhoto: false,
+            phoneNumbers: [{ number, label: 'móvil', isPrimary: true }],
+        });
+        const all = [
+            make(1, 'Ana Pérez', '+34600111222', true),
+            make(2, 'Mamá', '+34600333444', true),
+            make(3, 'Carlos Ruiz', '+34600555666', false),
+            make(4, 'Sol', '+34600777888', true),
+        ];
+        const q = query.toLowerCase();
+        let contacts = all.filter(c => (!starredOnly || c.starred) && (!q || c.name.toLowerCase().includes(q) || c.phoneNumbers[0].number.includes(q)));
+        if (limit > 0) contacts = contacts.slice(0, limit);
+        return jsonUrl({ contacts });
+    }
+    getContactPhotoURL() { return ''; }
+    requestOpenContact(lookupKey: string) { alert(`[mock] abrir contacto ${lookupKey}`); return true; }
+
+    // app usage
+    private canReadUsage = true;
+    getCanReadUsageStats() { return this.canReadUsage; }
+    requestOpenUsageAccessSettings()
+    {
+        this.canReadUsage = true;
+        this.emit({ name: 'canReadUsageStatsChanged', newValue: true });
+        return true;
+    }
+    getAppUsageURL()
+    {
+        const apps: BridgeAppUsage[] = [
+            { packageName: 'com.android.chrome', totalTimeMs: 95 * MIN, openCount: 14, lastTimeUsed: Date.now() - 10 * MIN },
+            { packageName: 'com.google.android.youtube', totalTimeMs: 52 * MIN, openCount: 5, lastTimeUsed: Date.now() - 40 * MIN },
+            { packageName: 'com.google.android.gm', totalTimeMs: 21 * MIN, openCount: 9, lastTimeUsed: Date.now() - 5 * MIN },
+            { packageName: 'com.google.android.apps.messaging', totalTimeMs: 12 * MIN, openCount: 20, lastTimeUsed: Date.now() - 2 * MIN },
+        ];
+        return jsonUrl({ apps });
+    }
+
+    // app shortcuts
+    getCanAccessAppShortcuts() { return true; }
+    getAppShortcutsURL(packageName: string)
+    {
+        const shortcuts: BridgeAppShortcut[] = [
+            { id: 'new', shortLabel: 'Nuevo', longLabel: `Nuevo en ${packageName}` },
+            { id: 'search', shortLabel: 'Buscar', longLabel: null },
+        ];
+        return jsonUrl({ shortcuts });
+    }
+    getAppShortcutIconURL() { return ''; }
+    requestStartAppShortcut(packageName: string, shortcutId: string) { alert(`[mock] atajo ${shortcutId} de ${packageName}`); return true; }
+
+    // storage
+    getStorageStats() { return JSON.stringify({ totalBytes: 128 * 1024 ** 3, freeBytes: 47 * 1024 ** 3 }); }
 }
 
 export default function injectBridgeMockInDev()

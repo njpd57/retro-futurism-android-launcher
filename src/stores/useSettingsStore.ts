@@ -2,7 +2,14 @@ import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
 import { DEFAULT_LAYOUT, type DashboardItem } from "@/utils/dashboardLayout";
 
-export type Phosphor = 'amber' | 'green';
+export type Phosphor = 'amber' | 'green' | 'white' | 'blue' | 'red';
+export const PHOSPHORS: { id: Phosphor; label: string }[] = [
+    { id: 'amber', label: 'ÁMBAR' },
+    { id: 'green', label: 'VERDE' },
+    { id: 'white', label: 'BLANCO P4' },
+    { id: 'blue', label: 'AZUL' },
+    { id: 'red', label: 'ROJO' },
+];
 export type LabelCase = 'upper' | 'normal';
 export type Tab = 'panel' | 'apps' | 'mother';
 
@@ -13,6 +20,12 @@ export const useSettingsStore = defineStore('settings', () =>
     const scanlines = useLocalStorage('settings.scanlines', true);
     const flicker = useLocalStorage('settings.flicker', true);
     const vignette = useLocalStorage('settings.vignette', true);
+    const sweep = useLocalStorage('settings.sweep', true);
+    const curvature = useLocalStorage('settings.curvature', false);
+    const showIcons = useLocalStorage('settings.showIcons', false);
+    const soundUi = useLocalStorage('settings.soundUi', false);
+    const soundAmbient = useLocalStorage('settings.soundAmbient', false);
+    const volume = useLocalStorage('settings.volume', 0.5);
     const labelCase = useLocalStorage<LabelCase>('settings.labelCase', 'upper');
     const showType = useLocalStorage('settings.showType', true);
     const hiddenApps = useLocalStorage<string[]>('settings.hiddenApps', []);
@@ -39,5 +52,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });
