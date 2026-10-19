@@ -116,3 +116,14 @@ describe('alpha index', () =>
         expect(letterAt([], 0.5)).toBeNull();
     });
 });
+
+import { webSearchUrl } from '../webSearch';
+
+describe('webSearchUrl', () =>
+{
+    it('encodes the query and ignores blanks', () =>
+    {
+        expect(webSearchUrl(' café & té ')).toBe('https://duckduckgo.com/?q=caf%C3%A9%20%26%20t%C3%A9');
+        expect(webSearchUrl('   ')).toBeNull();
+    });
+});

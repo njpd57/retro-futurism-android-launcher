@@ -48,5 +48,21 @@ export const useContactsStore = defineStore('contacts', () =>
     function call(number: string) { Bridge.requestOpenUrl(`tel:${number}`); }
     function sms(number: string) { Bridge.requestOpenUrl(`sms:${number}`); }
 
-    return { supported, canRead, starred, sync, requestAccess, openContact, call, sms };
+    /** Contacts (with a number) matching `query`; empty without permission. */
+    async function search(query: string, limit = 4): Promise<BridgeContact[]>
+    {
+        if (!supported || !canRead.value || !query.trim()) return [];
+        try
+        {
+            const resp = await fetch(Bridge.getContactsURL(query.trim(), false, limit));
+            return ((await resp.json()) as { contacts: BridgeContact[] }).contacts;
+        }
+        catch (err)
+        {
+            console.error(err);
+            return [];
+        }
+    }
+
+    return { supported, canRead, starred, search, sync, requestAccess, openContact, call, sms };
 });

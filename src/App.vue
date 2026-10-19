@@ -25,6 +25,7 @@ import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
 import BootSequence from '@/components/BootSequence.vue';
+import ExtraResults from '@/components/ExtraResults.vue';
 import AppRename from '@/components/AppRename.vue';
 import AppFolderMenu from '@/components/AppFolderMenu.vue';
 import IdleClock from '@/components/IdleClock.vue';
@@ -233,7 +234,9 @@ onUnmounted(() =>
                 <div v-if="commandConsole.command.value" class="console">
                     <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
                 </div>
-                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" />
+                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event">
+                    <ExtraResults v-if="query.trim()" :query="query" :top-app="results[0] ?? null" />
+                </AppList>
             </template>
             <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" />
             <SoftKeys :keys="softKeys" />
