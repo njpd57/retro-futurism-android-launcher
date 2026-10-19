@@ -1,4 +1,6 @@
+import '@fontsource/vt323/latin-400.css';
 import '@/assets/styles/page.scss';
+import '@/assets/styles/crt.scss';
 import '@/assets/styles/base.scss';
 
 import { createApp } from 'vue';

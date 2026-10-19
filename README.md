@@ -1,10 +1,14 @@
-# Gingerbread Launcher (base)
+# Bridge Launcher Boilerplate
 
-Punto de partida para recrear el launcher de **Android 2.3 Gingerbread** como proyecto web para [Bridge Launcher](https://github.com/bridgelauncher/launcher).
+Punto de partida para crear launchers como proyecto web para [Bridge Launcher](https://github.com/bridgelauncher/launcher).
 
 Bridge es una app de Android que usa una página web como pantalla de inicio y le da acceso a funciones del sistema (lista de apps, abrir apps, fondo de pantalla, barras del sistema…) a través de `window.Bridge`. Este repositorio es esa página web: Vue 3, TypeScript y Vite, sin código nativo de Android.
 
-Esta rama parte del [api-tester](https://github.com/bridgelauncher/api-tester) oficial de Bridge, limpiado: quedan la conexión con Bridge (stores, eventos, mock para desarrollo) y una pantalla vacía de "Gingerbread Launcher" sobre la que construir.
+Esta rama parte del [api-tester](https://github.com/bridgelauncher/api-tester) oficial de Bridge, limpiado: quedan la conexión con Bridge (stores, eventos, mock para desarrollo) y sobre ella el launcher.
+
+## El launcher
+
+Un launcher estilo terminal CRT con dos pestañas en la barra superior: **PANEL**, un dashboard de paneles enmarcados (reloj y uptime, batería, red, osciloscopio animado, favoritas, recientes y log), y **APPS**, la lista de apps (toca para abrir, mantén para opciones y fijar). Prompt de búsqueda abajo y ajustes al tocar la fecha o la hora. Batería y red usan el fork de Bridge y, en Bridge stock o en el navegador, las APIs web. Fósforo **ámbar** o **verde**, con bloom, scanlines, viñeta y parpadeo configurables. Ideas pendientes en [FEATURES.md](FEATURES.md); guía técnica de Bridge en [BRIDGE_LAUNCHER_GUIDE.md](BRIDGE_LAUNCHER_GUIDE.md).
 
 ## Qué incluye
 
@@ -25,6 +29,7 @@ npm install
 npm run dev          # servidor de desarrollo con el mock de Bridge
 npm run build        # revisión de tipos + build en dist/
 npm run type-check   # solo la revisión de tipos
+npm run deploy       # build + copia dist/ al teléfono por adb
 npm run test:unit    # tests con Vitest
 ```
 
@@ -35,6 +40,8 @@ En el navegador, `window.Bridge` es un mock: las apps salen de `public/mock/apps
 1. `npm run build`.
 2. Copia el contenido de `dist/` a una carpeta del teléfono.
 3. En Bridge, elige esa carpeta como *project dir*.
+
+`npm run deploy` hace los pasos 1 y 2 por adb en `/sdcard/projects/crt-launcher` (otra carpeta con `REMOTE_DIR=... npm run deploy`); en Bridge elige esa carpeta una sola vez.
 
 Los archivos del build tienen nombres fijos (`assets/index.js`), así que para actualizar basta con copiar el nuevo `dist/` encima del anterior.
 

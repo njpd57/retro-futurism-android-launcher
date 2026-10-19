@@ -1,0 +1,20 @@
+@mixin glow($strength: 1) {
+    text-shadow:
+        0 0 2px var(--ph),
+        0 0 calc(8px * var(--bloom) * #{$strength}) var(--ph-glow),
+        0 0 calc(18px * var(--bloom) * #{$strength}) var(--ph-glow);
+}
+
+@mixin box-glow($strength: 1) {
+    box-shadow:
+        0 0 calc(6px * var(--bloom) * #{$strength}) var(--ph-glow),
+        inset 0 0 calc(6px * var(--bloom) * #{$strength}) var(--ph-glow);
+}
+
+// Inverse video: dark text on a lit block.
+@mixin inverse {
+    background: var(--ph);
+    color: var(--ph-bg);
+    text-shadow: none;
+    box-shadow: 0 0 calc(10px * var(--bloom)) var(--ph-glow);
+}

@@ -1,11 +1,12 @@
 {
-  "name": "gingerbread-launcher",
+  "name": "bridge-launcher-boilerplate",
   "version": "0.0.0",
   "private": true,
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
+    "deploy": "bash scripts/deploy.sh",
     "test:unit": "vitest",
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false"
@@ -13,6 +14,7 @@
   "dependencies": {
     "@bridgelauncher/api": "^0.1.0",
     "@bridgelauncher/api-mock": "^0.1.0",
+    "@fontsource/vt323": "^5.3.0",
     "@vueuse/core": "^10.6.1",
     "pinia": "^2.1.7",
     "sass": "^1.69.5",

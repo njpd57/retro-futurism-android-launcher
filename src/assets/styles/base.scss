@@ -1,8 +1,11 @@
 .launcher-root {
     color-scheme: dark;
-    color: #fff;
-    font-family: "Droid Sans", "Roboto", sans-serif;
-    font-size: 14px;
+    color: var(--ph);
+    background-color: var(--ph-bg);
+    font-family: "VT323", monospace;
+    font-size: 22px;
+    line-height: 1.15;
+    @include glow;
 
     box-sizing: border-box;
     margin: 0;

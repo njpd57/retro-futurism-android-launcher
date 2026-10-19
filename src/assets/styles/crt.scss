@@ -1,0 +1,15 @@
+// Phosphor palettes. Add a color by adding another block.
+.launcher-root {
+    --bloom: 0.7;
+    --ph-bg: #060400;
+    --ph: #ffb000;
+    --ph-dim: #a36f00;
+    --ph-glow: rgba(255, 176, 0, 0.55);
+
+    &[data-phosphor="green"] {
+        --ph-bg: #000602;
+        --ph: #33ff66;
+        --ph-dim: #1a9e3d;
+        --ph-glow: rgba(51, 255, 102, 0.5);
+    }
+}
