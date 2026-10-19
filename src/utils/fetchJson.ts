@@ -1,3 +1,5 @@
+import { bridgeHas } from './bridgeHas';
+
 export const FETCH_TIMEOUT_MS = 10_000;
 
 /** Short Spanish reason for a failed request, to show instead of a bare "no link". */
@@ -26,5 +28,23 @@ export async function fetchJson(url: string, timeoutMs = FETCH_TIMEOUT_MS): Prom
     finally
     {
         window.clearTimeout(timer);
+    }
+}
+
+/**
+ * Like `fetchJson`, but when the direct request fails at the network level (CORS, blocked host) and this Bridge has
+ * `getProxyURL`, the same URL is fetched through Bridge. HTTP errors are real answers and are not retried.
+ */
+export async function fetchJsonViaProxy(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<unknown>
+{
+    try
+    {
+        return await fetchJson(url, timeoutMs);
+    }
+    catch (err)
+    {
+        const httpError = /^HTTP \d+/.test((err as Error)?.message ?? '');
+        if (httpError || !bridgeHas('getProxyURL')) throw err;
+        return fetchJson(Bridge.getProxyURL(url), timeoutMs);
     }
 }

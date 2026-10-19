@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
 import { ref } from "vue";
-import { describeFetchError, fetchJson } from "@/utils/fetchJson";
+import { describeFetchError, fetchJsonViaProxy } from "@/utils/fetchJson";
 import { forecastUrl, geocodeUrl, isStale, parseForecast, type Forecast } from "@/utils/weather";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 
@@ -34,7 +34,7 @@ export const useWeatherStore = defineStore('weather', () =>
         lastError.value = '';
         try
         {
-            const parsed = parseForecast(await fetchJson(forecastUrl(city.value.lat, city.value.lon)), Date.now());
+            const parsed = parseForecast(await fetchJsonViaProxy(forecastUrl(city.value.lat, city.value.lon)), Date.now());
             if (parsed) forecast.value = parsed;
             else { failed.value = true; lastError.value = 'RESPUESTA NO VÁLIDA'; }
         }
@@ -52,7 +52,7 @@ export const useWeatherStore = defineStore('weather', () =>
 
     async function searchCity(name: string): Promise<City[]>
     {
-        const json = await fetchJson(geocodeUrl(name)) as { results?: { name: string; country?: string; latitude: number; longitude: number }[] };
+        const json = await fetchJsonViaProxy(geocodeUrl(name)) as { results?: { name: string; country?: string; latitude: number; longitude: number }[] };
         return (json.results ?? []).map(r => ({ name: r.country ? `${r.name}, ${r.country}` : r.name, lat: r.latitude, lon: r.longitude }));
     }
 

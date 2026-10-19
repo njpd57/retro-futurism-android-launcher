@@ -223,6 +223,7 @@ class ForkBridgeMock extends BridgeMock
     requestStartAppShortcut(packageName: string, shortcutId: string) { alert(`[mock] atajo ${shortcutId} de ${packageName}`); return true; }
 
     // storage
+    getProxyURL(url: string) { return url; }
     getStorageStats() { return JSON.stringify({ totalBytes: 128 * 1024 ** 3, freeBytes: 47 * 1024 ** 3 }); }
 }
 

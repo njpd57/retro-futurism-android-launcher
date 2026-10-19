@@ -48,7 +48,7 @@ onBeforeUnmount(() => window.clearTimeout(armTimer));
 const DIAGNOSTIC_METHODS = [
     'getWindowInsetsSwapFixed', 'getBattery', 'getConnectivity',
     'getNotificationsURL', 'getMediaSession', 'getCalendarEventsURL', 'getNextAlarm', 'requestOpenUrl',
-    'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats',
+    'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL',
 ] as const;
 const diagnosticOpen = ref(false);
 const motherOpen = ref(false);

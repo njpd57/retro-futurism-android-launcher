@@ -207,5 +207,8 @@ declare module '@bridgelauncher/api'
 
         /** JSON of BridgeStorageStats (internal storage). */
         getStorageStats(): string;
+
+        /** A URL that makes Bridge download an http(s) URL natively (GET), for sites the WebView can't read because of CORS. */
+        getProxyURL(url: string): string;
     }
 }
