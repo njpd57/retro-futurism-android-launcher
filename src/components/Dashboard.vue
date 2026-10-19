@@ -4,10 +4,9 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { MAX_PANELS, addPanel, addWidgetToActive, moveWidget, removeActivePanel, removeWidget, selectPanel, toggleMinimized } from '@/utils/dashboardLayout';
 import { WIDGETS } from '@/widgets/registry';
-import MenuItem from './MenuItem.vue';
-import TermMenu from './TermMenu.vue';
 import TuiWindow from './TuiWindow.vue';
 import WidgetBoundary from './WidgetBoundary.vue';
+import WidgetCatalog from './WidgetCatalog.vue';
 
 defineProps<{ editing: boolean }>();
 defineEmits<{ (e: 'menu', app: InstalledAppInfo): void }>();
@@ -58,9 +57,7 @@ function add(kind: string)
 
         <div v-if="editing" class="add span-2" @click="adding = true">[+ AÑADIR VENTANA]</div>
 
-        <TermMenu v-if="adding" title="AÑADIR VENTANA" @close="adding = false">
-            <MenuItem v-for="(def, kind) in WIDGETS" :key="kind" @click="add(kind)"><span>{{ def.title }}</span><span>+</span></MenuItem>
-        </TermMenu>
+        <WidgetCatalog v-if="adding" :present="settings.dashboard.map(i => i.kind)" @add="add" @close="adding = false" />
     </div>
 </template>
 
