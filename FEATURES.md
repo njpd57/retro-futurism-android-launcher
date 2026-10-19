@@ -26,3 +26,14 @@ Compilado el fork de Bridge e instalado, y probado en un teléfono real:
 - **ESCÁNER**: tocar una app del radar para ver sus notificaciones.
 - **DIRECTORIOS**: arrastrar una app a una carpeta en vez de usar el menú.
 - **REENRUTAR**: eventos de la nave (fallo de puerta, alarma de sensores) con texto de MOTHER.
+
+## AISLAMIENTO (juego en pantalla propia)
+
+Supervivencia en la Nostromo con vista subjetiva de alambre (`> aislamiento`). Hecha la **fase 1, prototipo**: una cubierta (CUBIERTA C) con 3 células y la lanzadera, la criatura (oído, vista, caza, fuerza puertas), taquillas, rastreador de movimiento, caminar manteniendo pulsado, interferencia al acercarse, muerte y reintento. **Pendiente de probar en el teléfono antes de seguir** (fluidez, controles, tensión).
+
+Fases siguientes, si el prototipo engancha:
+
+2. **Supervivencia:** la criatura aprende (fuego, taquillas repetidas), conductos, terminales de guardado, suspensión al salir (Atrás, Home), vibración, resto de sonidos.
+3. **Herramientas:** inventario, fabricación (chatarra, cables, químicos), lanzallamas, señuelo, bengalas, zonas a oscuras.
+4. **Campaña:** 5 cubiertas (JONES, CONDUCTOS, ASH, FALLOS, AUTODESTRUCCIÓN), el androide, fallos de la nave, cuenta atrás, registros de la tripulación, finales, pantallas de título e informe, dificultad.
+5. **Infinito y extras:** cubiertas generadas con semilla, logros, estadísticas, archivo, widget en el panel, `/jugar` `/partida` `/pista` en MOTHER.

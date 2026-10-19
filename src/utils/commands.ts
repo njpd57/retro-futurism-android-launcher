@@ -14,6 +14,7 @@ export type Command =
     | { type: 'list'; mode: 'simple' | 'long' | null; arg: string }
     | { type: 'mother'; request: string }
     | { type: 'images' }
+    | { type: 'game' }
     | { type: 'unknown'; word: string };
 
 export const COMMAND_HELP = [
@@ -26,6 +27,7 @@ export const COMMAND_HELP = [
     'LISTA <SIMPLE|LARGA>',
     'MOTHER <ORDEN PARA TUS APPS>',
     'IMAGENES',
+    'AISLAMIENTO',
     'AYUDA',
 ];
 
@@ -75,6 +77,7 @@ const ALIASES: Record<string, string> = {
     lista: 'list',
     mother: 'mother', m: 'mother',
     imagenes: 'images', imagen: 'images', fotos: 'images', visor: 'images',
+    aislamiento: 'game', juego: 'game', alien: 'game',
     ayuda: 'help', help: 'help', '?': 'help',
 };
 
@@ -111,6 +114,7 @@ export function parseCommand(input: string): Command | null
         case 'list': return { type: 'list', mode: parseListMode(rest), arg: rest };
         case 'mother': return { type: 'mother', request: rest };
         case 'images': return { type: 'images' };
+        case 'game': return { type: 'game' };
         default: return { type: 'unknown', word };
     }
 }

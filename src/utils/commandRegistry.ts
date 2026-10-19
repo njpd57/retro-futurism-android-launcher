@@ -26,6 +26,7 @@ export const COMMANDS: Record<CommandScope, CommandDef[]> = {
         { name: 'nota', args: '<TEXTO>', hint: 'AÑADE UNA NOTA', example: 'nota ' },
         { name: 'mother', args: '<ORDEN>', hint: 'MOTHER ORGANIZA TUS APPS', example: 'mother ' },
         { name: 'imagenes', args: '', hint: 'VISOR DE IMÁGENES CRT', example: 'imagenes' },
+        { name: 'aislamiento', args: '', hint: 'JUEGO DE SUPERVIVENCIA', example: 'aislamiento' },
         { name: 'ayuda', args: '', hint: 'LISTA DE ÓRDENES', example: 'ayuda' },
     ],
     mother: [

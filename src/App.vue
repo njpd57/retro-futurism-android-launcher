@@ -30,6 +30,8 @@ import MotherOrganizer from '@/components/MotherOrganizer.vue';
 import { useOrganizerStore } from '@/stores/useOrganizerStore';
 import ImageViewer from '@/components/ImageViewer.vue';
 import { useImagesStore } from '@/stores/useImagesStore';
+import IsolationGame from '@/components/isolation/IsolationGame.vue';
+import { useIsolationStore } from '@/stores/useIsolationStore';
 import { useAppsViewStore } from '@/stores/useAppsViewStore';
 import { parseSlash } from '@/mother/slash';
 import MotherSessions from '@/components/MotherSessions.vue';
@@ -58,6 +60,7 @@ const notificationsOpen = ref(false);
 const sessionsOpen = ref(false);
 const organizer = useOrganizerStore();
 const imagesStore = useImagesStore();
+const isolation = useIsolationStore();
 const appsView = useAppsViewStore();
 
 useOwnStatusBar(computed(() => settings.ownStatusBar));
@@ -116,7 +119,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open);
 
 function launch(app: InstalledAppInfo)
 {
@@ -152,7 +155,7 @@ const booting = ref(settings.bootSequence && !window.matchMedia('(prefers-reduce
 
 const idleStore = useIdleStore();
 
-const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch, organize: request => organizer.show(request), showImages: () => imagesStore.show() });
+const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch, organize: request => organizer.show(request), showImages: () => imagesStore.show(), showGame: () => isolation.show() });
 
 // the typed text goes to the MOTHER chat as a question
 function askMother(text: string)
@@ -182,6 +185,7 @@ function closeOverlays()
     sessionsOpen.value = false;
     organizer.close();
     imagesStore.close();
+    isolation.close();
 }
 
 function menuAction(action: (packageName: string) => void)
@@ -300,6 +304,7 @@ onUnmounted(() =>
 
         <MotherOrganizer v-if="organizer.open" />
         <ImageViewer v-if="imagesStore.open" />
+        <IsolationGame v-if="isolation.open" />
         <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
         <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />

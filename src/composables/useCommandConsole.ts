@@ -16,6 +16,8 @@ export function useCommandConsole(options: {
     organize: (request: string) => void;
     /** opens the image viewer */
     showImages: () => void;
+    /** opens the AISLAMIENTO game */
+    showGame: () => void;
 })
 {
     const settings = useSettingsStore();
@@ -50,6 +52,7 @@ export function useCommandConsole(options: {
             case 'list': return [c.mode ? `LISTA ${c.mode === 'long' ? 'LARGA (LS -L)' : 'SIMPLE'}` : c.arg ? `VISTA DESCONOCIDA: ${c.arg.toUpperCase()}` : 'LISTA <SIMPLE|LARGA>'];
             case 'mother': return [c.request ? `MOTHER ORGANIZA: ${c.request.toUpperCase()}` : 'MOTHER <ORDEN PARA TUS APPS>, P. EJ. AGRUPA POR TIPO'];
             case 'images': return ['VISOR DE IMÁGENES'];
+            case 'game': return ['AISLAMIENTO: SUPERVIVENCIA A BORDO'];
             case 'unknown': return [`ORDEN DESCONOCIDA: ${c.word.toUpperCase()}`, 'ESCRIBE > AYUDA'];
         }
     });
@@ -102,6 +105,10 @@ export function useCommandConsole(options: {
                 break;
             case 'images':
                 options.showImages();
+                options.query.value = '';
+                break;
+            case 'game':
+                options.showGame();
                 options.query.value = '';
                 break;
         }

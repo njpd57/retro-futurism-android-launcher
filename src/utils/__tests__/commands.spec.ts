@@ -42,6 +42,13 @@ describe('parseCommand', () =>
         expect(parseCommand('>mother')).toEqual({ type: 'mother', request: '' });
     });
 
+    it('opens the image viewer and the game', () =>
+    {
+        expect(parseCommand('>imágenes')).toEqual({ type: 'images' });
+        expect(parseCommand('> aislamiento')).toEqual({ type: 'game' });
+        expect(parseCommand('>JUEGO')).toEqual({ type: 'game' });
+    });
+
     it('reports unknown verbs', () =>
     {
         expect(parseCommand('>volar')).toEqual({ type: 'unknown', word: 'volar' });
