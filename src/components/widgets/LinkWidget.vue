@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { useSystemStatusStore } from '@/stores/useSystemStatusStore';
 import { signalBars } from '@/utils/tui';
-import TuiPanel from '../TuiPanel.vue';
 
 const status = useSystemStatusStore();
 
@@ -13,13 +12,13 @@ const c = computed(() => status.connectivity);
 </script>
 
 <template>
-    <TuiPanel title="ENLACE">
+    <div>
         <template v-if="c">
             <div>{{ TYPE_LABEL[c.type] }} <span v-if="c.type === 'wifi'">{{ signalBars(c.wifiLevel) }}</span> {{ ARROWS[c.dataActivity] }}</div>
             <div class="dim">MÓVIL {{ signalBars(c.cellularLevel) }}</div>
         </template>
         <div v-else>SIN DATOS</div>
-    </TuiPanel>
+    </div>
 </template>
 
 <style scoped lang="scss">

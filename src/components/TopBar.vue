@@ -7,14 +7,19 @@ defineProps<{ tab: Tab }>();
 defineEmits<{ (e: 'open-settings'): void; (e: 'select-tab', tab: Tab): void }>();
 
 const now = useNow({ interval: 1000 });
+
+const TABS: { id: Tab; label: string }[] = [
+    { id: 'panel', label: 'PANEL' },
+    { id: 'apps', label: 'APPS' },
+    { id: 'mother', label: 'MOTHER' },
+];
 </script>
 
 <template>
     <div class="top-bar">
         <span class="date" @click="$emit('open-settings')">{{ formatDateTui(now) }}</span>
         <span class="tabs">
-            <span class="tab" :class="{ active: tab === 'panel' }" @click="$emit('select-tab', 'panel')">{{ tab === 'panel' ? '[PANEL]' : ' PANEL ' }}</span>
-            <span class="tab" :class="{ active: tab === 'apps' }" @click="$emit('select-tab', 'apps')">{{ tab === 'apps' ? '[APPS]' : ' APPS ' }}</span>
+            <span v-for="t in TABS" :key="t.id" class="tab" :class="{ active: tab === t.id }" @click="$emit('select-tab', t.id)">{{ tab === t.id ? `[${t.label}]` : ` ${t.label} ` }}</span>
         </span>
         <span class="time" @click="$emit('open-settings')">{{ formatClock(now) }}</span>
     </div>

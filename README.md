@@ -8,7 +8,24 @@ Esta rama parte del [api-tester](https://github.com/bridgelauncher/api-tester) o
 
 ## El launcher
 
-Un launcher estilo terminal CRT con dos pestañas en la barra superior: **PANEL**, un dashboard de paneles enmarcados (reloj y uptime, batería, red, osciloscopio animado, favoritas, recientes y log), y **APPS**, la lista de apps (toca para abrir, mantén para opciones y fijar). Prompt de búsqueda abajo y ajustes al tocar la fecha o la hora. Batería y red usan el fork de Bridge y, en Bridge stock o en el navegador, las APIs web. Fósforo **ámbar** o **verde**, con bloom, scanlines, viñeta y parpadeo configurables. Ideas pendientes en [FEATURES.md](FEATURES.md); guía técnica de Bridge en [BRIDGE_LAUNCHER_GUIDE.md](BRIDGE_LAUNCHER_GUIDE.md).
+Un launcher estilo terminal CRT con tres pestañas en la barra superior:
+
+- **PANEL:** un escritorio de ventanas retro (reloj y uptime, batería, red, osciloscopio animado, favoritas, recientes, log, notas con tareas, agenda, reproductor, alarma y clima, y el resumen de MOTHER). Con **EDITAR** (botonera de abajo) se añaden, quitan, minimizan y reordenan.
+- **APPS:** la lista de apps (toca para abrir, mantén para opciones y fijar) con búsqueda en el prompt.
+- **MOTHER:** una terminal de chat con OpenAI al estilo de la computadora de *Alien*: respuestas en mayúsculas y tono de nave.
+
+Fósforo **ámbar** o **verde**, con bloom, scanlines, viñeta y parpadeo configurables. Los ajustes se abren tocando la fecha o la hora, o con la tecla **AJUSTES**. Ideas pendientes en [FEATURES.md](FEATURES.md); guía técnica de Bridge en [BRIDGE_LAUNCHER_GUIDE.md](BRIDGE_LAUNCHER_GUIDE.md).
+
+### Permisos y configuración
+
+Casi todo funciona sin permisos; estas partes los necesitan (y usan el fork de Bridge):
+
+- **Notificaciones y reproductor:** en Ajustes de Android, dar a Bridge el acceso a notificaciones. El panel de notificaciones y el widget REPRODUCTOR lo piden con un botón.
+- **Agenda:** permiso de calendario (botón `CONCEDER` en el widget).
+- **Barra de estado propia:** `AJUSTES › BARRA PROPIA` oculta la barra de Android y dibuja una estilo terminal; al tocarla se abre el panel de notificaciones.
+- **Clima:** en el widget ALARMA · CLIMA, elige una ciudad (Open-Meteo, sin clave).
+- **MOTHER:** `AJUSTES › MOTHER` para escribir tu clave de API de OpenAI y el modelo. La clave se guarda solo en el teléfono, nunca en el repositorio ni en el build.
+- **Diagnóstico:** `AJUSTES › DIAGNÓSTICO` muestra qué métodos del fork tiene el Bridge instalado.
 
 ## Qué incluye
 

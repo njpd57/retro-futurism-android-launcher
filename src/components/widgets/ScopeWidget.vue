@@ -2,7 +2,6 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import TuiPanel from '../TuiPanel.vue';
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const settings = useSettingsStore();
@@ -102,9 +101,9 @@ onBeforeUnmount(() =>
 </script>
 
 <template>
-    <TuiPanel title="SEÑAL">
+    <div>
         <canvas ref="canvas" class="scope" />
-    </TuiPanel>
+    </div>
 </template>
 
 <style scoped lang="scss">

@@ -1,9 +1,10 @@
 import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
+import { DEFAULT_LAYOUT, type DashboardItem } from "@/utils/dashboardLayout";
 
 export type Phosphor = 'amber' | 'green';
 export type LabelCase = 'upper' | 'normal';
-export type Tab = 'panel' | 'apps';
+export type Tab = 'panel' | 'apps' | 'mother';
 
 export const useSettingsStore = defineStore('settings', () =>
 {
@@ -16,6 +17,8 @@ export const useSettingsStore = defineStore('settings', () =>
     const showType = useLocalStorage('settings.showType', true);
     const hiddenApps = useLocalStorage<string[]>('settings.hiddenApps', []);
     const favorites = useLocalStorage<string[]>('settings.favorites', []);
+    const dashboard = useLocalStorage<DashboardItem[]>('settings.dashboard', DEFAULT_LAYOUT);
+    const ownStatusBar = useLocalStorage('settings.ownStatusBar', false);
     const activeTab = useLocalStorage<Tab>('settings.activeTab', 'panel');
 
     function hideApp(packageName: string)
@@ -36,5 +39,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

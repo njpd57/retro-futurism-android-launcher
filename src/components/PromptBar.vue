@@ -1,12 +1,18 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+
 const query = defineModel<string>({ required: true });
 defineEmits<{ (e: 'submit'): void }>();
+
+const input = ref<HTMLInputElement | null>(null);
+defineExpose({ focus: () => input.value?.focus() });
 </script>
 
 <template>
     <div class="prompt-bar">
         <span class="caret">&gt;</span>
         <input
+            ref="input"
             v-model="query"
             type="text"
             autocomplete="off"

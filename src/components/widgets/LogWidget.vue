@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useLogStore } from '@/stores/useLogStore';
-import TuiPanel from '../TuiPanel.vue';
 
 const log = useLogStore();
 
@@ -34,13 +33,13 @@ onBeforeUnmount(() => window.clearInterval(timer));
 </script>
 
 <template>
-    <TuiPanel title="LOG">
+    <div>
         <div class="log">
             <div v-for="line in visible" :key="line.id" class="line">
                 <span class="time">{{ line.time }}</span> {{ line.tag }} {{ line.text }}
             </div>
         </div>
-    </TuiPanel>
+    </div>
 </template>
 
 <style scoped lang="scss">

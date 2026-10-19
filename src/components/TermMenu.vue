@@ -1,16 +1,15 @@
 <script setup lang="ts">
+import TuiWindow from './TuiWindow.vue';
+
 defineProps<{ title: string }>();
 defineEmits<{ (e: 'close'): void }>();
 </script>
 
 <template>
     <div class="term-menu-backdrop" @click.self="$emit('close')">
-        <div class="term-menu">
-            <div class="title">{{ title }}</div>
-            <div class="body">
-                <slot />
-            </div>
-        </div>
+        <TuiWindow class="term-menu" :title="title" :minimizable="false" closable @close="$emit('close')">
+            <slot />
+        </TuiWindow>
     </div>
 </template>
 
@@ -30,13 +29,8 @@ defineEmits<{ (e: 'close'): void }>();
 .term-menu {
     width: 100%;
     max-height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--ph-bg);
-    border: 2px solid var(--ph);
-    @include box-glow;
 
-    > .title { @include inverse; padding: 2px 10px; flex: none; }
-    > .body { min-height: 0; overflow-y: auto; padding: 4px 0; overscroll-behavior: none; touch-action: pan-y; }
+    // menus use all the height they're given instead of the widget cap
+    :deep(.body) { max-height: none; }
 }
 </style>

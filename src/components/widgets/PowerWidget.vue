@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { useSystemStatusStore } from '@/stores/useSystemStatusStore';
 import { bar } from '@/utils/tui';
-import TuiPanel from '../TuiPanel.vue';
 
 const status = useSystemStatusStore();
 
@@ -17,11 +16,11 @@ const state = computed(() =>
 </script>
 
 <template>
-    <TuiPanel title="ENERGÍA">
+    <div>
         <div v-if="level !== null">BAT {{ bar(level / 100, 8) }} {{ level }}%</div>
         <div v-else>BAT --</div>
         <div class="dim" :class="{ low: level !== null && level <= 15 && !status.battery?.isCharging }">{{ state }}</div>
-    </TuiPanel>
+    </div>
 </template>
 
 <style scoped lang="scss">

@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useOwnStatusBar } from '@/composables/useOwnStatusBar';
+import { useMotherStore } from '@/stores/useMotherStore';
+import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useAppsStore, type InstalledAppInfo } from '@/stores/useAppsStore';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
@@ -12,7 +15,11 @@ import AppList from '@/components/AppList.vue';
 import CrtScreen from '@/components/CrtScreen.vue';
 import Dashboard from '@/components/Dashboard.vue';
 import MenuItem from '@/components/MenuItem.vue';
+import MotherTerminal from '@/components/MotherTerminal.vue';
+import NotificationWindow from '@/components/NotificationWindow.vue';
+import StatusBar from '@/components/StatusBar.vue';
 import PromptBar from '@/components/PromptBar.vue';
+import SoftKeys, { type SoftKey } from '@/components/SoftKeys.vue';
 import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
@@ -24,15 +31,50 @@ const toggles = useTogglesStore();
 const bridgeEvents = useBridgeEventStore();
 const launchStore = useLaunchStore();
 
+const notifications = useNotificationsStore();
+const mother = useMotherStore();
+const notificationsOpen = ref(false);
+
+useOwnStatusBar(computed(() => settings.ownStatusBar));
+
 const query = ref('');
+const prompt = ref<InstanceType<typeof PromptBar> | null>(null);
+const editing = ref(false);
 const settingsOpen = ref(false);
 const menuApp = ref<InstalledAppInfo | null>(null);
 
-const insetTop = computed(() => insets.statusBarsIgnoringVisibility.top);
+const MIN_STATUS_BAR_PX = 24;
+const statusBarHeight = computed(() => Math.max(insets.statusBarsIgnoringVisibility.top, MIN_STATUS_BAR_PX));
+// with our own status bar it draws in the top inset, so the page doesn't pad for it
+const insetTop = computed(() => settings.ownStatusBar ? 0 : insets.statusBarsIgnoringVisibility.top);
+
+function openStatusBar()
+{
+    if (notifications.supported)
+        notificationsOpen.value = true;
+    else
+        Bridge.requestExpandNotificationShade();
+}
 const insetBottom = computed(() => Math.max(insets.navigationBars.bottom, insets.ime.bottom));
 
 const results = computed(() => searchApps(appsStore.apps.values(), query.value, settings.hiddenApps));
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null);
+const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
+    ? [
+        { label: editing.value ? 'LISTO' : 'EDITAR', action: () => { editing.value = !editing.value; } },
+        { label: 'NOTIF', action: () => { notificationsOpen.value = true; } },
+        { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
+    ]
+    : settings.activeTab === 'mother'
+    ? [
+        mother.busy ? { label: 'ABORTAR', action: () => mother.abort() } : { label: 'BORRAR', action: () => mother.clear() },
+        { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
+    ]
+    : [
+        { label: 'BUSCAR', action: () => prompt.value?.focus() },
+        { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
+    ]);
+
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || notificationsOpen.value);
 
 function launch(app: InstalledAppInfo)
 {
@@ -55,6 +97,7 @@ function launchFirst()
 
 function closeOverlays()
 {
+    notificationsOpen.value = false;
     settingsOpen.value = false;
     menuApp.value = null;
 }
@@ -100,6 +143,7 @@ bridgeEvents.addEventListener(ev =>
         closeOverlays();
         query.value = '';
         settings.activeTab = 'panel';
+        editing.value = false;
     }
 });
 
@@ -129,14 +173,17 @@ onUnmounted(() =>
         <div
             class="screen"
             :style="{ 'padding-top': px(insetTop), 'padding-bottom': px(insetBottom) }">
+            <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
             <TopBar :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" />
-            <Dashboard v-if="settings.activeTab === 'panel'" @menu="menuApp = $event" />
+            <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
+            <MotherTerminal v-else-if="settings.activeTab === 'mother'" />
             <AppList v-else :apps="results" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" />
-            <PromptBar v-model="query" @submit="launchFirst" />
-            <div class="help">TOCA PARA ABRIR · MANTÉN PARA OPCIONES</div>
+            <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" />
+            <SoftKeys :keys="softKeys" />
         </div>
 
         <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
+        <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 
         <TermMenu v-if="menuApp" :title="menuApp.label.toUpperCase()" @close="menuApp = null">
             <MenuItem @click="menuAction(p => launchStore.launch(p, menuApp?.label))"><span>ABRIR</span></MenuItem>
@@ -155,13 +202,5 @@ onUnmounted(() =>
     display: flex;
     flex-direction: column;
     height: 100%;
-
-    > .help {
-        flex: none;
-        padding: 2px 10px 4px;
-        font-size: 18px;
-        color: var(--ph-dim);
-        text-align: center;
-    }
 }
 </style>

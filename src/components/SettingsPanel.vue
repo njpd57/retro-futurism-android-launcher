@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useAppsStore } from '@/stores/useAppsStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
+import { bridgeHas } from '@/utils/bridgeHas';
+import MotherSettings from './MotherSettings.vue';
 import TermMenu from './TermMenu.vue';
 import MenuItem from './MenuItem.vue';
 
@@ -39,6 +41,15 @@ function onHiddenTap(packageName: string)
 
 onBeforeUnmount(() => window.clearTimeout(armTimer));
 
+// Which fork methods the installed Bridge has, to see what the launcher can use on this device.
+const DIAGNOSTIC_METHODS = [
+    'getWindowInsetsSwapFixed', 'getBattery', 'getConnectivity',
+    'getNotificationsURL', 'getMediaSession', 'getCalendarEventsURL', 'getNextAlarm', 'requestOpenUrl',
+] as const;
+const diagnosticOpen = ref(false);
+const motherOpen = ref(false);
+const diagnostic = computed(() => DIAGNOSTIC_METHODS.map(m => ({ method: m, ok: bridgeHas(m) })));
+
 const onOff = (v: boolean) => v ? '[X]' : '[ ]';
 const bloomPct = computed({
     get: () => Math.round(settings.bloom * 100),
@@ -70,6 +81,8 @@ const bloomPct = computed({
             <span>BOTÓN BRIDGE</span><span>{{ onOff(bridgeButtonShown) }}</span>
         </MenuItem>
 
+        <MenuItem @click="settings.ownStatusBar = !settings.ownStatusBar"><span>BARRA PROPIA</span><span>{{ onOff(settings.ownStatusBar) }}</span></MenuItem>
+
         <template v-if="hidden.length">
             <div class="section">APPS OCULTAS (TOCA DOS VECES PARA MOSTRAR)</div>
             <MenuItem v-for="h in hidden" :key="h.packageName" :class="{ armed: armed === h.packageName }" @click="onHiddenTap(h.packageName)">
@@ -77,7 +90,15 @@ const bloomPct = computed({
             </MenuItem>
         </template>
 
+        <MenuItem @click="motherOpen = true"><span>MOTHER</span><span>›</span></MenuItem>
+        <MenuItem @click="diagnosticOpen = true"><span>DIAGNÓSTICO</span><span>›</span></MenuItem>
         <MenuItem @click="$emit('close')"><span>CERRAR</span><span>ESC</span></MenuItem>
+
+        <MotherSettings v-if="motherOpen" @close="motherOpen = false" />
+
+        <TermMenu v-if="diagnosticOpen" title="DIAGNÓSTICO" @close="diagnosticOpen = false">
+            <MenuItem v-for="d in diagnostic" :key="d.method"><span class="method">{{ d.method }}</span><span>{{ d.ok ? 'OK' : '--' }}</span></MenuItem>
+        </TermMenu>
     </TermMenu>
 </template>
 
@@ -94,4 +115,5 @@ const bloomPct = computed({
 .section { padding: 6px 10px 2px; opacity: 0.7; }
 
 .armed { @include inverse; }
+.method { font-size: 0.8em; overflow: hidden; text-overflow: ellipsis; }
 </style>

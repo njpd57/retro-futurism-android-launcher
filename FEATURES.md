@@ -10,9 +10,9 @@ Cosas que quedaron fuera de la v1 (pantalla única tipo terminal, ámbar/verde, 
 - **Banda de barrido** lenta que recorre la pantalla.
 
 ## Pantallas
-- **Más paneles** para el dashboard: radar ASCII, calendario, alarma, reproductor, notificaciones, almacenamiento. El dashboard base (reloj, energía, enlace, señal, favoritas, recientes y log) ya existe.
-- **Barra de estado propia** (ocultando la del sistema) con hora, batería y red. Necesita métodos del fork que aún no usamos.
+- **Ventanas flotantes arrastrables** que se solapan libremente, como en la imagen de referencia, con la posición guardada. Hoy las ventanas van en una rejilla y se reordenan con EDITAR.
+- **Más widgets**: radar ASCII, almacenamiento, contactos favoritos, tiempo de pantalla, temporizador.
 
 ## Sistema
-- Más métodos del fork (notificaciones, calendario, alarma…): añadirlos a `src/types/bridge-fork.d.ts` y a `ForkBridgeMock`.
+- Más métodos del fork (almacenamiento, atajos de apps, contactos…): añadirlos a `src/types/bridge-fork.d.ts` y a `ForkBridgeMock`.
 - Sonidos de teclado y de selección.

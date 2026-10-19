@@ -4,7 +4,6 @@ import { useAppsStore, type InstalledAppInfo } from '@/stores/useAppsStore';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import AppRow from '../AppRow.vue';
-import TuiPanel from '../TuiPanel.vue';
 
 const props = defineProps<{ mode: 'favorites' | 'recent' }>();
 defineEmits<{ (e: 'menu', app: InstalledAppInfo): void }>();
@@ -24,7 +23,7 @@ const apps = computed(() =>
 </script>
 
 <template>
-    <TuiPanel :title="mode === 'favorites' ? 'FAVORITAS' : 'RECIENTES'">
+    <div>
         <div class="rows">
             <AppRow
                 v-for="app in apps"
@@ -37,7 +36,7 @@ const apps = computed(() =>
                 {{ mode === 'favorites' ? 'MANTÉN UNA APP › FIJAR' : 'SIN ACTIVIDAD' }}
             </div>
         </div>
-    </TuiPanel>
+    </div>
 </template>
 
 <style scoped lang="scss">
