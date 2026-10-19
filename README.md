@@ -26,6 +26,9 @@ Tres pestañas en la barra superior:
 - **Consola:** en el prompt, `>` seguido de una orden: `> abrir <app>`, `> calc 2+2`, `> tema verde`, `> clima`, `> nota <texto>`, `> ayuda`.
 - **Gestos:** deslizar a los lados cambia de panel y de pestaña; deslizar hacia abajo desde el borde superior abre las notificaciones. El contador `!N` de la barra superior muestra las notificaciones pendientes.
 - **Reposo:** tras N minutos sin tocar, un reloj grande que se desplaza (anti-quemado). **Arranque:** secuencia de boot saltable con un toque. **Turno nocturno:** de 22:00 a 07:00 pasa a fósforo rojo con menos bloom. **Vibración:** pulso háptico al pulsar. Todo opcional en los ajustes.
+- **Ayuda al escribir:** en la pestaña MOTHER, chips con atajos, el resto de la orden en gris mientras escribes y un botón `[TAB]` (o la tecla Tab) que la rellena. Órdenes locales con `/`: `/temp 5`, `/nota`, `/tema`, `/abrir`, `/sesiones`, `/nueva`, `/borrar`, `/ayuda`. En el prompt de APPS también: `> orden uso`, `> lista larga`.
+- **MOTHER ordena tus apps:** `> mother agrupa por tipo`, el botón `[MOTHER]` de la lista o `/ordenar ...`. Solo se envían a la API los nombres de las apps (numerados), con vista previa, `[APLICAR]` y `[DESHACER]`.
+- **Permisos:** `AJUSTES › PERMISOS` muestra qué falta (notificaciones, calendario, contactos, uso de apps, voz...) y dónde concederlo.
 - **Respaldo:** `AJUSTES › RESPALDO` exporta e importa ajustes, paneles, notas y favoritos como texto JSON (sin la clave de MOTHER).
 
 ### Apariencia y sonido

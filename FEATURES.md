@@ -15,6 +15,12 @@ Nada de esto se ha probado en un teléfono real; el desarrollo se hizo con el mo
 - **BÚSQUEDA AMPLIADA:** contactos y atajos de apps con los permisos concedidos.
 - **MOTHER con herramientas:** el formato de `tool_calls` en streaming con tu modelo.
 
+## Pendiente tras la segunda ronda de pruebas
+
+- **Fork de Bridge (Kotlin sin compilar):** `getStorageStats` y la voz (`getTtsAvailable`, `requestSpeak`, `requestStopSpeaking`, `requestOpenTtsSettings`, más la entrada `<queries>` del manifest). Hay que recompilar e instalar el fork; hasta entonces el almacén y la voz por Android dependen de lo que ofrezca el WebView. Los cambios están en `~/Projects/bridge-launcher` sin commitear.
+- **Clima en el teléfono:** ya no hay "sin enlace" mudo: el widget muestra la causa (`HTTP 400`, `SIN RED O BLOQUEADO`...) y reintenta por el proxy de Bridge. El fallo de fondo era un bug de almacenamiento (la ciudad se guardaba como `[object Object]`).
+- **Acciones de MOTHER con el modelo real:** probado con una API simulada; falta probar con tu clave.
+
 ## Decisiones a revisar
 
 - **CONTEXTO DE A BORDO está activado por defecto:** cada consulta a MOTHER envía a la API la hora, la batería, la agenda del día, el clima y la alarma. Se puede apagar en `AJUSTES › MOTHER`, donde también se ve el texto exacto que se envía.
