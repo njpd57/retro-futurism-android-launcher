@@ -26,6 +26,7 @@ import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
 import BootSequence from '@/components/BootSequence.vue';
 import ExtraResults from '@/components/ExtraResults.vue';
+import MotherSessions from '@/components/MotherSessions.vue';
 import AppRename from '@/components/AppRename.vue';
 import AppFolderMenu from '@/components/AppFolderMenu.vue';
 import IdleClock from '@/components/IdleClock.vue';
@@ -48,6 +49,7 @@ const launchStore = useLaunchStore();
 const notifications = useNotificationsStore();
 const mother = useMotherStore();
 const notificationsOpen = ref(false);
+const sessionsOpen = ref(false);
 
 useOwnStatusBar(computed(() => settings.ownStatusBar));
 
@@ -91,6 +93,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
     : settings.activeTab === 'mother'
     ? [
         mother.busy ? { label: 'ABORTAR', action: () => mother.abort() } : { label: 'BORRAR', action: () => mother.clear() },
+        { label: 'SESIONES', action: () => { sessionsOpen.value = true; } },
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]
     : [
@@ -98,7 +101,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value);
 
 function launch(app: InstalledAppInfo)
 {
@@ -150,6 +153,7 @@ function closeOverlays()
     menuApp.value = null;
     renameApp.value = null;
     folderApp.value = null;
+    sessionsOpen.value = false;
 }
 
 function menuAction(action: (packageName: string) => void)
@@ -247,6 +251,7 @@ onUnmounted(() =>
         <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 
+        <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
         <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />
 

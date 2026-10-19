@@ -1,6 +1,6 @@
 import { getAudio, noiseBuffer } from './context';
 
-export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping';
+export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick';
 
 function beep(freq: number, ms: number, type: OscillatorType, gain: number, delayMs = 0, endFreq = freq)
 {
@@ -50,6 +50,8 @@ const SOUNDS: Record<SfxName, () => void> = {
     back: () => beep(700, 50, 'square', 0.12, 0, 450),
     alert: () => { for (let i = 0; i < 3; i++) beep(1500, 120, 'square', 0.15, i * 220); },
     ping: () => beep(1900, 160, 'sine', 0.2, 0, 1400),
+    // teletype chirp while MOTHER's answer streams in
+    tick: () => beep(2200 + Math.random() * 600, 14, 'square', 0.06),
 };
 
 export function playSfx(name: SfxName) { SOUNDS[name](); }

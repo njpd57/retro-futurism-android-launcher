@@ -35,6 +35,11 @@ watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.c
                 <template v-else>MOTHER: {{ m.content }}<span v-if="mother.busy && i === mother.history.length - 1" class="cursor" /></template>
             </div>
             <div v-if="mother.status === 'waiting'" class="dim processing">PROCESANDO</div>
+            <div v-for="p in mother.pending" :key="p.id" class="action-box">
+                <div>PROPUESTA: {{ p.line }}</div>
+                <span class="btn pressable" @click="mother.confirmAction(p.id)">[EJECUTAR]</span>
+                <span class="btn pressable" @click="mother.dismissAction(p.id)">[ANULAR]</span>
+            </div>
             <div v-if="mother.error" class="error">{{ mother.error }}</div>
         </div>
 
@@ -80,6 +85,8 @@ watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.c
     .msg { white-space: pre-wrap; word-break: break-word; text-transform: uppercase; }
     .msg.user { color: var(--ph-dim); }
     .dim { color: var(--ph-dim); }
+    .action-box { border: 1px solid var(--ph); padding: 4px 8px; display: flex; flex-wrap: wrap; gap: 4px 16px; > div { width: 100%; } }
+    .btn { &:active { @include inverse; } }
     .error { color: var(--ph); animation: blink 1s steps(2) infinite; }
 
     .processing::after { content: ''; animation: dots 1.2s steps(4) infinite; }

@@ -1,12 +1,10 @@
 import { computed, ref, type Ref } from 'vue';
-import { useLocalStorage } from '@vueuse/core';
+import { useDashboardActions } from './useDashboardActions';
 import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { searchApps } from '@/utils/appSearch';
 import { COMMAND_HELP, formatNumber, parseCommand } from '@/utils/commands';
-import { addWidgetToActive, allItems } from '@/utils/dashboardLayout';
-import { appendNoteLine } from '@/utils/notes';
 import { weatherText } from '@/utils/weather';
 
 /** The prompt as a command console: `> verb args`. Pure parsing lives in utils/commands. */
@@ -18,6 +16,7 @@ export function useCommandConsole(options: {
 {
     const settings = useSettingsStore();
     const weather = useWeatherStore();
+    const { saveNote } = useDashboardActions();
 
     const command = computed(() => parseCommand(options.query.value));
     /** Result of the last executed command; only shown while the prompt text is still the one it was run with. */
@@ -53,18 +52,6 @@ export function useCommandConsole(options: {
         const f = weather.forecast;
         if (!f) return [weather.failed ? 'SIN ENLACE' : 'CONSULTANDO…'];
         return [`${weather.city.name.toUpperCase()}: ${Math.round(f.temperature)}°C ${weatherText(f.code)}`];
-    }
-
-    function saveNote(text: string)
-    {
-        let item = allItems(settings.layouts).find(i => i.kind === 'notes');
-        if (!item)
-        {
-            settings.layouts = addWidgetToActive(settings.layouts, 'notes');
-            item = settings.dashboard[settings.dashboard.length - 1];
-        }
-        const stored = useLocalStorage(`widget.notes.${item.id}`, '');
-        stored.value = appendNoteLine(stored.value, text);
     }
 
     /** Runs the command in the prompt. True when the text was a command (handled, even if it failed). */

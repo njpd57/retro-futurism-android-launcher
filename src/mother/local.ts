@@ -23,12 +23,13 @@ const CONNECTION: Record<BridgeConnectionType, string> = {
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const localKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** `YYYY-MM-DD` in local time. */
+export const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 /** Events that fall on the day of `now`, in time order. */
 export function todayEvents(events: readonly BridgeCalendarEvent[], now: Date)
 {
-    const key = localKey(now);
+    const key = dayKey(now);
     return events.filter(e => eventDayKey(e) === key).sort((a, b) => a.begin - b.begin);
 }
 
