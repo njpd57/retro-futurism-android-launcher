@@ -97,16 +97,22 @@ describe('moon', () =>
         expect(moonIllumination(0)).toBeCloseTo(0);
     });
 
-    it('draws a disc with the lit side on the correct edge', () =>
+    it('draws a round disc with the lit side on the correct edge', () =>
     {
-        const lit = (rows: string[]) => rows.join('').split('█').length - 1;
-        expect(lit(moonArt(0))).toBe(0);
-        expect(lit(moonArt(0.5)) ).toBeGreaterThan(lit(moonArt(0.25)));
-        const waxing = moonArt(0.25)[3];
-        const waning = moonArt(0.75)[3];
-        expect(waxing.indexOf('█')).toBeGreaterThan(waxing.length / 2 - 2);
-        expect(waning.lastIndexOf('█')).toBeLessThan(waning.length / 2 + 2);
-        expect(moonArt(0.5, 3)).toHaveLength(7);
+        const lit = (rows: string[]) => rows.join('').replace(/[^█▀▄]/g, '').length;
+        const columns = (rows: string[]) => rows.flatMap(r => [...r].map((c, i) => '█▀▄'.includes(c) ? i : -1)).filter(i => i >= 0);
+
+        const newMoon = moonArt(0);
+        expect(newMoon).toHaveLength(8);
+        expect(newMoon.every(r => r.length === 15)).toBe(true);
+        expect(lit(newMoon)).toBe(0);
+        expect(newMoon.join('')).toContain('░');
+
+        expect(lit(moonArt(0.5))).toBeGreaterThan(lit(moonArt(0.25)));
+        expect(lit(moonArt(0.25))).toBeGreaterThan(0);
+        expect(Math.min(...columns(moonArt(0.25)))).toBeGreaterThanOrEqual(6); // first quarter: right half
+        expect(Math.max(...columns(moonArt(0.75)))).toBeLessThanOrEqual(8); // last quarter: left half
+        expect(moonArt(0.5, 3)).toHaveLength(4);
     });
 });
 

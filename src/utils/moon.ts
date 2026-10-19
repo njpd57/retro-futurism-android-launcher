@@ -22,24 +22,42 @@ export function moonIllumination(cycle: number)
     return (1 - Math.cos(2 * Math.PI * cycle)) / 2;
 }
 
-/** The moon as block characters: `█` lit, `░` dark side, spaces outside. Rows are `2r+1`, columns about `4r+1`. */
-export function moonArt(cycle: number, radius = 3): string[]
-{
-    const theta = 2 * Math.PI * cycle;
-    const cos = Math.cos(theta);
-    const waxing = cycle < 0.5;
-    const rows: string[] = [];
+type Pixel = 'L' | 'D' | 'O';
 
-    for (let y = -radius; y <= radius; y++)
+/**
+ * The moon as block characters, two pixels per character cell with half blocks so the disc is round:
+ * `█ ▀ ▄` lit, `░` the dark side, spaces outside. `2r+1` columns by `r+1` rows.
+ */
+export function moonArt(cycle: number, radius = 7): string[]
+{
+    const cos = Math.cos(2 * Math.PI * cycle);
+    const waxing = cycle < 0.5;
+    const size = 2 * radius + 1;
+    const reach = radius * radius + radius; // a little over r² so small discs look round
+
+    const pixel = (px: number, py: number): Pixel =>
     {
-        const half = Math.sqrt(radius * radius - y * y);
+        const x = px - radius;
+        const y = py - radius;
+        if (py >= size || x * x + y * y > reach) return 'O';
+        const half = Math.sqrt(reach - y * y);
+        const lit = waxing ? x > half * cos + 1e-9 : x < -half * cos - 1e-9;
+        return lit ? 'L' : 'D';
+    };
+
+    const rows: string[] = [];
+    for (let py = 0; py < size; py += 2)
+    {
         let row = '';
-        for (let col = -2 * radius; col <= 2 * radius; col++)
+        for (let px = 0; px < size; px++)
         {
-            const x = col / 2; // characters are about twice as tall as wide
-            if (Math.abs(x) > half + 0.001) { row += ' '; continue; }
-            const lit = waxing ? x > half * cos + 1e-9 : x < -half * cos - 1e-9;
-            row += lit ? '█' : '░';
+            const top = pixel(px, py);
+            const bottom = pixel(px, py + 1);
+            row += top === 'L' && bottom === 'L' ? '█'
+                : top === 'L' ? '▀'
+                : bottom === 'L' ? '▄'
+                : top === 'O' && bottom === 'O' ? ' '
+                : '░';
         }
         rows.push(row);
     }
