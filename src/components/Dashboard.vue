@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
-import { MAX_PANELS, addPanel, addWidgetToActive, moveWidget, removeActivePanel, removeWidget, selectPanel, toggleMinimized } from '@/utils/dashboardLayout';
+import { MAX_PANELS, activePanel, addPanel, addWidgetToActive, moveWidget, removeActivePanel, removeWidget, selectPanel, toggleMinimized } from '@/utils/dashboardLayout';
 import { WIDGETS } from '@/widgets/registry';
 import TuiWindow from './TuiWindow.vue';
 import WidgetBoundary from './WidgetBoundary.vue';
@@ -13,6 +13,10 @@ defineEmits<{ (e: 'menu', app: InstalledAppInfo): void }>();
 
 const settings = useSettingsStore();
 const adding = ref(false);
+const root = ref<HTMLElement | null>(null);
+/** Id of the window just added; it blinks for a moment so you can see where it landed. */
+const flashing = ref<string | null>(null);
+let flashTimer: number | undefined;
 
 // A layout can reference a kind that no longer exists in the registry.
 const items = computed(() => settings.dashboard.filter(i => i.kind in WIDGETS));
@@ -21,11 +25,24 @@ function add(kind: string)
 {
     settings.layouts = addWidgetToActive(settings.layouts, kind);
     adding.value = false;
+    const panel = activePanel(settings.layouts);
+    reveal(panel[panel.length - 1]?.id);
+}
+
+// The new window is appended at the end of the panel, possibly far below the fold.
+async function reveal(id: string | undefined)
+{
+    if (!id) return;
+    await nextTick();
+    root.value?.querySelector(`[data-widget-id="${id}"]`)?.scrollIntoView({ block: 'nearest' });
+    flashing.value = id;
+    window.clearTimeout(flashTimer);
+    flashTimer = window.setTimeout(() => { flashing.value = null; }, 1200);
 }
 </script>
 
 <template>
-    <div class="dashboard">
+    <div ref="root" class="dashboard">
         <div v-if="settings.layouts.panels.length > 1 || editing" class="panel-tabs span-2">
             <span
                 v-for="(_, i) in settings.layouts.panels"
@@ -43,7 +60,8 @@ function add(kind: string)
             v-for="item in items"
             :key="item.id"
             :title="WIDGETS[item.kind].title"
-            :class="{ 'span-2': WIDGETS[item.kind].span === 2 }"
+            :data-widget-id="item.id"
+            :class="{ 'span-2': WIDGETS[item.kind].span === 2, flash: flashing === item.id }"
             :minimized="item.minimized"
             :closable="editing"
             :movable="editing"
@@ -83,6 +101,16 @@ function add(kind: string)
     .panel-tab.active { font-weight: bold; }
     .panel-tab:active { @include inverse; }
 
+    .flash { animation: flash 0.3s steps(1) 4; }
+
     > .add { padding: 6px; text-align: center; border: 1px dashed var(--ph); }
+}
+
+@keyframes flash {
+    50% { background: var(--ph); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboard .flash { animation: none; }
 }
 </style>
