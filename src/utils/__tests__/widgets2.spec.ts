@@ -230,3 +230,18 @@ describe('compass', () =>
         expect(compassStrip(358, 21)).toHaveLength(21);
     });
 });
+
+import { describeFetchError } from '../fetchJson';
+
+describe('describeFetchError', () =>
+{
+    it('explains the usual failures', () =>
+    {
+        expect(describeFetchError(Object.assign(new Error('x'), { name: 'AbortError' }))).toBe('TIEMPO AGOTADO');
+        expect(describeFetchError(new Error('HTTP 429'))).toBe('HTTP 429');
+        expect(describeFetchError(new TypeError('Failed to fetch'))).toBe('SIN RED O BLOQUEADO');
+        expect(describeFetchError(new SyntaxError('Unexpected token'))).toBe('RESPUESTA NO VÁLIDA');
+        expect(describeFetchError(new Error('algo raro'))).toBe('ALGO RARO');
+        expect(describeFetchError(undefined)).toBe('UNDEFINED');
+    });
+});

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useWeatherStore } from '@/stores/useWeatherStore';
+import CityPicker from '../CityPicker.vue';
 import { sparkline } from '@/utils/tui';
 import { dailyRows, weatherText } from '@/utils/weather';
 
 const weather = useWeatherStore();
+const picking = ref(false);
 
 const rows = computed(() => weather.forecast?.daily ? dailyRows(weather.forecast.daily) : []);
 const spark = computed(() => rows.value.length ? sparkline(rows.value.map(r => r.max)) : '');
@@ -18,21 +20,28 @@ onMounted(() =>
 
 <template>
     <div>
-        <div v-if="!weather.city" class="dim">SIN CIUDAD: ELÍGELA EN EL WIDGET ALARMA · CLIMA</div>
+        <div v-if="!weather.city" class="action pressable" @click="picking = true">[ELEGIR CIUDAD]</div>
         <template v-else-if="rows.length">
-            <div class="dim">{{ weather.city.name.toUpperCase() }} · MÁX {{ spark }}</div>
+            <div class="dim pressable" @click="picking = true">{{ weather.city.name.toUpperCase() }} · MÁX {{ spark }}</div>
             <div v-for="r in rows" :key="r.day + r.max" class="row">
                 <span>{{ r.day }}</span>
                 <span>{{ r.min }}/{{ r.max }}°</span>
                 <span class="text">{{ weatherText(r.code) }}</span>
             </div>
-            <div v-if="weather.failed" class="dim">DATOS ANTIGUOS (SIN ENLACE)</div>
+            <div v-if="weather.failed" class="dim">DATOS ANTIGUOS · {{ weather.lastError }}</div>
         </template>
-        <div v-else class="dim">{{ weather.failed ? 'SIN ENLACE' : 'CONSULTANDO…' }}</div>
+        <template v-else>
+            <div class="dim pressable" @click="picking = true">{{ weather.city.name.toUpperCase() }} ›</div>
+            <div class="dim">{{ weather.failed ? `SIN ENLACE · ${weather.lastError}` : 'CONSULTANDO…' }}</div>
+            <div v-if="weather.failed" class="action pressable" @click="weather.refresh(true)">[REINTENTAR]</div>
+        </template>
+
+        <CityPicker v-if="picking" @close="picking = false" />
     </div>
 </template>
 
 <style scoped lang="scss">
 .dim { color: var(--ph-dim); }
+.action { padding: 2px 0; &:active { @include inverse; } }
 .row { display: flex; gap: 10px; white-space: nowrap; > span:first-child { width: 2.6em; } > .text { color: var(--ph-dim); overflow: hidden; text-overflow: ellipsis; } }
 </style>
