@@ -109,3 +109,118 @@ describe('moon', () =>
         expect(moonArt(0.5, 3)).toHaveLength(7);
     });
 });
+
+import { dailyRows, parseForecast } from '../weather';
+
+describe('extended forecast', () =>
+{
+    const base = { current: { temperature_2m: 10, weather_code: 1 }, hourly: { temperature_2m: [10] } };
+    const daily = { time: ['2026-10-19', '2026-10-20'], temperature_2m_max: [20.4, 18.6], temperature_2m_min: [9, 8.2], weather_code: [0, 61] };
+
+    it('parses the daily block when it is consistent', () =>
+    {
+        expect(parseForecast({ ...base, daily }, 1)?.daily).toEqual({ date: daily.time, max: daily.temperature_2m_max, min: daily.temperature_2m_min, code: daily.weather_code });
+    });
+
+    it('ignores a missing or misaligned daily block', () =>
+    {
+        expect(parseForecast(base, 1)?.daily).toBeUndefined();
+        expect(parseForecast({ ...base, daily: { ...daily, weather_code: [0] } }, 1)?.daily).toBeUndefined();
+    });
+
+    it('builds rows with HOY and weekday names', () =>
+    {
+        const rows = dailyRows(parseForecast({ ...base, daily }, 1)!.daily!);
+        expect(rows).toEqual([{ day: 'HOY', max: 20, min: 9, code: 0 }, { day: 'MAR', max: 19, min: 8, code: 61 }]);
+    });
+});
+
+import { EMPTY_STOPWATCH, formatStopwatch, lapSplits, lapStopwatch, startStopwatch, stopStopwatch, stopwatchElapsed, MAX_LAPS } from '../timer';
+
+describe('stopwatch', () =>
+{
+    it('accumulates across stops', () =>
+    {
+        let sw = startStopwatch(EMPTY_STOPWATCH, 1000);
+        expect(stopwatchElapsed(sw, 1500)).toBe(500);
+        sw = stopStopwatch(sw, 2000);
+        expect(stopwatchElapsed(sw, 99999)).toBe(1000);
+        sw = startStopwatch(sw, 5000);
+        expect(stopwatchElapsed(sw, 5250)).toBe(1250);
+    });
+
+    it('ignores redundant start/stop and laps while stopped', () =>
+    {
+        const running = startStopwatch(EMPTY_STOPWATCH, 10);
+        expect(startStopwatch(running, 99)).toBe(running);
+        expect(stopStopwatch(EMPTY_STOPWATCH, 5)).toBe(EMPTY_STOPWATCH);
+        expect(lapStopwatch(EMPTY_STOPWATCH, 5)).toBe(EMPTY_STOPWATCH);
+    });
+
+    it('records laps and their splits, capped', () =>
+    {
+        let sw = startStopwatch(EMPTY_STOPWATCH, 0);
+        sw = lapStopwatch(sw, 1000);
+        sw = lapStopwatch(sw, 2500);
+        expect(sw.laps).toEqual([1000, 2500]);
+        expect(lapSplits(sw.laps)).toEqual([1000, 1500]);
+        for (let i = 0; i < 30; i++) sw = lapStopwatch(sw, 3000 + i);
+        expect(sw.laps).toHaveLength(MAX_LAPS);
+    });
+
+    it('formats with centiseconds', () =>
+    {
+        expect(formatStopwatch(0)).toBe('00:00.00');
+        expect(formatStopwatch(61_230)).toBe('01:01.23');
+        expect(formatStopwatch(3_600_000 + 5_000)).toBe('1:00:05.00');
+    });
+});
+
+import { latencyStats, normalizeHost, pushSample, sparkValues } from '../telemetry';
+import { compassPoint, compassStrip, headingFromAlpha } from '../compass';
+
+describe('telemetry', () =>
+{
+    it('normalizes hosts', () =>
+    {
+        expect(normalizeHost('example.com')).toBe('https://example.com/');
+        expect(normalizeHost('http://example.com/ping')).toBe('http://example.com/ping');
+        expect(normalizeHost('ftp://example.com')).toBeNull();
+        expect(normalizeHost('localhost')).toBeNull();
+        expect(normalizeHost('a b.com')).toBeNull();
+        expect(normalizeHost('')).toBeNull();
+    });
+
+    it('keeps a bounded history and computes stats with losses', () =>
+    {
+        let h: (number | null)[] = [];
+        for (const s of [40, 60, null, 80]) h = pushSample(h, s, 3);
+        expect(h).toEqual([60, null, 80]);
+        expect(latencyStats(h)).toEqual({ last: 80, avg: 70, max: 80, lossPct: 33 });
+        expect(latencyStats([])).toEqual({ last: null, avg: null, max: null, lossPct: 0 });
+        expect(sparkValues([10, null], 100)).toEqual([10, 100]);
+    });
+});
+
+describe('compass', () =>
+{
+    it('converts alpha to heading and names points', () =>
+    {
+        expect(headingFromAlpha(0)).toBe(0);
+        expect(headingFromAlpha(90)).toBe(270);
+        expect(compassPoint(0)).toBe('N');
+        expect(compassPoint(359)).toBe('N');
+        expect(compassPoint(92)).toBe('E');
+        expect(compassPoint(200)).toBe('S');
+        expect(compassPoint(270)).toBe('O');
+    });
+
+    it('centres the strip on the heading', () =>
+    {
+        const strip = compassStrip(90, 21);
+        expect(strip).toHaveLength(21);
+        expect(strip[10]).toBe('E');
+        expect(compassStrip(0, 21)[10]).toBe('N');
+        expect(compassStrip(358, 21)).toHaveLength(21);
+    });
+});

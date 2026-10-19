@@ -15,6 +15,9 @@ import NostromoWidget from '@/components/widgets/NostromoWidget.vue';
 import RadarWidget from '@/components/widgets/RadarWidget.vue';
 import ScreenTimeWidget from '@/components/widgets/ScreenTimeWidget.vue';
 import StorageWidget from '@/components/widgets/StorageWidget.vue';
+import CompassWidget from '@/components/widgets/CompassWidget.vue';
+import ForecastWidget from '@/components/widgets/ForecastWidget.vue';
+import TelemetryWidget from '@/components/widgets/TelemetryWidget.vue';
 import CountdownWidget from '@/components/widgets/CountdownWidget.vue';
 import MoonWidget from '@/components/widgets/MoonWidget.vue';
 import ProtocolWidget from '@/components/widgets/ProtocolWidget.vue';
@@ -53,6 +56,9 @@ export const WIDGETS: Record<string, WidgetDef> = {
     countdown: { title: 'T-MENOS', component: CountdownWidget, span: 1 },
     clocks: { title: 'COLONIAS', component: WorldClockWidget, span: 1 },
     moon: { title: 'FASE LUNAR', component: MoonWidget, span: 1 },
+    forecast: { title: 'CLIMA 7 DÍAS', component: ForecastWidget, span: 1 },
+    telemetry: { title: 'TELEMETRÍA', component: TelemetryWidget, span: 1 },
+    compass: { title: 'RUMBO', component: CompassWidget, span: 1 },
     timer: { title: 'TEMPORIZADOR', component: TimerWidget, span: 1 },
     tracker: { title: 'DETECTOR', component: TrackerWidget, span: 2 },
     nostromo: { title: 'NOSTROMO', component: NostromoWidget, span: 2 },
