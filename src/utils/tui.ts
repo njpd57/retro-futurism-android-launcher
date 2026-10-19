@@ -55,6 +55,25 @@ export function formatClock(d: Date, seconds = false)
     return `${p(d.getHours())}:${p(d.getMinutes())}${seconds ? `:${p(d.getSeconds())}` : ''}`;
 }
 
+/** `AHORA`, `HACE 4 MIN`, `HACE 2 H`, then `14:05` (today), `AYER 21:30` or `18-OCT`. */
+export function formatAgo(ms: number, now = Date.now())
+{
+    const diff = Math.max(0, now - ms);
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return 'AHORA';
+    if (min < 60) return `HACE ${min} MIN`;
+    const hours = Math.floor(min / 60);
+    if (hours < 6) return `HACE ${hours} H`;
+
+    const d = new Date(ms);
+    const today = new Date(now);
+    const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const days = Math.round((dayStart(today) - dayStart(d)) / 86400000);
+    if (days <= 0) return formatClock(d);
+    if (days === 1) return `AYER ${formatClock(d)}`;
+    return `${d.getDate()}-${MONTHS[d.getMonth()]}`;
+}
+
 /** `47.2 GB`, `512 MB`; binary units, one decimal from GB up. */
 export function formatBytes(bytes: number)
 {

@@ -14,8 +14,8 @@ const MAX_ICONS = 6;
 
 function iconFor(packageName: string)
 {
-    const n = notifications.visible.find(x => x.packageName === packageName);
-    return n ? Bridge.getNotificationIconURL(n.key) : '';
+    const key = notifications.iconKeys.get(packageName);
+    return key ? Bridge.getNotificationIconURL(key) : '';
 }
 </script>
 

@@ -24,7 +24,7 @@ const TABS: { id: Tab; label: string }[] = [
         <span class="tabs">
             <span v-for="t in TABS" :key="t.id" class="tab" :class="{ active: tab === t.id }" @click="$emit('select-tab', t.id)">{{ tab === t.id ? `[${t.label}]` : ` ${t.label} ` }}</span>
         </span>
-        <span v-if="notifications.visible.length" class="alerts" @click="$emit('open-notifications')">!{{ notifications.visible.length }}</span>
+        <span v-if="notifications.alerts" class="alerts" @click="$emit('open-notifications')">!{{ notifications.alerts }}</span>
         <span class="time">{{ formatClock(now) }}</span>
     </div>
 </template>

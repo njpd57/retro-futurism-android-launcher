@@ -2,7 +2,8 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { BridgeNotification } from "@/types/bridge-fork";
 import { bridgeHas } from "@/utils/bridgeHas";
-import { splitNotifications, uniquePackages, visibleNotifications } from "@/utils/notifications";
+import { alertCount, appLabelFor, splitNotifications, uniquePackages, visibleNotifications } from "@/utils/notifications";
+import { useAppsStore } from "./useAppsStore";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 import { useLogStore } from "./useLogStore";
 
@@ -11,10 +12,12 @@ export const useNotificationsStore = defineStore('notifications', () =>
 {
     const bridgeEvents = useBridgeEventStore();
     const log = useLogStore();
+    const appsStore = useAppsStore();
 
     const supported = bridgeHas('getNotificationsURL') && bridgeHas('getCanReadNotifications');
     const canRead = ref(false);
     const items = ref(new Map<string, BridgeNotification>());
+    const error = ref(false);
 
     async function sync()
     {
@@ -32,10 +35,12 @@ export const useNotificationsStore = defineStore('notifications', () =>
             const resp = await fetch(Bridge.getNotificationsURL());
             const { notifications } = await resp.json() as { notifications: BridgeNotification[] };
             items.value = new Map(notifications.map(n => [n.key, n]));
+            error.value = false;
         }
         catch (err)
         {
             console.error(err);
+            error.value = true;
         }
     }
 
@@ -51,7 +56,7 @@ export const useNotificationsStore = defineStore('notifications', () =>
         {
             items.value.set(ev.notification.key, ev.notification);
             if (!ev.notification.isMedia)
-                log.push('NTF', `${ev.notification.packageName.split('.').pop()?.toUpperCase()}: ${ev.notification.title ?? ''}`.trim());
+                log.push('NTF', `${appLabelFor(ev.notification.packageName, appsStore.apps).toUpperCase()}: ${ev.notification.title ?? ''}`.trim());
         }
         else if (ev.name === 'notificationRemoved')
             items.value.delete(ev.key);
@@ -60,6 +65,9 @@ export const useNotificationsStore = defineStore('notifications', () =>
     const visible = computed(() => visibleNotifications(items.value.values()));
     const grouped = computed(() => splitNotifications(visible.value));
     const packages = computed(() => uniquePackages(visible.value));
+    const alerts = computed(() => alertCount(visible.value));
+    /** Newest notification key per app, for the status bar icons. */
+    const iconKeys = computed(() => new Map(visible.value.map(n => [n.packageName, n.key] as const).reverse()));
 
     function open(key: string) { Bridge.requestOpenNotification(key); }
     function dismiss(key: string) { Bridge.requestDismissNotification(key); }
@@ -67,5 +75,5 @@ export const useNotificationsStore = defineStore('notifications', () =>
     function reply(key: string, index: number, text: string) { Bridge.requestReplyToNotification(key, index, text); }
     function requestAccess() { Bridge.requestOpenNotificationAccessSettings(); }
 
-    return { supported, canRead, visible, grouped, packages, sync, open, dismiss, runAction, reply, requestAccess };
+    return { supported, canRead, error, visible, grouped, packages, alerts, iconKeys, sync, open, dismiss, runAction, reply, requestAccess };
 });

@@ -25,8 +25,12 @@ class ForkBridgeMock extends BridgeMock
 
     private canReadNotifications = true;
     private notifications = new Map<string, BridgeNotification>([
-        makeNotification('n1', 'com.google.android.gm', 'Ana Pérez', 'Reunión movida a las 15:00', 4, { actions: [{ index: 0, title: 'Archivar', acceptsText: false }] }),
-        makeNotification('n2', 'com.google.android.apps.messaging', 'Mamá', '¿Vienes a cenar?', 12, { actions: [{ index: 0, title: 'Responder', acceptsText: true }] }),
+        makeNotification('n1', 'com.google.android.gm', 'Ana Pérez', 'Reunión movida a las 15:00. Por favor confirma si puedes asistir y trae el informe trimestral actualizado con las cifras de la última revisión, porque lo vamos a presentar al comité.', 4, { subText: 'nico@gmail.com', category: 'email', actions: [{ index: 0, title: 'Archivar', acceptsText: false }] }),
+        makeNotification('n1b', 'com.google.android.gm', 'Banco Nova', 'Se ha realizado un cargo en tu tarjeta', 30, { subText: 'nico@gmail.com', category: 'email' }),
+        makeNotification('n1c', 'com.google.android.gm', 'Soporte', 'Tu ticket #4821 fue resuelto', 55, { subText: 'trabajo@empresa.com', category: 'email' }),
+        makeNotification('n1d', 'com.google.android.gm', 'Newsletter', 'Las noticias de la semana', 300, { subText: 'nico@gmail.com', category: 'promo' }),
+        makeNotification('n1s', 'com.google.android.gm', '4 mensajes nuevos', 'Ana Pérez, Banco Nova, Soporte', 4, { isGroupSummary: true }),
+        makeNotification('n2', 'com.google.android.apps.messaging', 'Mamá', '¿Vienes a cenar?', 12, { subText: 'Familia', category: 'msg', actions: [{ index: 0, title: 'Responder', acceptsText: true }] }),
         makeNotification('n3', 'com.android.chrome', 'Descarga completa', 'informe.pdf', 40),
         makeNotification('n4', 'com.google.android.deskclock', 'Temporizador', 'En curso', 90, { isOngoing: true, isClearable: false }),
     ].map(n => [n.key, n]));
