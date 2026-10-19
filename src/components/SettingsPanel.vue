@@ -101,6 +101,7 @@ const bloomPct = computed({
         <MenuItem @click="canVibrate() && (settings.haptics = !settings.haptics)">
             <span>VIBRACIÓN</span><span>{{ canVibrate() ? onOff(settings.haptics) : 'NO DISPONIBLE' }}</span>
         </MenuItem>
+        <MenuItem @click="settings.bootSequence = !settings.bootSequence"><span>ARRANQUE</span><span>{{ onOff(settings.bootSequence) }}</span></MenuItem>
         <MenuItem @click="settings.nightShift = !settings.nightShift"><span>TURNO NOCTURNO</span><span>{{ onOff(settings.nightShift) }}</span></MenuItem>
         <MenuItem @click="settings.showType = !settings.showType"><span>COLUMNA TIPO</span><span>{{ onOff(settings.showType) }}</span></MenuItem>
 

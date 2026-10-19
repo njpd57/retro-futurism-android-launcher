@@ -32,6 +32,7 @@ export const useSettingsStore = defineStore('settings', () =>
     const favorites = useLocalStorage<string[]>('settings.favorites', []);
     const dashboard = useLocalStorage<DashboardItem[]>('settings.dashboard', DEFAULT_LAYOUT);
     const ownStatusBar = useLocalStorage('settings.ownStatusBar', false);
+    const bootSequence = useLocalStorage('settings.bootSequence', true);
     const haptics = useLocalStorage('settings.haptics', false);
     const nightShift = useLocalStorage('settings.nightShift', false);
     const activeTab = useLocalStorage<Tab>('settings.activeTab', 'panel');
@@ -54,5 +55,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

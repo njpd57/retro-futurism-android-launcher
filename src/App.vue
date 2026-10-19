@@ -23,6 +23,7 @@ import SoftKeys, { type SoftKey } from '@/components/SoftKeys.vue';
 import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
+import BootSequence from '@/components/BootSequence.vue';
 import { useAppShortcuts } from '@/composables/useAppShortcuts';
 import { useCommandConsole } from '@/composables/useCommandConsole';
 import { isCommandInput } from '@/utils/commands';
@@ -104,6 +105,9 @@ const swipe = useSwipe(screenEl, kind =>
     const next = neighbour(TAB_ORDER, settings.activeTab, kind === 'left' ? 1 : -1);
     if (next) settings.activeTab = next;
 }, () => !overlayOpen.value && !editing.value);
+
+// boot screen once per load; never with reduced motion
+const booting = ref(settings.bootSequence && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch });
 
@@ -209,6 +213,7 @@ onUnmounted(() =>
             <SoftKeys :keys="softKeys" />
         </div>
 
+        <BootSequence v-if="booting" @done="booting = false" />
         <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 
