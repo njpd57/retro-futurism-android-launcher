@@ -42,13 +42,12 @@ function alarmLabel(triggerTime: number)
         </template>
 
         <CityPicker v-if="picking" @close="picking = false" />
-    </template>
+    </div>
+</template>
 
 <style scoped lang="scss">
 .dim { color: var(--ph-dim); }
-.pad { padding: 4px 0; }
 .row { padding: 1px 0; &:active { @include inverse; } }
 .temp { font-size: 1.5em; }
 .spark { letter-spacing: 2px; }
-
 </style>
