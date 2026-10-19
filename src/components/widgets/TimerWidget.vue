@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue';
 import { useLocalStorage, useNow } from '@vueuse/core';
 import { useSoundStore } from '@/stores/useSoundStore';
+import { nullableJson } from '@/utils/storage';
 import { EMPTY_STOPWATCH, TIMER_PRESETS_MIN, formatStopwatch, formatTimer, isFinished, lapSplits, lapStopwatch, remainingMs, startStopwatch, stopStopwatch, stopwatchElapsed, type Stopwatch } from '@/utils/timer';
 
 const props = defineProps<{ id: string }>();
@@ -9,7 +10,7 @@ const props = defineProps<{ id: string }>();
 const sound = useSoundStore();
 
 // the end time is stored, so the timer survives reloads and the launcher being paused
-const endsAt = useLocalStorage<number | null>(`widget.timer.${props.id}`, null);
+const endsAt = useLocalStorage<number | null>(`widget.timer.${props.id}`, null, { serializer: nullableJson((v): v is number => typeof v === 'number' && Number.isFinite(v)) });
 const mode = useLocalStorage<'timer' | 'stopwatch'>(`widget.timer.${props.id}.mode`, 'timer');
 const stopwatch = useLocalStorage<Stopwatch>(`widget.timer.${props.id}.sw`, EMPTY_STOPWATCH);
 const now = useNow({ interval: 100 });

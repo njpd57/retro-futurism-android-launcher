@@ -260,3 +260,26 @@ describe('readJson', () =>
         expect(readJson(() => { throw new Error('boom'); })).toBeNull();
     });
 });
+
+import { nullableJson } from '../storage';
+
+describe('nullableJson', () =>
+{
+    const isNumber = (v: unknown): v is number => typeof v === 'number';
+    const s = nullableJson(isNumber);
+
+    it('round-trips values and null', () =>
+    {
+        expect(s.read(s.write(1700000))).toBe(1700000);
+        expect(s.read(s.write(null))).toBeNull();
+        const obj = nullableJson((v): v is { a: number } => typeof v === 'object' && v !== null && typeof (v as { a?: unknown }).a === 'number');
+        expect(obj.read(obj.write({ a: 1 }))).toEqual({ a: 1 });
+    });
+
+    it('turns unreadable or invalid values into null', () =>
+    {
+        expect(s.read('[object Object]')).toBeNull();
+        expect(s.read('"texto"')).toBeNull();
+        expect(s.read('')).toBeNull();
+    });
+});

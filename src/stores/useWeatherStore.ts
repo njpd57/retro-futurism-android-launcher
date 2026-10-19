@@ -3,6 +3,7 @@ import { useLocalStorage } from "@vueuse/core";
 import { ref } from "vue";
 import { describeFetchError, fetchJsonViaProxy } from "@/utils/fetchJson";
 import { forecastUrl, geocodeUrl, isStale, parseForecast, type Forecast } from "@/utils/weather";
+import { nullableJson } from "@/utils/storage";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 
 export interface City
@@ -12,13 +13,17 @@ export interface City
     lon: number;
 }
 
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+const isCity = (v: unknown): v is City => isObject(v) && typeof v.name === 'string' && typeof v.lat === 'number' && typeof v.lon === 'number';
+const isForecast = (v: unknown): v is Forecast => isObject(v) && typeof v.temperature === 'number' && typeof v.code === 'number' && Array.isArray(v.hourly) && typeof v.fetchedAt === 'number';
+
 /** Weather from Open-Meteo (no key). The city is picked once; the last forecast is cached and refreshed when stale. */
 export const useWeatherStore = defineStore('weather', () =>
 {
     const bridgeEvents = useBridgeEventStore();
 
-    const city = useLocalStorage<City | null>('weather.city', null);
-    const forecast = useLocalStorage<Forecast | null>('weather.forecast', null);
+    const city = useLocalStorage<City | null>('weather.city', null, { serializer: nullableJson(isCity) });
+    const forecast = useLocalStorage<Forecast | null>('weather.forecast', null, { serializer: nullableJson(isForecast) });
     const loading = ref(false);
     const failed = ref(false);
     /** why the last request failed, for the widgets to show */
