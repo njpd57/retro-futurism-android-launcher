@@ -1,0 +1,49 @@
+# Gingerbread Launcher (base)
+
+Punto de partida para recrear el launcher de **Android 2.3 Gingerbread** como proyecto web para [Bridge Launcher](https://github.com/bridgelauncher/launcher).
+
+Bridge es una app de Android que usa una página web como pantalla de inicio y le da acceso a funciones del sistema (lista de apps, abrir apps, fondo de pantalla, barras del sistema…) a través de `window.Bridge`. Este repositorio es esa página web: Vue 3, TypeScript y Vite, sin código nativo de Android.
+
+Esta rama parte del [api-tester](https://github.com/bridgelauncher/api-tester) oficial de Bridge, limpiado: quedan la conexión con Bridge (stores, eventos, mock para desarrollo) y una pantalla vacía de "Gingerbread Launcher" sobre la que construir.
+
+## Qué incluye
+
+- **Stores de Pinia** que ya escuchan los eventos de Bridge:
+  - `useAppsStore`: apps instaladas (se actualiza al instalar, cambiar o desinstalar una app).
+  - `useWindowInsetsStore`: márgenes de las barras del sistema, el teclado, el notch, etc.
+  - `useTogglesStore`: ajustes de Bridge (botón flotante, fondo del sistema, modo noche, tema, apariencia de las barras…) como propiedades que se leen y se escriben.
+  - `useBridgeEventStore`: reparte los eventos de Bridge a quien se suscriba.
+- **Mock de Bridge** para desarrollar en el navegador, con apps e iconos de ejemplo en `public/mock/`.
+- **Estilos base**: fondo negro, texto blanco, tipografía Droid Sans y las variables de duración y curvas de animación en `src/assets/styles/shared/vars.scss`.
+
+## Desarrollo
+
+Requiere Node 18 o superior.
+
+```bash
+npm install
+npm run dev          # servidor de desarrollo con el mock de Bridge
+npm run build        # revisión de tipos + build en dist/
+npm run type-check   # solo la revisión de tipos
+npm run test:unit    # tests con Vitest
+```
+
+En el navegador, `window.Bridge` es un mock: las apps salen de `public/mock/apps.json` y acciones como abrir una app muestran un `alert`.
+
+## Probarlo en el teléfono
+
+1. `npm run build`.
+2. Copia el contenido de `dist/` a una carpeta del teléfono.
+3. En Bridge, elige esa carpeta como *project dir*.
+
+Los archivos del build tienen nombres fijos (`assets/index.js`), así que para actualizar basta con copiar el nuevo `dist/` encima del anterior.
+
+## Enlaces
+
+- [Bridge Launcher](https://github.com/bridgelauncher/launcher)
+- [Tipos de la API de Bridge](https://github.com/bridgelauncher/api)
+- [api-tester original](https://github.com/bridgelauncher/api-tester)
+
+## Licencia
+
+MIT, ver [LICENSE](LICENSE).
