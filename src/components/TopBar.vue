@@ -17,11 +17,11 @@ const TABS: { id: Tab; label: string }[] = [
 
 <template>
     <div class="top-bar">
-        <span class="date" @click="$emit('open-settings')">{{ formatDateTui(now) }}</span>
+        <span class="date">{{ formatDateTui(now) }}</span>
         <span class="tabs">
             <span v-for="t in TABS" :key="t.id" class="tab" :class="{ active: tab === t.id }" @click="$emit('select-tab', t.id)">{{ tab === t.id ? `[${t.label}]` : ` ${t.label} ` }}</span>
         </span>
-        <span class="time" @click="$emit('open-settings')">{{ formatClock(now) }}</span>
+        <span class="time">{{ formatClock(now) }}</span>
     </div>
 </template>
 
