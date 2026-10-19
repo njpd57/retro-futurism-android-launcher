@@ -5,6 +5,13 @@ const query = defineModel<string>({ required: true });
 defineEmits<{ (e: 'submit'): void }>();
 
 const input = ref<HTMLInputElement | null>(null);
+
+// v-model ignores `input` events while an IME is composing, and Android keyboards keep the current word in
+// composition, so the list would only update on a space. Reading the value on every event avoids that.
+function onInput(e: Event)
+{
+    query.value = (e.target as HTMLInputElement).value;
+}
 defineExpose({ focus: () => input.value?.focus() });
 </script>
 
@@ -13,7 +20,7 @@ defineExpose({ focus: () => input.value?.focus() });
         <span class="caret">&gt;</span>
         <input
             ref="input"
-            v-model="query"
+            :value="query"
             type="text"
             autocomplete="off"
             autocapitalize="off"
@@ -21,6 +28,7 @@ defineExpose({ focus: () => input.value?.focus() });
             spellcheck="false"
             enterkeyhint="go"
             placeholder="buscar o > orden"
+            @input="onInput"
             @keydown.enter.prevent="$emit('submit')" />
     </div>
 </template>

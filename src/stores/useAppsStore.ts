@@ -18,6 +18,9 @@ export enum RequestStatus
     Error,
 }
 
+const MAX_RETRIES = 4;
+const RETRY_MS = 1500;
+
 export const useAppsStore = defineStore('apps', () =>
 {
     const bridgeEvents = useBridgeEventStore();
@@ -29,9 +32,13 @@ export const useAppsStore = defineStore('apps', () =>
     const requestStatus = ref(RequestStatus.Idle);
     const requestErrorMessage = ref('');
 
+    let retries = 0;
+    let retryTimer: number | undefined;
+
     async function requestAppsAsync()
     {
         if (requestStatus.value === RequestStatus.InProgress) return;
+        window.clearTimeout(retryTimer);
 
         requestStatus.value = RequestStatus.InProgress;
         requestErrorMessage.value = '';
@@ -48,6 +55,7 @@ export const useAppsStore = defineStore('apps', () =>
                 newApps.set(a.packageName, processAppFromAPI(a));
             }
 
+            retries = 0;
             apps.value = newApps;
             if (newApps.size)
                 firstSeen.value = pruneFirstSeen(updateFirstSeen(firstSeen.value, [...newApps.keys()], Date.now()), new Set(newApps.keys()));
@@ -58,6 +66,10 @@ export const useAppsStore = defineStore('apps', () =>
             console.error(err);
             requestStatus.value = RequestStatus.Error;
             requestErrorMessage.value = `${err}`;
+
+            // Bridge may not be ready yet at startup: retry a few times instead of staying with an empty list
+            if (retries < MAX_RETRIES)
+                retryTimer = window.setTimeout(requestAppsAsync, RETRY_MS * ++retries);
         }
     }
 
@@ -78,6 +90,11 @@ export const useAppsStore = defineStore('apps', () =>
             apps.value.set(ev.app.packageName, processAppFromAPI(ev.app));
             if (ev.name === 'appInstalled')
                 firstSeen.value = updateFirstSeen(firstSeen.value, [ev.app.packageName], Date.now());
+        }
+        else if (ev.name === 'afterResume')
+        {
+            // apps installed or removed while the launcher was paused don't send events
+            requestAppsAsync();
         }
         else if (ev.name === 'appRemoved')
         {
