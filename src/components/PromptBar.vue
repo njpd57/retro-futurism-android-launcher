@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import AssistedInput from './AssistedInput.vue';
 
 const query = defineModel<string>({ required: true });
-defineEmits<{ (e: 'submit'): void }>();
+defineEmits<{ (e: 'submit'): void; (e: 'focus', focused: boolean): void }>();
 
 const input = ref<InstanceType<typeof AssistedInput> | null>(null);
 defineExpose({ focus: () => input.value?.focus() });
@@ -14,8 +14,10 @@ defineExpose({ focus: () => input.value?.focus() });
         ref="input"
         v-model="query"
         scope="console"
-        placeholder="buscar o > orden"
+        placeholder="buscar u ordenar"
         enterkeyhint="go"
         :chips-when-empty="false"
-        @submit="$emit('submit')" />
+        @submit="$emit('submit')"
+        @focusin="$emit('focus', true)"
+        @focusout="$emit('focus', false)" />
 </template>

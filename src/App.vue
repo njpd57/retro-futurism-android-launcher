@@ -53,6 +53,8 @@ import { useIdleStore } from '@/stores/useIdleStore';
 import { useAppShortcuts } from '@/composables/useAppShortcuts';
 import { useCommandConsole } from '@/composables/useCommandConsole';
 import { isCommandInput } from '@/utils/commands';
+import { COMMANDS, matchCommands, type CommandDef } from '@/utils/commandRegistry';
+import CommandList from '@/components/CommandList.vue';
 import { useSwipe } from '@/composables/useSwipe';
 import { neighbour } from '@/utils/swipe';
 import { selectPanel } from '@/utils/dashboardLayout';
@@ -192,6 +194,18 @@ function askMother(text: string)
     mother.send(text);
 }
 
+const promptFocused = ref(false);
+// the whole list while the prompt is focused and empty, or after `ayuda`; while typing, the commands that match
+const showCommandList = computed(() => (promptFocused.value && !query.value.trim()) || commandConsole.command.value?.type === 'help');
+const commandMatches = computed(() => commandConsole.command.value ? [] : matchCommands(query.value, 'console'));
+
+function pickCommand(def: CommandDef)
+{
+    query.value = def.args ? `${def.name} ` : def.name;
+    prompt.value?.focus();
+    if (!def.args) commandConsole.run();
+}
+
 function launchFirst()
 {
     if (commandConsole.run()) return;
@@ -314,15 +328,17 @@ onUnmounted(() =>
             <AlertStrip />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
             <MotherTerminal v-else-if="settings.activeTab === 'mother'" @sessions="sessionsOpen = true" />
+            <CommandList v-else-if="showCommandList" :commands="COMMANDS.console" @pick="pickCommand" />
             <template v-else>
-                <div v-if="commandConsole.command.value" class="console">
+                <div v-if="commandConsole.command.value" class="console" :class="{ bare: !isCommandInput(query) }">
                     <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
                 </div>
-                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()" @images="imagesStore.show()" @new-folder="folderApp = $event">
+                <CommandList v-else-if="commandMatches.length" compact :commands="commandMatches" @pick="pickCommand" />
+                <AppList v-if="!isCommandInput(query)" :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()" @images="imagesStore.show()" @new-folder="folderApp = $event">
                     <ExtraResults v-if="query.trim()" :query="query" :top-app="results[0] ?? null" @ask="askMother" />
                 </AppList>
             </template>
-            <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" />
+            <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" @focus="promptFocused = $event" />
             <SoftKeys :keys="softKeys" />
         </div>
 
@@ -370,5 +386,6 @@ onUnmounted(() =>
     height: 100%;
 
     > .console { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px; }
+    > .console.bare { flex: none; max-height: 30%; border-bottom: 1px solid var(--ph-dim); }
 }
 </style>

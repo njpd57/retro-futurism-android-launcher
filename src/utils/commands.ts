@@ -104,13 +104,25 @@ export function isCommandInput(input: string)
     return input.trimStart().startsWith(COMMAND_PREFIX);
 }
 
-/** `> verb args` to a command; null when the text isn't a command (no prefix). */
+/** True when the text starts with a command word and no prefix: `calc 2+2`, `tema verde`. */
+function isBareCommand(trimmed: string): boolean
+{
+    const word = stripAccents(trimmed.split(/\s/)[0].toLowerCase());
+    return word.length > 1 && word !== '?' && word in ALIASES;
+}
+
+/**
+ * `> verb args` to a command; null when the text isn't a command.
+ * Without the prefix the text counts only when its first word is a known command
+ * (not a one-letter shortcut), so searching for an app still works.
+ */
 export function parseCommand(input: string): Command | null
 {
     const trimmed = input.trimStart();
-    if (!trimmed.startsWith(COMMAND_PREFIX)) return null;
+    const prefixed = trimmed.startsWith(COMMAND_PREFIX);
+    if (!prefixed && !isBareCommand(trimmed)) return null;
 
-    const body = trimmed.slice(COMMAND_PREFIX.length).trim();
+    const body = (prefixed ? trimmed.slice(COMMAND_PREFIX.length) : trimmed).trim();
     if (!body) return { type: 'help' };
 
     const space = body.search(/\s/);

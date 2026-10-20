@@ -8,7 +8,7 @@ import { useTubeStore } from '@/stores/useTubeStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { SORT_MODES, searchApps } from '@/utils/appSearch';
-import { COMMAND_HELP, formatNumber, parseCommand } from '@/utils/commands';
+import { COMMAND_HELP, formatNumber, isCommandInput, parseCommand } from '@/utils/commands';
 import { formatWhen, parseReminder, REMINDER_USAGE } from '@/utils/reminders';
 import { buildReport, reportLines } from '@/utils/weeklyReport';
 import { formatUsage } from '@/utils/usage';
@@ -113,6 +113,7 @@ export function useCommandConsole(options: {
     {
         const c = command.value;
         if (!c) return false;
+        const before = options.query.value;
 
         switch (c.type)
         {
@@ -178,7 +179,8 @@ export function useCommandConsole(options: {
                 break;
             }
         }
-        return true;
+        // a command typed without `>` that did nothing (`calc` alone) leaves Enter to the app search
+        return isCommandInput(before) || options.query.value !== before || c.type === 'weather';
     }
 
     return { command, lines, run };

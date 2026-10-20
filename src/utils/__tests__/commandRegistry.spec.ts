@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { complete, ghostText, splitInput, suggest } from '../commandRegistry';
+import { complete, ghostText, matchCommands, splitInput, suggest } from '../commandRegistry';
 
 const apps = (q: string) => ['Chrome', 'Chess', 'Calendar'].filter(a => a.toLowerCase().startsWith(q.toLowerCase()));
 
@@ -67,5 +67,28 @@ describe('ghostText and complete', () =>
         expect(complete('/te', 'mother', {}, 1)).toBe('/tema ');
         expect(complete('/te', 'mother', {}, 2)).toBe('/temp ');
         expect(complete('hola', 'mother')).toBeNull();
+    });
+});
+
+describe('matchCommands', () =>
+{
+    it('lists the commands starting with the word, with or without prefix', () =>
+    {
+        expect(matchCommands('ca', 'console').map(d => d.name)).toEqual(['calc']);
+        expect(matchCommands('>cl', 'console').map(d => d.name)).toEqual(['clima']);
+        expect(matchCommands('MAR', 'console').map(d => d.name)).toEqual(['marines']);
+    });
+
+    it('needs two letters, stops at the first space and caps the list', () =>
+    {
+        expect(matchCommands('c', 'console')).toEqual([]);
+        expect(matchCommands('calc 2', 'console')).toEqual([]);
+        expect(matchCommands('xyz', 'console')).toEqual([]);
+        expect(matchCommands('es', 'console', 1)).toHaveLength(1);
+    });
+
+    it('skips the bare words of the MOTHER chat', () =>
+    {
+        expect(matchCommands('est', 'mother')).toEqual([]);
     });
 });

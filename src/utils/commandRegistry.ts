@@ -158,6 +158,15 @@ export function suggest(input: string, scope: CommandScope, ctx: AssistContext =
         .map(arg => ({ label: arg.toUpperCase(), fill: `${PREFIX[scope]}${def.name} ${arg}`, hint: def.hint }));
 }
 
+/** Commands whose name starts with the word being typed (prefix optional, at least two letters, no arguments yet). */
+export function matchCommands(input: string, scope: CommandScope, limit = 3): CommandDef[]
+{
+    const { word, hasSpace } = splitInput(input, scope);
+    const w = fold(word);
+    if (w.length < 2 || hasSpace) return [];
+    return COMMANDS[scope].filter(d => !d.bare && fold(d.name).startsWith(w)).slice(0, limit);
+}
+
 /** Grey text to show after the cursor: the rest of the first suggestion when it extends what was typed. */
 export function ghostText(input: string, scope: CommandScope, ctx: AssistContext = {}): string
 {
