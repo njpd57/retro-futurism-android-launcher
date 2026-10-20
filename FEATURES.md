@@ -40,3 +40,14 @@ Fases siguientes:
 
 4. **Campaña:** 5 cubiertas (JONES, CONDUCTOS, ASH, FALLOS, AUTODESTRUCCIÓN), el androide, fallos de la nave, cuenta atrás, registros de la tripulación, finales, pantallas de título e informe, dificultad.
 5. **Infinito y extras:** cubiertas generadas con semilla, logros, estadísticas, archivo, widget en el panel, `/jugar` `/partida` `/pista` en MOTHER.
+
+## MARINES (juego de acción en pantalla propia)
+
+Acción estilo *Aliens: Colonial Marines* en LV-426 con vista subjetiva de alambre (`> marines`). Plan detallado, estado y cómo retomarlo: `docs/MARINES.md`.
+
+- **Fase 0, motor compartido** (hecha): cámara, geometría del nivel, oclusión por columnas y dibujado sacados de AISLAMIENTO a `src/games/wire/`; su salida no ha cambiado.
+- **Fase 1, prototipo** (sin probar en el teléfono): arena OPERACIONES, movimiento libre con joystick analógico, arrastre para apuntar y FUEGO mantenido, rifle de pulsos con contador y recarga, zánganos que rodean los obstáculos y golpean con preaviso, salud y blindaje, rastreador de movimiento, oleadas sin fin con puntuación y récord, pausa con sensibilidad y FPS.
+- **Fase 2, escuadra y arsenal** (hecha, sin probar en el teléfono): 2 marines con biomonitor y órdenes SEGUIR / QUIETOS, lanzagranadas, sangre ácida, corredores y abrazacaras, escopeta, smartgun y lanzallamas.
+- **Fase 3, ÚLTIMA DEFENSA completa:** torretas centinela, soldador de puertas, escupidores, suspensión al salir, más mapas.
+- **Fase 4, campaña:** misiones con objetivos (rescatar, aguantar, quemar huevos, la reina), zonas oscuras con lámparas de hombro, dificultad y finales.
+- **Fase 5, extras:** widget en el panel, estadísticas y logros.

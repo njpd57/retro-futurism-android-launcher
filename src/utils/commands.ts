@@ -15,6 +15,7 @@ export type Command =
     | { type: 'mother'; request: string }
     | { type: 'images' }
     | { type: 'game' }
+    | { type: 'marines' }
     | { type: 'unknown'; word: string };
 
 export const COMMAND_HELP = [
@@ -28,6 +29,7 @@ export const COMMAND_HELP = [
     'MOTHER <ORDEN PARA TUS APPS>',
     'IMAGENES',
     'AISLAMIENTO',
+    'MARINES',
     'AYUDA',
 ];
 
@@ -78,6 +80,7 @@ const ALIASES: Record<string, string> = {
     mother: 'mother', m: 'mother',
     imagenes: 'images', imagen: 'images', fotos: 'images', visor: 'images',
     aislamiento: 'game', juego: 'game', alien: 'game',
+    marines: 'marines', escuadra: 'marines', lv426: 'marines', colonial: 'marines',
     ayuda: 'help', help: 'help', '?': 'help',
 };
 
@@ -115,6 +118,7 @@ export function parseCommand(input: string): Command | null
         case 'mother': return { type: 'mother', request: rest };
         case 'images': return { type: 'images' };
         case 'game': return { type: 'game' };
+        case 'marines': return { type: 'marines' };
         default: return { type: 'unknown', word };
     }
 }

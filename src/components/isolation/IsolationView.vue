@@ -2,7 +2,8 @@
 import { ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { TRACKER, flameCells, litMask, type GameState } from '@/games/isolation/game';
-import { ALIEN_OUTLINE, buildView, type Pose, type Shape } from '@/games/isolation/view';
+import { ALIEN_OUTLINE, buildView, type Pose } from '@/games/isolation/view';
+import { drawShapes } from '@/components/wire/drawShapes';
 
 /** Everything one frame needs; the game loop calls `draw` with it. */
 export interface Frame
@@ -69,59 +70,12 @@ function draw(f: Frame)
     ctx.save();
     if (f.interference > 0)
         ctx.translate((Math.random() - 0.5) * 8 * f.interference, (Math.random() - 0.5) * 4 * f.interference);
-    drawShapes(ctx, shapes, ph, bg, font, s.tracker.raised ? 0.22 : 1, f.interference);
+    drawShapes(ctx, shapes, { ph, bg, font, dim: s.tracker.raised ? 0.22 : 1, interference: f.interference, bloom: settings.bloom, h });
     ctx.restore();
 
     if (s.player.hidden) drawSlats(ctx, w, h, ph, bg);
     if (f.interference > 0) drawStatic(ctx, w, h, ph, f.interference);
     if (s.tracker.raised) drawTracker(ctx, w, h, ph, bg, font, f);
-}
-
-function drawShapes(ctx: CanvasRenderingContext2D, shapes: Shape[], ph: string, bg: string, font: string, dim: number, interference: number)
-{
-    const glow = 0.22 * settings.bloom;
-    ctx.lineJoin = 'round';
-    for (const sh of shapes)
-    {
-        if (sh.kind === 'text')
-        {
-            ctx.globalAlpha = sh.alpha * dim;
-            ctx.fillStyle = ph;
-            ctx.font = `${Math.round(sh.size)}px ${font}`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.save();
-            ctx.transform(sh.a, sh.b, 0, 1, sh.x, sh.y);
-            ctx.fillText(sh.text, 0, 0);
-            ctx.restore();
-            continue;
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(sh.pts[0], sh.pts[1]);
-        for (let i = 2; i < sh.pts.length; i += 2) ctx.lineTo(sh.pts[i], sh.pts[i + 1]);
-        if (sh.kind === 'poly') ctx.closePath();
-        if (sh.kind === 'poly' && sh.fill)
-        {
-            ctx.globalAlpha = 1;
-            ctx.fillStyle = bg;
-            ctx.fill();
-        }
-        // the picture drops lines when the creature is close
-        if (interference > 0 && Math.random() < interference * 0.15) continue;
-        ctx.strokeStyle = ph;
-        // glow: a wide faint stroke under the thin one (cheaper than shadowBlur on every line)
-        if (glow > 0)
-        {
-            ctx.globalAlpha = sh.alpha * dim * glow * (sh.tag === 'flame' || sh.tag === 'flare' ? 2 : 1);
-            ctx.lineWidth = sh.tag === 'flame' ? 5 : 4;
-            ctx.stroke();
-        }
-        ctx.globalAlpha = sh.alpha * dim;
-        ctx.lineWidth = sh.tag === 'alien' || sh.tag === 'flare' ? 1.6 : sh.tag === 'flame' ? 1.8 : 1.2;
-        ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
 }
 
 /** Looking out through the slats of a locker. */

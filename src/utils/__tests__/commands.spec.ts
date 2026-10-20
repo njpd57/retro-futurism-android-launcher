@@ -47,6 +47,9 @@ describe('parseCommand', () =>
         expect(parseCommand('>imágenes')).toEqual({ type: 'images' });
         expect(parseCommand('> aislamiento')).toEqual({ type: 'game' });
         expect(parseCommand('>JUEGO')).toEqual({ type: 'game' });
+        expect(parseCommand('> marines')).toEqual({ type: 'marines' });
+        expect(parseCommand('>LV426')).toEqual({ type: 'marines' });
+        expect(parseCommand('> escuadra')).toEqual({ type: 'marines' });
     });
 
     it('reports unknown verbs', () =>

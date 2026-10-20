@@ -18,6 +18,8 @@ export function useCommandConsole(options: {
     showImages: () => void;
     /** opens the AISLAMIENTO game */
     showGame: () => void;
+    /** opens the MARINES game */
+    showMarines: () => void;
 })
 {
     const settings = useSettingsStore();
@@ -53,6 +55,7 @@ export function useCommandConsole(options: {
             case 'mother': return [c.request ? `MOTHER ORGANIZA: ${c.request.toUpperCase()}` : 'MOTHER <ORDEN PARA TUS APPS>, P. EJ. AGRUPA POR TIPO'];
             case 'images': return ['VISOR DE IMÁGENES'];
             case 'game': return ['AISLAMIENTO: SUPERVIVENCIA A BORDO'];
+            case 'marines': return ['MARINES: LV-426, ÚLTIMA DEFENSA'];
             case 'unknown': return [`ORDEN DESCONOCIDA: ${c.word.toUpperCase()}`, 'ESCRIBE > AYUDA'];
         }
     });
@@ -109,6 +112,10 @@ export function useCommandConsole(options: {
                 break;
             case 'game':
                 options.showGame();
+                options.query.value = '';
+                break;
+            case 'marines':
+                options.showMarines();
                 options.query.value = '';
                 break;
         }
