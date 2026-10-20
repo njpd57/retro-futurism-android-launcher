@@ -1,5 +1,6 @@
 import { cellX, cellY, distances, cellAt, type Grid } from './grid';
-import type { GameState } from './game';
+import { playerCell, type GameState } from './game';
+import { SCALE } from './scale';
 import { restore, type SavedGame } from './save';
 import { formatDuration } from '@/utils/tui';
 import { levelOf, modeOf } from './campaign';
@@ -15,14 +16,14 @@ export function directionTo(g: Grid, from: number, to: number): string | null
     const dx = cellX(g, to) - cellX(g, from);
     const dy = cellY(g, to) - cellY(g, from);
     const dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
-    return `${COMPASS[dir]}, ${dist[to]} PASOS`;
+    return `${COMPASS[dir]}, ${Math.max(1, Math.round(dist[to] / SCALE))} PASOS`;
 }
 
 /** MOTHER's hint for what to do next, as lines. */
 export function hintFor(s: GameState): string[]
 {
     if (s.phase !== 'playing') return ['SIN PARTIDA EN CURSO.'];
-    const here = s.player.cell;
+    const here = playerCell(s);
     const lines: string[] = [];
 
     if (s.collected < s.needed)

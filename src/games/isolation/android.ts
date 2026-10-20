@@ -1,5 +1,8 @@
-import { cellAt, distances, lineOfSight, nextStep, type Grid } from './grid';
+import { centreOfCell, placed, sees, walkToward } from './alien';
+import { cellOf, SENSES } from './senses';
+import { cellAt, distances, nextStep, type Grid } from './grid';
 import { pick, type Rng } from './rng';
+import { SCALE } from './scale';
 
 /**
  * Ash, the science officer who is not what he seems. He doesn't hear and the tracker doesn't see him: he follows
@@ -9,11 +12,15 @@ import { pick, type Rng } from './rng';
 export interface Ash
 {
     cell: number;
+    /** where it is and faces; missing: the middle of its cell */
+    x?: number;
+    y?: number;
+    heading?: number;
     /** switched off: it stands there and does nothing */
     active: boolean;
     mode: 'wander' | 'chase';
     target: number;
-    /** until the next move */
+    /** ms it takes to cross a cell */
     stepMs: number;
 }
 
@@ -24,17 +31,21 @@ export interface AshWorld
     grid: Grid;
     closed: readonly number[];
     player: number;
+    pos?: { x: number; y: number };
     hidden: boolean;
     /** the player stands in the dark */
     dark?: boolean;
 }
 
 export const ASH = {
-    sight: 6,
-    darkSight: 2,
-    /** ms between moves: he is slower than the player, who needs 380 */
-    stepMs: { wander: 1500, chase: 620 },
+    sight: 6 * SCALE,
+    darkSight: 2 * SCALE,
+    /** ms between moves: he is slower than the player, who needs 380 per old cell */
+    stepMs: { wander: 1500 / SCALE, chase: 620 / SCALE },
 };
+
+/** Ash's body radius. */
+export const ASH_BODY = 0.25;
 
 export const newAsh = (cell: number): Ash => ({ cell, active: true, mode: 'wander', target: cell, stepMs: ASH.stepMs.wander });
 
@@ -45,7 +56,7 @@ function wanderTarget(w: AshWorld, from: number, rng: Rng): number
 {
     const dist = distances(w.grid, from, passable(w));
     const options: number[] = [];
-    dist.forEach((d, i) => { if (d >= 3 && w.grid.cells[i] === 'floor') options.push(i); });
+    dist.forEach((d, i) => { if (d >= 3 * SCALE && w.grid.cells[i] === 'floor') options.push(i); });
     return options.length ? pick(options, rng) : from;
 }
 
@@ -53,34 +64,39 @@ export function stepAsh(ash: Ash, w: AshWorld, dtMs: number, rng: Rng): { ash: A
 {
     if (!ash.active) return { ash, events: [] };
     const events: AshEvent[] = [];
-    const a: Ash = { ...ash, stepMs: ash.stepMs - dtMs };
+    const g = w.grid;
+    const a = placed(g, ash);
 
-    const sees = !w.hidden && lineOfSight(w.grid, w.closed, a.cell, w.player, w.dark ? ASH.darkSight : ASH.sight);
-    if (sees)
+    const spots = sees(w, w.closed, a, w.dark ? ASH.darkSight : ASH.sight, a.mode === 'chase' ? Math.PI : SENSES.ashFov);
+    if (spots)
     {
         if (a.mode !== 'chase') events.push('ashSpotted');
         a.mode = 'chase';
         a.target = w.player;
     }
-    if (a.stepMs > 0) return { ash: a, events };
 
-    if (a.cell === a.target)
+    const here = cellOf(g, a.x, a.y);
+    const goal = centreOfCell(g, a.target);
+    if (here === a.target && Math.hypot(a.x - goal.x, a.y - goal.y) <= 0.35)
     {
         if (a.mode === 'chase') events.push('ashLost');
         a.mode = 'wander';
-        a.target = wanderTarget(w, a.cell, rng);
+        a.target = wanderTarget(w, here, rng);
     }
-    const next = nextStep(w.grid, a.cell, a.target, passable(w));
-    if (next < 0 || next === a.cell)
+    const next = nextStep(g, here, a.target, passable(w));
+    if (next < 0)
     {
         // nowhere to go: a door is in the way
         if (a.mode === 'chase') events.push('ashLost');
         a.mode = 'wander';
-        a.target = wanderTarget(w, a.cell, rng);
+        a.target = wanderTarget(w, here, rng);
         a.stepMs = ASH.stepMs.wander;
-        return { ash: a, events };
+        return { ash: { ...a, cell: here }, events };
     }
-    a.cell = next;
     a.stepMs = ASH.stepMs[a.mode];
+    const waypoint = spots && w.pos ? w.pos : centreOfCell(g, next);
+    walkToward(g, w.closed, a, waypoint, 1000 / a.stepMs, dtMs, ASH_BODY);
+    const now = cellOf(g, a.x, a.y);
+    a.cell = now >= 0 ? now : here;
     return { ash: a, events };
 }

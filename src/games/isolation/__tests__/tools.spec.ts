@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { ALIEN, fleeMsFor, scare } from '../alien';
 import { emptyBag, type Bag } from '../crafting';
 import { DECK_C, type DeckDef } from '../decks';
-import { TOOLS, flameCells, flareCells, isLit, landing, litMask, newGame, reduce, step, world, type GameEvent, type GameState, type Input } from '../game';
+import { TOOLS, flameCells, flareCells, isLit, landing, litMask, newGame, playerCell, reduce, step, world, type GameEvent, type GameState, type Input } from '../game';
 import { distances, parseMap, type Dir } from '../grid';
+import { EAST, FORWARD, at, run } from './helpers';
 
 const rng0 = () => 0;
 const deck = (map: string[], startDir: Dir = 1, dark?: DeckDef['dark']): DeckDef => ({ id: 't', title: 'T', map, startDir, signs: [], briefing: [], dark });
@@ -45,7 +46,7 @@ describe('loot', () =>
 {
     it('is picked up by walking over it', () =>
     {
-        const { s, events } = act(newGame(LOOTY, rng0), 'forward', 'forward', 'forward');
+        const { s, events } = run(newGame(LOOTY, rng0), 800, FORWARD);
         expect(events).toEqual(expect.arrayContaining(['lootScrap', 'lootWires', 'lootChems']));
         expect(s.bag).toMatchObject({ scrap: 1, wires: 1, chems: 1 });
         expect(s.loot).toHaveLength(1);
@@ -54,7 +55,7 @@ describe('loot', () =>
     it('stays on the floor when the bag is full for it', () =>
     {
         const full = withBag(newGame(LOOTY, rng0), { scrap: 3 });
-        const { s, events } = act(full, 'forward');
+        const { s, events } = run(full, 400, FORWARD);
         expect(events).toContain('bagFull');
         expect(s.bag.scrap).toBe(3);
         expect(s.loot.map(l => l.kind)).toContain('scrap');
@@ -62,7 +63,7 @@ describe('loot', () =>
 
     it('the flamethrower comes with fuel', () =>
     {
-        const { s, events } = act(newGame(LOOTY, rng0), 'forward', 'forward', 'forward', 'forward', 'forward');
+        const { s, events } = run(newGame(LOOTY, rng0), 1100, FORWARD);
         expect(events).toContain('lootFlamer');
         expect(s.bag).toMatchObject({ flamer: true, fuel: 2 });
         expect(s.loot).toEqual([]);
@@ -103,7 +104,7 @@ describe('crafting in play', () =>
     it('works from inside a locker', () =>
     {
         let s = withBag(newGame(deck(['#####', '#LP.#', '#####', '#A###', '#####'], 3), rng0), { scrap: 1, wires: 1 });
-        s = act(s, 'forward', 'use').s;
+        s = step(reduce(s, 'use').state, 400, rng0).state;
         expect(s.player.hidden).toBe(true);
         expect(reduce(s, 'craftDecoy').events).toContain('craftDecoy');
     });
@@ -118,7 +119,7 @@ describe('decoy', () =>
     {
         const s = newGame(CORNER, rng0);
         expect(landing(s)).toBe(12);
-        expect(landing({ ...s, player: { ...s.player, dir: 0 } })).toBe(s.player.cell);
+        expect(landing({ ...s, player: { ...s.player, yaw: 0 } })).toBe(playerCell(s));
 
         // a closed door stops it
         const doored = newGame(deck(['#########', '#P.D...A#', '#########']), rng0);
@@ -149,7 +150,7 @@ describe('decoy', () =>
     it('does not distract a creature that is hunting', () =>
     {
         const s = withBag(newGame(CORNER, rng0), { decoys: 1 });
-        const hunting = { ...s, alien: { ...s.alien, mode: 'hunt' as const, target: s.player.cell } };
+        const hunting = { ...s, alien: { ...s.alien, mode: 'hunt' as const, target: playerCell(s) } };
         const r = reduce(hunting, 'throwDecoy');
         expect(r.events).not.toContain('heard');
         expect(r.state.alien.mode).toBe('hunt');
@@ -184,28 +185,28 @@ describe('darkness and flares', () =>
     {
         let s = withBag(newGame(DARK_HALL, rng0), { flares: 1 });
         // face the wall behind: the flare drops at the player's feet
-        s = act(s, 'left', 'left').s;
+        s = at(s, playerCell(s), -EAST);
         const r = reduce(s, 'throwFlare');
         expect(r.events).toContain('throwFlare');
         expect(r.state.flares).toHaveLength(1);
-        expect(isLit(r.state, r.state.player.cell)).toBe(true);
+        expect(isLit(r.state, playerCell(r.state))).toBe(true);
         expect(step(r.state, 100, rng0).events).toContain('spotted');
     });
 
     it('lights the cells within reach and burns out', () =>
     {
         // the creature is walled in, so nothing interferes
-        const s = newGame(deck(['##########', '#P.......#', '##########', '#A########', '##########'], 1, [[0, 0, 9, 4]]), rng0);
+        const s = newGame(deck(['####################', '#P.................#', '####################', '#A##################', '####################'], 1, [[0, 0, 19, 4]]), rng0);
         expect(litMask(newGame(deck(HALL), rng0))).toBeNull();
         expect(litMask(s)!.some(Boolean)).toBe(false);
 
-        const lit = flareCells(s.grid, s.closed, 18);
-        expect(lit).toEqual([14, 15, 16, 17, 18]);
-        const flared = { ...s, flares: [{ cell: 18, ms: TOOLS.flareMs, lit }] };
-        expect(isLit(flared, 16)).toBe(true);
-        expect(isLit(flared, 12)).toBe(false);
-        expect(litMask(flared)![16]).toBe(true);
-        expect(litMask(flared)![12]).toBe(false);
+        const lit = flareCells(s.grid, s.closed, 38);
+        expect(lit).toEqual([30, 31, 32, 33, 34, 35, 36, 37, 38]);
+        const flared = { ...s, flares: [{ cell: 38, ms: TOOLS.flareMs, lit }] };
+        expect(isLit(flared, 34)).toBe(true);
+        expect(isLit(flared, 24)).toBe(false);
+        expect(litMask(flared)![34]).toBe(true);
+        expect(litMask(flared)![24]).toBe(false);
 
         const out = wait(flared, TOOLS.flareMs + 200);
         expect(out.s.flares).toEqual([]);
@@ -224,17 +225,17 @@ describe('darkness and flares', () =>
 const CORRIDOR = ['##########', '#P..A....#', '##########'];
 const armed = (map = CORRIDOR) => withBag(newGame(deck(map), rng0), { flamer: true, fuel: 2 });
 // the creature in the same corridor, hunting
-const hunted = (s: GameState): GameState => ({ ...s, alien: { ...s.alien, mode: 'hunt', target: s.player.cell, stepMs: 400 } });
+const hunted = (s: GameState): GameState => ({ ...s, alien: { ...s.alien, mode: 'hunt', target: playerCell(s), stepMs: 400 } });
 
 describe('flamethrower', () =>
 {
     it('reaches a few cells ahead and stops at walls', () =>
     {
         const s = armed();
-        expect(flameCells(s)).toEqual([12, 13, 14]);
+        expect(flameCells(s)).toEqual([12, 13, 14, 15, 16, 17]);
         const doored = newGame(deck(['##########', '#P.D.A...#', '##########']), rng0);
         expect(flameCells(doored)).toEqual([12]);
-        expect(flameCells({ ...s, player: { ...s.player, dir: 0 } })).toEqual([]);
+        expect(flameCells({ ...s, player: { ...s.player, yaw: 0 } })).toEqual([]);
     });
 
     it('sends the creature running, and it ignores the player meanwhile', () =>
@@ -329,6 +330,7 @@ describe('fleeing through the ducts', () =>
         expect(r.events).toContain('ventIn');
         const out = wait(r.s, 10000, (_, e) => e.includes('ventOut'));
         expect(out.events).toContain('ventOut');
-        expect(out.s.alien.mode).toBe('patrol');
+        // afraid no longer: it goes back to its business, or to the player if it sees them
+        expect(out.s.alien.mode).not.toBe('flee');
     });
 });

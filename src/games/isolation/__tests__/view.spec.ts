@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseMap } from '../grid';
+import { centreOfCell } from '../alien';
 import { buildView, cellPose, depthAlpha, type Scene, type Shape } from '../view';
 
 const W = 360;
@@ -68,8 +69,8 @@ describe('buildView', () =>
     it('hides the creature behind a closed door', () =>
     {
         const map = ['#####', '#A#.#', '###D#', '###.#', '###P#', '#####'];
-        expect(tagged(buildView(scene(map, { alien: 8 })), 'alien')).toEqual([]);
-        expect(tagged(buildView(scene(map, { alien: 8, closed: [] })), 'alien').length).toBeGreaterThan(0);
+        expect(tagged(buildView(scene(map, { alien: centreOfCell(parseMap(map).grid, 8) })), 'alien')).toEqual([]);
+        expect(tagged(buildView(scene(map, { alien: centreOfCell(parseMap(map).grid, 8), closed: [] })), 'alien').length).toBeGreaterThan(0);
         expect(tagged(buildView(scene(map)), 'door').length).toBeGreaterThan(0);
         expect(tagged(buildView(scene(map, { closed: [] })), 'frame').length).toBeGreaterThan(0);
     });
@@ -148,7 +149,7 @@ describe('the android and the steam', () =>
 {
     // a corridor going north from the player, with something three cells ahead
     const HALL = ['#####', '#A#.#', '###.#', '###.#', '###.#', '###P#', '#####'];
-    const at = (cell: number) => ({ cell, off: false });
+    const at = (cell: number) => ({ ...centreOfCell(parseMap(HALL).grid, cell), off: false });
     const ahead = 3 * 5 + 3;
 
     it('draws Ash as a man in front of the camera, and only when he is in sight', () =>
@@ -166,7 +167,7 @@ describe('the android and the steam', () =>
 
     it('draws him with the eyes dark when he is switched off', () =>
     {
-        const ash = tagged(buildView(scene(HALL, { ash: { cell: ahead, off: true } })), 'ash');
+        const ash = tagged(buildView(scene(HALL, { ash: { ...at(ahead), off: true } })), 'ash');
         expect(ash.some(s => s.kind === 'poly')).toBe(true);
         expect(ash.filter(s => s.kind === 'line')).toHaveLength(0);
     });

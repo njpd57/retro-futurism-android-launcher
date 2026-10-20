@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ASH, newAsh, stepAsh, type AshWorld } from '../android';
 import { advance, deckScore, endingOf, levelOf, modeOf, startCampaign, startInfinite } from '../campaign';
-import { CAMPAIGN, DECKS, type DeckDef } from '../decks';
+import { CAMPAIGN, DECKS, deckFor, playable, type DeckDef } from '../decks';
 import { DIFFICULTY } from '../difficulty';
-import { MEOW, STEAM, carryOf, newGame, reduce, step, steaming, terminalTask, type GameEvent, type GameState, type Input } from '../game';
+import { MEOW, MOVE, STEAM, carryOf, newGame, playerCell, reduce, step, steaming, terminalTask, type GameEvent, type GameState, type Input } from '../game';
 import { parseMap, type Dir } from '../grid';
 import { LOGS } from '../logs';
 import { isProgress, record, EMPTY_PROGRESS, ACHIEVEMENTS, infiniteUnlocked } from '../progress';
@@ -11,6 +11,7 @@ import { isSavedGame, restore, snapshot } from '../save';
 import { messageFor, objective, countdownLine } from '../story';
 import { describeSave, directionTo, hintFor } from '../hints';
 import { seeded } from '../rng';
+import { EAST, FORWARD, at, run } from './helpers';
 
 const rng0 = () => 0;
 const deck = (map: string[], extra: Partial<DeckDef> = {}, startDir: Dir = 1): DeckDef => ({ id: 't', title: 'T', map, startDir, signs: [], briefing: [], ...extra });
@@ -53,12 +54,16 @@ describe('Ash', () =>
     it('sees along a corridor and chases, slower than the player walks', () =>
     {
         const ash = newAsh(parseMap(hall).ash!);
-        const r = stepAsh({ ...ash, stepMs: 0 }, world(), 10, rng0);
+        // he looks west along the corridor
+        const r = stepAsh({ ...ash, heading: -Math.PI / 2 }, world(), 10, rng0);
         expect(r.events).toContain('ashSpotted');
         expect(r.ash.mode).toBe('chase');
-        expect(r.ash.cell).toBe(ash.cell - 1);
+        // already on its way west, along the corridor
+        expect(r.ash.x).toBeLessThan(parseMap(hall).ash! % 8 + 0.5);
+        expect(r.ash.heading).toBeCloseTo(-Math.PI / 2, 1);
         expect(r.ash.stepMs).toBe(ASH.stepMs.chase);
-        expect(ASH.stepMs.chase).toBeGreaterThan(380);
+        // a cell takes the player 1000 / speed ms
+        expect(ASH.stepMs.chase).toBeGreaterThan(1000 / MOVE.speed);
     });
 
     it("doesn't see a player who is hidden or out of range", () =>
@@ -85,14 +90,16 @@ describe('Ash', () =>
 
     it('kills on reaching the player, and stands in the way when it is off', () =>
     {
-        const s = newGame(deck(['#######', '#P.H..#', '#######', '#A#####', '#######']), rng0);
+        const fresh = newGame(deck(['#######', '#P.H..#', '#######', '#A#####', '#######']), rng0);
+        // he faces the player
+        const s = { ...fresh, ash: { ...fresh.ash!, heading: -Math.PI / 2 } };
         const dead = wait(s, 8000, x => x.phase !== 'playing').s;
         expect(dead.phase).toBe('dead');
         expect(dead.death).toBe('ash');
         const off = { ...s, ash: { ...s.ash!, active: false } };
-        const r = act(off, 'forward', 'forward');
+        const r = run(off, 1500, FORWARD);
         expect(r.s.phase).toBe('playing');
-        expect(r.s.player.cell).toBe(s.player.cell + 1);
+        expect(playerCell(r.s)).toBe(playerCell(s) + 1);
         expect(r.events).toContain('bump');
     });
 
@@ -126,11 +133,14 @@ describe('steam', () =>
     {
         const s = { ...s0, timeMs: 0 };
         expect(s.steam).toHaveLength(1);
-        const blocked = act({ ...s, player: { ...s.player, cell: s.steam[0] - 1 } }, 'forward');
+        const blocked = run(at(s, s.steam[0] - 1, EAST), 800, FORWARD);
         expect(blocked.events).toContain('steamBlock');
-        expect(blocked.s.player.cell).toBe(s.steam[0] - 1);
-        const later = act({ ...s, timeMs: STEAM.onMs + 500, player: { ...s.player, cell: s.steam[0] - 1 } }, 'forward');
-        expect(later.s.player.cell).toBe(s.steam[0]);
+        expect(playerCell(blocked.s)).toBe(s.steam[0] - 1);
+        const later = run({ ...at(s, s.steam[0] - 1, EAST), timeMs: STEAM.onMs + 500 }, 400, FORWARD);
+        expect(playerCell(later.s)).toBeGreaterThan(s.steam[0]);
+        // a leak that starts under the player does not trap them
+        const under = run({ ...at(s, s.steam[0], EAST), timeMs: 0 }, 400, { move: -1, strafe: 0, turn: 0 });
+        expect(playerCell(under.s)).toBeLessThan(s.steam[0]);
     });
 
     it('is announced when it starts', () =>
@@ -159,7 +169,7 @@ describe('blackout', () =>
 
     it('comes back right after a restore', () =>
     {
-        const m = DECKS.maint;
+        const m = deckFor('maint')!;
         const mask = newGame(m, rng0).blackout!.mask;
         const out = wait(newGame(m, rng0), m.blackout!.periodMs - 1000).s;
         expect(out.blackout!.on).toBe(true);
@@ -179,7 +189,9 @@ describe('a door without power', () =>
         const s = newGame(d, rng0);
         expect(s.locked).toEqual([1 * 11 + 5]);
         expect(s.closed).toContain(1 * 11 + 5);
-        const r = act({ ...s, player: { ...s.player, cell: 1 * 11 + 4 } }, 'use', 'forward');
+        const front = at(s, 1 * 11 + 4, EAST);
+        expect(reduce(front, 'use').events).toEqual([]);
+        const r = run(front, 600, FORWARD);
         expect(r.events).toContain('locked');
         expect(r.s.closed).toContain(1 * 11 + 5);
     });
@@ -187,7 +199,7 @@ describe('a door without power', () =>
     it('opens when its terminal diverts the power', () =>
     {
         const s0 = newGame(d, rng0);
-        const s = { ...s0, player: { ...s0.player, cell: 1 * 11 + 3 } };
+        const s = at(s0, 1 * 11 + 3);
         expect(terminalTask(s)).toBe('divert');
         const used = reduce(s, 'use');
         const done = wait(used.state, 3500);
@@ -195,14 +207,14 @@ describe('a door without power', () =>
         expect(done.s.locked).toEqual([]);
         expect(done.s.closed).not.toContain(1 * 11 + 5);
         expect(terminalTask(done.s)).toBe('save');
-        const through = act({ ...done.s, player: { ...done.s.player, busyMs: 0, cell: 1 * 11 + 4, dir: 1 } }, 'forward', 'forward');
-        expect(through.s.player.cell).toBe(1 * 11 + 6);
+        const through = run(at(done.s, 1 * 11 + 4, EAST), 500, FORWARD);
+        expect(playerCell(through.s)).toBeGreaterThan(1 * 11 + 5);
     });
 
     it("the creature can't force it either", () =>
     {
         const s = newGame(deck(['#########', '#A..XP.E#', '#########'], {}), rng0);
-        const r = wait({ ...s, alien: { ...s.alien, mode: 'hunt', target: s.player.cell, stepMs: 0 } }, 20000);
+        const r = wait({ ...s, alien: { ...s.alien, mode: 'hunt', target: playerCell(s), stepMs: 0 } }, 20000);
         expect(r.s.closed).toContain(1 * 9 + 4);
         expect(r.s.alien.cell).toBeLessThan(1 * 9 + 4);
     });
@@ -214,8 +226,7 @@ describe('terminals', () =>
 
     it('read a log the first time, send the map, and save', () =>
     {
-        const s0 = newGame(d, rng0);
-        const s = { ...s0, player: { ...s0.player, cell: 1 * 9 + 2 } };
+        const s = at(newGame(d, rng0), 1 * 9 + 2);
         expect(terminalTask(s)).toBe('log');
         const r = wait(reduce(s, 'use').state, 3500);
         expect(r.events).toEqual(expect.arrayContaining(['saved', 'mapped', 'log']));
@@ -224,15 +235,15 @@ describe('terminals', () =>
         expect(messageFor(['saved', 'mapped', 'log'], r.s)).toContain(LOGS[0].title);
         // the second time it only saves
         expect(terminalTask(r.s)).toBe('save');
-        const again = wait({ ...r.s, player: { ...r.s.player, busyMs: 0 } }, 0);
+        const again = wait(r.s, 0);
         expect(again.s.logs).toEqual(['c1']);
     });
 
     it('switch Ash off', () =>
     {
-        const withAsh = deck(['#########', '#PT...H.#', '#########', '#A#######', '#########'], { terminals: [{ x: 2, y: 1, ashOff: true }] });
-        const s0 = newGame(withAsh, rng0);
-        const s = { ...s0, player: { ...s0.player, cell: 1 * 9 + 2 } };
+        // Ash is out of sight of the terminal
+        const withAsh = deck(['####################', '#PT..............H.#', '####################', '#A##################', '####################'].map(r => r.padEnd(20, '#').slice(0, 20)), { terminals: [{ x: 2, y: 1, ashOff: true }] });
+        const s = at(newGame(withAsh, rng0), 1 * 20 + 2);
         expect(terminalTask(s)).toBe('ashOff');
         const r = wait(reduce(s, 'use').state, 3500);
         expect(r.events).toContain('ashOff');
@@ -290,7 +301,7 @@ describe('Jones', () =>
 
     it('is picked up, and meows now and then', () =>
     {
-        const { s, events } = act(newGame(d, rng0), 'forward', 'forward');
+        const { s, events } = run(newGame(d, rng0), 500, FORWARD);
         expect(events).toContain('lootCat');
         expect(s.jones).toBe(true);
         expect(s.loot).toEqual([]);
@@ -485,31 +496,33 @@ describe('hints', () =>
 
     it('points to the nearest cell, then to the exit', () =>
     {
-        const withCell = newGame(deck(['#########', '#P..*.E.#', '#########', '#A#######', '#########']), rng0);
-        expect(hintFor(withCell)[0]).toBe('CÉLULA MÁS CERCANA: AL ESTE, 3 PASOS.');
+        const withCell = newGame(playable(deck(['#########', '#P..*.E.#', '#########', '#A#######', '#########'])), rng0);
+        // the deck is scaled 2x2; the hint counts in old cells
+        expect(hintFor(withCell)[0]).toMatch(/^CÉLULA MÁS CERCANA: AL ESTE, [23] PASOS\.$/);
         const done = { ...withCell, items: [], collected: 1, needed: 1 };
-        expect(hintFor(done)[0]).toBe('LANZADERA: AL ESTE, 5 PASOS.');
+        expect(hintFor(done)[0]).toMatch(/^LANZADERA: AL ESTE, [56] PASOS\.$/);
         expect(hintFor({ ...done, phase: 'dead' })).toEqual(['SIN PARTIDA EN CURSO.']);
     });
 
     it('reports the problems of the deck', () =>
     {
-        const lines = hintFor(newGame(DECKS.maint, rng0)).join(' ');
+        const lines = hintFor(newGame(deckFor('maint')!, rng0)).join(' ');
         expect(lines).toContain('PUERTA SIN ENERGÍA');
         expect(lines).toContain('PANEL DE DESVÍO');
-        const lab = hintFor(newGame(DECKS.lab, rng0)).join(' ');
+        const lab = hintFor(newGame(deckFor('lab')!, rng0)).join(' ');
         expect(lab).toContain('ASH ACTIVO');
         expect(lab).toContain('TERMINAL DE CONTROL');
-        expect(hintFor(newGame(DECKS.hangar, rng0)).join(' ')).toContain('AUTODESTRUCCIÓN EN 05:00');
-        expect(hintFor(newGame(DECKS.b, rng0)).join(' ')).toContain('LANZALLAMAS');
-        expect(hintFor(newGame(DECKS.hangar, rng0)).join(' ')).toContain('JONES');
+        expect(hintFor(newGame(deckFor('hangar')!, rng0)).join(' ')).toContain('AUTODESTRUCCIÓN EN 05:00');
+        expect(hintFor(newGame(deckFor('b')!, rng0)).join(' ')).toContain('LANZALLAMAS');
+        expect(hintFor(newGame(deckFor('hangar')!, rng0)).join(' ')).toContain('JONES');
     });
 
     it('finds the way, or says there is none', () =>
     {
-        const g = parseMap(d.map).grid;
-        expect(directionTo(g, 1 * 9 + 1, 1 * 9 + 6)).toBe('AL ESTE, 5 PASOS');
-        expect(directionTo(g, 1 * 9 + 1, 3 * 9 + 1)).toBeNull();
+        const m = parseMap(playable(d).map);
+        expect(directionTo(m.grid, m.start, m.grid.cells.indexOf('exit'))).toMatch(/^AL ESTE, [56] PASOS$/);
+        // the creature's cell is walled off
+        expect(directionTo(m.grid, m.start, m.alien)).toBeNull();
     });
 
     it('describes a save', () =>

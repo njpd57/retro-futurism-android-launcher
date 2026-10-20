@@ -54,7 +54,8 @@ Conductos (la criatura viaja entre rejillas, el rastreador la sigue a través de
 
 - Lógica pura: estado inmutable, RNG inyectada, `reduce(state, input)` y `step(state, dtMs, rng)` devuelven `{ state, events }`. Los eventos son cadenas; `story.ts` los traduce a texto de MOTHER y `IsolationGame.vue` a sonido y vibración.
 - Textos de interfaz en MAYÚSCULAS, español, terso (`SIN COMBUSTIBLE.`); código y comentarios en inglés.
-- Nuevas entradas del jugador: ampliar `Input`, `reduce`, `KEYS` en `IsolationGame.vue` y una tecla en `IsolationControls.vue`.
+- Nuevas entradas del jugador: ampliar `Input`, `reduce`, `KEYS` en `IsolationGame.vue` y una tecla en `IsolationControls.vue` (las teclas actúan en `touchstart`, el joystick y el arrastre sobre la vista mueven y giran).
+- Movimiento libre: el jugador, la criatura y Ash tienen posición continua `x, y` en un mundo escalado 2×2 (`scale.ts`); `playerCell`/`cellOf` dan la celda. Distancias en celdas, velocidades en celdas/s; `hints.ts` y `plan.ts` dividen por `SCALE`. Detalles en `AISLAMIENTO_LIBRE.md`.
 - Un nuevo campo en el estado que deba sobrevivir a salir/guardar: añadirlo a `SavedGame` (`save.ts`: `snapshot`, `restore`, `isSavedGame`), subir `v` si el cambio rompe lo anterior y añadir casos a `save.spec.ts`.
 
 ### Fase 4, campaña (hecha, sin probar en el teléfono)

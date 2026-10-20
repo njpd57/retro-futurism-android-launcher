@@ -2,6 +2,7 @@ import { against, createCamera, depthAlpha, dirYaw, hash, visibleCells, type Fac
 import { ALIEN_OUTLINE, ALIEN_TAIL } from '../wire/creature';
 import { buildLevel, ventDetail } from '../wire/level';
 import { cellAt, cellX, cellY, mountWall, type Dir, type Grid, type Sign } from './grid';
+import { cellOf } from './senses';
 
 /**
  * First-person wireframe view of a deck, as flat shapes for a canvas. Pure: no DOM. The camera and the walls
@@ -25,10 +26,10 @@ export interface Scene
     items: readonly number[];
     signs: readonly Sign[];
     pose: Pose;
-    /** creature cell to draw, or null */
-    alien: number | null;
-    /** the android's cell, or null; `ashOff` draws him slumped, switched off */
-    ash?: { cell: number; off: boolean } | null;
+    /** where to draw the creature, or null */
+    alien: { x: number; y: number } | null;
+    /** where to draw the android, or null; `off` draws him slumped, switched off */
+    ash?: { x: number; y: number; off: boolean } | null;
     /** cells where steam is venting right now */
     steam?: readonly number[];
     /** locker cell the player is inside: not drawn */
@@ -148,8 +149,9 @@ export function buildView(s: Scene): Shape[]
             if (s.decoys.includes(c)) add(distTo(cx, cy), decoyShapes(cx, cy, alpha));
             if (s.flares.includes(c)) add(distTo(cx, cy), flareShapes(cx, cy, depthAlpha(distTo(cx, cy))));
 
-            if (s.alien === c) add(distTo(cx, cy) - 0.01, alienShapes(cx, cy, alpha));
-            if (s.ash && s.ash.cell === c) add(distTo(cx, cy) - 0.01, ashShapes(cx, cy, alpha, s.ash.off));
+            // they stand wherever they are within the cell, not at its centre
+            if (s.alien && cellOf(g, s.alien.x, s.alien.y) === c) add(distTo(s.alien.x, s.alien.y) - 0.01, alienShapes(s.alien.x, s.alien.y, alpha));
+            if (s.ash && cellOf(g, s.ash.x, s.ash.y) === c) add(distTo(s.ash.x, s.ash.y) - 0.01, ashShapes(s.ash.x, s.ash.y, alpha, s.ash.off));
             if (s.steam?.includes(c)) add(distTo(cx, cy) - 0.02, steamShapes(cx, cy, alpha));
         },
     });

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { TRACKER, flameCells, litMask, steaming, type GameState } from '@/games/isolation/game';
+import { alienPosition, placed } from '@/games/isolation/alien';
+import { TRACKER, flameReach, litMask, playerCell, steaming, type GameState } from '@/games/isolation/game';
 import { ALIEN_OUTLINE, ASH_OUTLINE, buildView, type Pose } from '@/games/isolation/view';
 import { drawShapes } from '@/components/wire/drawShapes';
 
@@ -61,10 +62,10 @@ function draw(f: Frame)
 
     const shapes = buildView({
         grid: s.grid, closed: s.closed, items: s.items, signs: s.signs, pose: f.pose,
-        alien: s.alien.vent ? null : s.alien.cell, hiddenIn: s.player.hidden ? s.player.cell : null,
-        ash: s.ash ? { cell: s.ash.cell, off: !s.ash.active } : null, steam: s.steam.filter(c => steaming(s, c)),
+        alien: s.alien.vent ? null : alienPosition(s.grid, s.alien), hiddenIn: s.player.hidden ? playerCell(s) : null,
+        ash: s.ash ? { ...placed(s.grid, s.ash), off: !s.ash.active } : null, steam: s.steam.filter(c => steaming(s, c)),
         lit: litMask(s), decoys: s.decoys.map(d => d.cell), flares: s.flares.map(fl => fl.cell),
-        flame: s.flameMs > 0 ? { reach: flameCells(s).length, seed: Math.floor(f.now / 60) } : null,
+        flame: s.flameMs > 0 ? { reach: flameReach(s), seed: Math.floor(f.now / 60) } : null,
         pulse: (Math.sin(f.now / 260) + 1) / 2, bob: f.bob, w, h,
     });
 

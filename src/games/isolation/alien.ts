@@ -1,5 +1,8 @@
-import { cellAt, cellDistance, distances, lineOfSight, nextStep, soundDistance, type Grid } from './grid';
+import { cellAt, cellDistance, cellX, cellY, distances, doorGroup, nextStep, soundDistance, type Grid } from './grid';
 import { pick, type Rng } from './rng';
+import { SCALE } from './scale';
+import { canSee, cellOf, SENSES } from './senses';
+import { angleTo, moveCircle } from '../wire/physics';
 
 export type AlienMode = 'patrol' | 'investigate' | 'hunt' | 'search' | 'flee';
 
@@ -15,11 +18,16 @@ export interface VentTrip
 
 export interface Alien
 {
+    /** the cell it is in (the vent it left or goes to, while it crawls) */
     cell: number;
+    /** where it is in the cell, in cells, and where it faces (radians, 0 north, clockwise). Missing: the cell's centre. */
+    x?: number;
+    y?: number;
+    heading?: number;
     mode: AlienMode;
     /** where it is heading */
     target: number;
-    /** until the next move */
+    /** ms it takes to cross a cell in the mode it is in: its speed is the inverse */
     stepMs: number;
     /** time spent forcing the closed door in its way */
     forceMs: number;
@@ -46,6 +54,8 @@ export interface World
     grid: Grid;
     closed: readonly number[];
     player: number;
+    /** where the player stands, if not at the centre of their cell */
+    pos?: { x: number; y: number };
     hidden: boolean;
     /** the player stands in the dark: it sees much less far */
     dark?: boolean;
@@ -57,28 +67,73 @@ export interface World
 }
 
 export const ALIEN = {
-    /** cells it sees along a corridor */
-    sight: 7,
+    /** cells it sees (the decks are scaled, so distances are `SCALE` times the old ones) */
+    sight: 7 * SCALE,
     /** ...when the player is in the dark */
-    darkSight: 2,
+    darkSight: 2 * SCALE,
     /** a closed door muffles a sound as much as this many cells */
-    doorCost: 4,
+    doorCost: 4 * SCALE,
     forceMs: 4000,
     searchMs: 8000,
     /** hiding this soon after being seen doesn't fool it */
     sawHideMs: 1500,
-    stepMs: { patrol: 1100, investigate: 650, search: 900, hunt: 420, flee: 380 } as Record<AlienMode, number>,
+    stepMs: { patrol: 1100 / SCALE, investigate: 650 / SCALE, search: 900 / SCALE, hunt: 420 / SCALE, flee: 380 / SCALE } as Record<AlienMode, number>,
     /** it runs from the flamethrower for this long, less each time it has been burnt */
     fleeMs: 7000,
     fleeLearnMs: 1500,
     minFleeMs: 2000,
     /** how often a patrol goes through the vents */
     ventChance: 0.35,
-    ventMsPerCell: 450,
+    ventMsPerCell: 450 / SCALE,
     minVentMs: 2500,
 };
 
 const NEVER = 1e9;
+
+/** Body radius of the creature, and how close to the middle of its goal cell it must get to have arrived. */
+export const ALIEN_BODY = 0.3;
+const ARRIVE = 0.35;
+
+export const centreOfCell = (g: Grid, cell: number) => ({ x: cellX(g, cell) + 0.5, y: cellY(g, cell) + 0.5 });
+
+/** `thing` with a position: where it says, or the middle of its cell when it has none or was moved by hand to another cell. */
+export function placed<T extends { cell: number; x?: number; y?: number; heading?: number }>(g: Grid, thing: T): T & { x: number; y: number; heading: number }
+{
+    const ok = thing.x !== undefined && thing.y !== undefined && cellOf(g, thing.x, thing.y) === thing.cell;
+    const at = ok ? { x: thing.x!, y: thing.y! } : centreOfCell(g, thing.cell);
+    return { ...thing, ...at, heading: thing.heading ?? 0 };
+}
+
+/** Whether something looking from `eye` sees the player within `range` and `fov`. */
+export function sees(w: { grid: Grid; player: number; pos?: { x: number; y: number }; hidden: boolean }, closed: readonly number[], eye: { x: number; y: number; heading: number }, range: number, fov: number): boolean
+{
+    const target = w.pos ?? centreOfCell(w.grid, w.player);
+    return canSee(w.grid, closed, eye, target, { range, fov, hidden: w.hidden, radius: SENSES.bodyRadius });
+}
+
+/** The distance from a point to the nearest point of a cell's square. */
+function distToCell(g: Grid, cell: number, x: number, y: number)
+{
+    const cx = cellX(g, cell);
+    const cy = cellY(g, cell);
+    return Math.hypot(x - Math.min(Math.max(x, cx), cx + 1), y - Math.min(Math.max(y, cy), cy + 1));
+}
+
+/** Moves a body toward a point at `speed` cells per second, sliding along walls. Returns how far it got. */
+export function walkToward(g: Grid, closed: readonly number[], body: { x: number; y: number; heading: number }, to: { x: number; y: number }, speed: number, dtMs: number, radius: number): number
+{
+    const dx = to.x - body.x;
+    const dy = to.y - body.y;
+    const d = Math.hypot(dx, dy);
+    if (d < 1e-6) return 0;
+    const step = Math.min(d, (speed * dtMs) / 1000);
+    const m = moveCircle(g, closed, body.x, body.y, (dx / d) * step, (dy / d) * step, radius);
+    const moved = Math.hypot(m.x - body.x, m.y - body.y);
+    if (moved > 1e-4) body.heading = angleTo(body.x, body.y, to.x, to.y);
+    body.x = m.x;
+    body.y = m.y;
+    return moved;
+}
 
 /** Time between its moves in `mode`, with the difficulty applied. */
 const stepFor = (w: World, mode: AlienMode) => ALIEN.stepMs[mode] * (w.pace ?? 1);
@@ -100,7 +155,7 @@ export function ventsOf(g: Grid): number[]
 export function newAlien(cell: number): Alien
 {
     return {
-        cell, mode: 'patrol', target: cell, stepMs: 3000, forceMs: 0, stillMs: NEVER, searchMs: 0, seenMs: NEVER,
+        cell, mode: 'patrol', target: cell, stepMs: ALIEN.stepMs.patrol, forceMs: 0, stillMs: NEVER, searchMs: 0, seenMs: NEVER,
         sawHide: false, fleeMs: 0, ventPlan: null, vent: null,
     };
 }
@@ -109,7 +164,7 @@ export function newAlien(cell: number): Alien
 export function alienPosition(g: Grid, a: Alien): { x: number; y: number }
 {
     const at = (i: number) => ({ x: i % g.w + 0.5, y: Math.floor(i / g.w) + 0.5 });
-    if (!a.vent) return at(a.cell);
+    if (!a.vent) { const p = placed(g, a); return { x: p.x, y: p.y }; }
     const from = at(a.vent.from);
     const to = at(a.vent.to);
     const t = 1 - a.vent.ms / a.vent.totalMs;
@@ -129,7 +184,7 @@ export function patrolTarget(w: World, from: number, rng: Rng): number
     {
         if (c !== 'floor' || i === from) return;
         all.push(i);
-        if (fromPlayer[i] >= 2 && fromPlayer[i] <= 6) near.push(i);
+        if (fromPlayer[i] >= 2 * SCALE && fromPlayer[i] <= 6 * SCALE) near.push(i);
     });
     if (!all.length) return from;
     return pick(near.length && rng() < 0.5 ? near : all, rng);
@@ -149,7 +204,7 @@ export function planPatrol(w: World, from: number, rng: Rng): { target: number; 
     const exits = vents.filter(v => v !== entry);
     const exit = exits.reduce((p, q) => cellDistance(w.grid, q, target) < cellDistance(w.grid, p, target) ? q : p);
     // not worth it when walking is about as short
-    if (dist[target] >= 0 && dist[entry] + 4 >= dist[target]) return { target, ventPlan: null };
+    if (dist[target] >= 0 && dist[entry] + 4 * SCALE >= dist[target]) return { target, ventPlan: null };
     return { target: entry, ventPlan: exit };
 }
 
@@ -166,7 +221,7 @@ export function scare(a: Alien, w: World, burns: number): Alien
     const fromAlien = distances(w.grid, a.cell, away);
     const fromPlayer = distances(w.grid, w.player, walkable(w.grid));
     const vents = ventsOf(w.grid);
-    const entries = vents.filter(v => fromAlien[v] >= 0 && fromPlayer[v] >= 4);
+    const entries = vents.filter(v => fromAlien[v] >= 0 && fromPlayer[v] >= 4 * SCALE);
 
     let target = a.cell;
     let ventPlan: number | null = null;
@@ -212,18 +267,23 @@ export function hear(a: Alien, w: World, cell: number, loudness: number): { alie
     };
 }
 
-/** Advances the creature by `dtMs`: senses, picks a goal, walks, forces doors, crawls. Doors it opens are removed from `closed`. */
+/**
+ * Advances the creature by `dtMs`: senses, picks a goal, walks to it, forces doors, crawls. Doors it opens are removed
+ * from `closed`. It sees in a cone along its heading (all round once it hunts), hunts by walking straight at what it
+ * sees, and otherwise follows the shortest way through the deck to where it is going.
+ */
 export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { alien: Alien; closed: readonly number[]; events: AlienEvent[] }
 {
     const events: AlienEvent[] = [];
     let closed = w.closed;
+    const g = w.grid;
 
     if (alien.vent)
     {
         const ms = alien.vent.ms - dtMs;
         // moving all the time: the tracker follows it through the walls
         if (ms > 0) return { alien: { ...alien, stillMs: 0, vent: { ...alien.vent, ms } }, closed, events };
-        const out: Alien = { ...alien, cell: alien.vent.to, vent: null, stillMs: 0, stepMs: stepFor(w, alien.mode) };
+        const out: Alien = { ...alien, cell: alien.vent.to, ...centreOfCell(g, alien.vent.to), vent: null, stillMs: 0, stepMs: stepFor(w, alien.mode) };
         if (out.mode === 'flee')
         {
             // it got away
@@ -235,8 +295,10 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
         return { alien: out, closed, events };
     }
 
-    const a: Alien = { ...alien, stillMs: alien.stillMs + dtMs, stepMs: alien.stepMs - dtMs };
+    const a = { ...placed(g, alien), stillMs: alien.stillMs + dtMs };
+    a.stepMs = stepFor(w, a.mode);
 
+    let direct = false;
     if (a.mode === 'flee')
     {
         // it ignores the player until the fear passes
@@ -249,13 +311,14 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
             a.target = searchTarget(w, a.cell, rng);
         }
     }
-    else if (!w.hidden && lineOfSight(w.grid, closed, a.cell, w.player, w.dark ? ALIEN.darkSight : (w.sight ?? ALIEN.sight)))
+    else if (sees(w, closed, a, w.dark ? ALIEN.darkSight : (w.sight ?? ALIEN.sight), a.mode === 'hunt' ? Math.PI : SENSES.alienFov))
     {
         if (a.mode !== 'hunt') events.push('spotted');
         a.mode = 'hunt';
         a.target = w.player;
         a.seenMs = 0;
         a.ventPlan = null;
+        direct = true;
     }
     else a.seenMs = Math.min(NEVER, a.seenMs + dtMs);
 
@@ -269,17 +332,20 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
             Object.assign(a, planPatrol(w, a.cell, rng));
         }
     }
+    a.stepMs = stepFor(w, a.mode);
 
-    if (a.stepMs > 0) return { alien: a, closed, events };
+    const here = cellOf(g, a.x, a.y);
+    const goal = centreOfCell(g, a.target);
+    const arrived = here === a.target && Math.hypot(a.x - goal.x, a.y - goal.y) <= ARRIVE;
 
-    if (a.cell === a.target && a.ventPlan !== null && cellAt(w.grid, a.cell) === 'vent')
+    if (arrived && a.ventPlan !== null && cellAt(g, here) === 'vent')
     {
-        const totalMs = Math.max(ALIEN.minVentMs, cellDistance(w.grid, a.cell, a.ventPlan) * ALIEN.ventMsPerCell);
+        const totalMs = Math.max(ALIEN.minVentMs, cellDistance(g, a.cell, a.ventPlan) * ALIEN.ventMsPerCell);
         events.push('ventIn');
         return { alien: { ...a, vent: { from: a.cell, to: a.ventPlan, ms: totalMs, totalMs }, ventPlan: null }, closed, events };
     }
 
-    if (a.cell === a.target)
+    if (arrived)
     {
         if (a.mode === 'patrol') Object.assign(a, planPatrol(w, a.cell, rng));
         else if (a.mode === 'search') a.target = searchTarget(w, a.cell, rng);
@@ -295,40 +361,44 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
 
     // running away never goes through the player
     // ...and no force opens a door without power
-    const open = (i: number) => walkable(w.grid)(i) && !w.locked?.includes(i);
+    const open = (i: number) => walkable(g)(i) && !w.locked?.includes(i);
     const passable = a.mode === 'flee' ? (i: number) => open(i) && i !== w.player : open;
-    const next = nextStep(w.grid, a.cell, a.target, passable);
-    if (a.mode === 'flee' && (next < 0 || next === a.cell))
+    const next = nextStep(g, here, a.target, passable);
+    if (a.mode === 'flee' && (next < 0 || next === here))
     {
         // cornered far away: waits for the fear to pass
-        a.stepMs = stepFor(w, 'flee');
-        return { alien: a, closed, events };
+        return { alien: { ...a, cell: here }, closed, events };
     }
-    if (next < 0 || next === a.cell)
+    if (next < 0)
     {
-        a.target = patrolTarget(w, a.cell, rng);
+        a.target = patrolTarget(w, here, rng);
         a.ventPlan = null;
-        a.stepMs = stepFor(w, a.mode);
-        return { alien: a, closed, events };
+        return { alien: { ...a, cell: here }, closed, events };
     }
 
-    if (closed.includes(next))
+    // in the way: a closed door. It walks up to it and forces it.
+    if (next !== here && closed.includes(next))
     {
-        a.forceMs += dtMs;
-        if (a.forceMs >= ALIEN.forceMs)
+        if (distToCell(g, next, a.x, a.y) <= ALIEN_BODY + 0.15)
         {
-            closed = closed.filter(c => c !== next);
-            a.forceMs = 0;
-            a.stepMs = stepFor(w, a.mode);
-            events.push('doorForced');
+            a.forceMs += dtMs;
+            if (a.forceMs >= ALIEN.forceMs)
+            {
+                const group = doorGroup(g, next);
+                closed = closed.filter(c => !group.includes(c));
+                a.forceMs = 0;
+                events.push('doorForced');
+            }
+            return { alien: { ...a, cell: here }, closed, events };
         }
-        return { alien: a, closed, events };
     }
+    else a.forceMs = 0;
 
-    a.cell = next;
-    a.forceMs = 0;
-    a.stillMs = 0;
-    a.stepMs = stepFor(w, a.mode);
+    const waypoint = direct && w.pos ? w.pos : centreOfCell(g, next);
+    const moved = walkToward(g, closed, a, waypoint, 1000 / a.stepMs, dtMs, ALIEN_BODY);
+    if (moved > 1e-4) a.stillMs = 0;
+    const now = cellOf(g, a.x, a.y);
+    a.cell = now >= 0 ? now : here;
     return { alien: a, closed, events };
 }
 
@@ -337,6 +407,6 @@ function searchTarget(w: World, from: number, rng: Rng): number
 {
     const dist = distances(w.grid, from, walkable(w.grid));
     const around: number[] = [];
-    dist.forEach((d, i) => { if (d >= 1 && d <= 3 && w.grid.cells[i] !== 'door') around.push(i); });
+    dist.forEach((d, i) => { if (d >= 1 && d <= 3 * SCALE && w.grid.cells[i] !== 'door') around.push(i); });
     return around.length ? pick(around, rng) : from;
 }

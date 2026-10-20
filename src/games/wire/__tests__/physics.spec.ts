@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseArena } from '../map';
+import { parseArena } from '../../marines/map';
 import { angleDiff, angleTo, collides, forward, lineClear, moveCircle, rayCircle, right } from '../physics';
 
 const ROOM = parseArena([

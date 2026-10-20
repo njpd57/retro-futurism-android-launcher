@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DECKS } from '../decks';
-import { newGame } from '../game';
+import { deckFor } from '../decks';
+import { doorGroup, newGame } from '../game';
 import { planRows } from '../plan';
 
 describe('planRows', () =>
 {
-    const s = newGame(DECKS.maint, () => 0);
+    const s = newGame(deckFor('maint')!, () => 0);
     const rows = planRows(s);
 
     it('draws every row of the deck at its width', () =>
@@ -17,7 +17,7 @@ describe('planRows', () =>
     it('shows the player as an arrow facing where they look', () =>
     {
         expect(rows.join('')).toContain('▲');
-        expect(planRows({ ...s, player: { ...s.player, dir: 1 } }).join('')).toContain('►');
+        expect(planRows({ ...s, player: { ...s.player, yaw: Math.PI / 2 } }).join('')).toContain('►');
     });
 
     it('marks what is fixed, and never the creature', () =>
@@ -33,7 +33,7 @@ describe('planRows', () =>
     it('shows a locked door as open once its power is diverted', () =>
     {
         const lock = s.locked[0];
-        const opened = planRows({ ...s, locked: [], closed: s.closed.filter(c => c !== lock) });
+        const opened = planRows({ ...s, locked: [], closed: s.closed.filter(c => !doorGroup(s.grid, lock).includes(c)) });
         expect(opened.join('')).not.toContain('X');
         expect(opened[Math.floor(lock / s.grid.w)][lock % s.grid.w]).toBe('/');
     });

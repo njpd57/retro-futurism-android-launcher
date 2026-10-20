@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { ALIEN, planPatrol } from '../alien';
+import { ALIEN, hear, planPatrol } from '../alien';
 import { DECK_C, type DeckDef } from '../decks';
-import { BACK_MS, SAVE_MS, WALK_MS, lockerCheckChance, newGame, pingInterval, reduce, step, useAction, world, type GameEvent, type GameState, type Input } from '../game';
+import { IDLE, MOVE, NOISE, SAVE_MS, centreOf, doorGroup, lockerCheckChance, newGame, pingInterval, playerCell, reduce, step, useAction, world, type Controls, type GameEvent, type GameState, type Input } from '../game';
 import { cellAt, type Dir } from '../grid';
 import { seeded } from '../rng';
 
 const rng0 = () => 0;
+const EAST = Math.PI / 2;
 const deck = (map: string[], startDir: Dir = 1): DeckDef => ({ id: 't', title: 'T', map, startDir, signs: [], briefing: [] });
+
+const FORWARD: Controls = { move: 1, strafe: 0, turn: 0 };
+
+/** The player stands in the middle of `cell`, looking along `yaw`. */
+const at = (s: GameState, cell: number, yaw = s.player.yaw): GameState => ({ ...s, player: { ...s.player, ...centreOf(s.grid, cell), yaw } });
 
 /** Player actions with time in between for each to finish. */
 function act(s: GameState, ...inputs: Input[]): { s: GameState; events: GameEvent[] }
@@ -19,6 +25,20 @@ function act(s: GameState, ...inputs: Input[]): { s: GameState; events: GameEven
         const t = step(r.state, 1000, rng0);
         events.push(...t.events);
         s = t.state;
+    }
+    return { s, events };
+}
+
+/** Holds the controls for `ms`, in 50 ms steps, until `until` or the time is up. */
+function run(s: GameState, ms: number, controls: Controls = IDLE, until: (s: GameState, e: GameEvent[]) => boolean = () => false, rng = rng0)
+{
+    const events: GameEvent[] = [];
+    for (let t = 0; t < ms; t += 50)
+    {
+        const r = step(s, 50, rng, controls);
+        s = r.state;
+        events.push(...r.events);
+        if (until(s, r.events)) break;
     }
     return { s, events };
 }
@@ -60,60 +80,165 @@ const LOCKER = deck([
 
 describe('player', () =>
 {
-    it('moves, turns, bumps into walls and waits for each move to finish', () =>
+    it('starts in the middle of its cell, looking along the deck\'s heading', () =>
     {
-        let s = newGame(SHUTTLE, rng0);
-        let r = reduce(s, 'forward');
-        expect(r.events).toEqual(['step']);
-        expect(r.state.player).toMatchObject({ cell: 11, busyMs: WALK_MS });
-        expect(reduce(r.state, 'forward').events).toEqual([]);
-
-        s = step(r.state, WALK_MS, rng0).state;
-        r = reduce(s, 'left');
-        expect(r.events).toEqual(['turn']);
-        expect(r.state.player.dir).toBe(0);
-
-        const bumped = act(step(r.state, 1000, rng0).state, 'forward');
-        expect(bumped.events).toContain('bump');
-        expect(bumped.s.player.cell).toBe(11);
+        const s = newGame(SHUTTLE, rng0);
+        expect(s.player).toMatchObject({ x: 1.5, y: 1.5, yaw: EAST, hidden: false });
+        expect(playerCell(s)).toBe(10);
     });
 
-    it('steps back without turning', () =>
+    it('walks where it looks at the pace of the old walk, doubled with the cells', () =>
     {
-        const { s } = act(newGame(SHUTTLE, rng0), 'forward');
-        const r = reduce(s, 'back');
-        expect(r.state.player).toMatchObject({ cell: 10, dir: 1, busyMs: BACK_MS });
+        const s = run(newGame(SHUTTLE, rng0), 500, FORWARD).s;
+        expect(s.player.x).toBeCloseTo(1.5 + MOVE.speed * 0.5, 1);
+        expect(s.player.y).toBeCloseTo(1.5, 5);
+    });
+
+    it('walks slower backwards and sideways, and a light push walks slower still', () =>
+    {
+        const base = at(newGame(SHUTTLE, rng0), 12, EAST);
+        const dx = (c: Controls) => Math.abs(run(base, 200, c).s.player.x - base.player.x);
+        const fwd = dx(FORWARD);
+        expect(dx({ move: -1, strafe: 0, turn: 0 })).toBeCloseTo(fwd * MOVE.slow, 1);
+        expect(dx({ move: 0, strafe: 1, turn: 0 })).toBeLessThan(0.01);
+        expect(dx({ move: 0.4, strafe: 0, turn: 0 })).toBeCloseTo(fwd * 0.4, 1);
+    });
+
+    it('turns with the controls', () =>
+    {
+        const s = run(newGame(SHUTTLE, rng0), 500, { move: 0, strafe: 0, turn: Math.PI / 20 }).s;
+        // the turn is per call: ten calls of a tenth of a quarter turn
+        expect(s.player.yaw).toBeCloseTo(Math.PI, 5);
+        expect(s.player.x).toBe(1.5);
+    });
+
+    it('stops at walls without going into them, and says so', () =>
+    {
+        const north = at(newGame(SHUTTLE, rng0), 10, 0);
+        const r = run(north, 1000, FORWARD);
+        expect(r.s.player.y).toBeCloseTo(1 + MOVE.radius, 1);
+        expect(r.events).toContain('bump');
+        // once now and then, not every slice
+        expect(r.events.filter(e => e === 'bump').length).toBeLessThan(3);
+    });
+
+    it('slides along a wall instead of stopping dead', () =>
+    {
+        const s = at(newGame(SHUTTLE, rng0), 10, Math.PI * 0.75);
+        const r = run(s, 300, FORWARD);
+        // looking south-east against the south wall: it keeps going east
+        expect(r.s.player.x).toBeGreaterThan(2.5);
+        expect(r.s.player.y).toBeLessThan(2);
+    });
+
+    it('makes a footstep every stride, none with a light push', () =>
+    {
+        // 400 ms at full tilt is a little over two cells: one stride
+        const loud = run(newGame(SHUTTLE, rng0), 400, FORWARD).events.filter(e => e === 'step').length;
+        const soft = run(newGame(SHUTTLE, rng0), 400, { move: 0.3, strafe: 0, turn: 0 }).events.filter(e => e === 'step').length;
+        expect(loud).toBe(1);
+        expect(soft).toBe(0);
+    });
+
+    it('hears a footstep from the creature, less when the push is light', () =>
+    {
+        // round a corner: it cannot see the player, only hear
+        const s = newGame(deck(['#######', '#P....#', '#####.#', '#####A#', '#######']), rng0);
+        expect(run(s, 600, FORWARD).events).toContain('heard');
+        const slow = run(s, 600, { move: 0.3, strafe: 0, turn: 0 });
+        expect(slow.events).not.toContain('heard');
     });
 
     it('needs every power cell before the shuttle leaves', () =>
     {
-        let { s, events } = act(newGame(SHUTTLE, rng0), 'forward', 'forward', 'forward', 'forward');
-        expect(cellAt(s.grid, s.player.cell)).toBe('exit');
-        expect(events).toContain('exitLocked');
-        expect(s.phase).toBe('playing');
+        const s = newGame(deck(['##########', '#P.E..*..#', '##########', '#A########', '##########']), rng0);
+        let r = run(s, 3000, FORWARD, (_, e) => e.includes('pickup'));
+        expect(r.events).toContain('exitLocked');
+        expect(r.events).toEqual(expect.arrayContaining(['pickup', 'allCells']));
+        expect(r.s).toMatchObject({ collected: 1, items: [], phase: 'playing' });
 
-        ({ s, events } = act(s, 'forward'));
-        expect(events).toEqual(expect.arrayContaining(['pickup', 'allCells']));
-        expect(s).toMatchObject({ collected: 1, items: [] });
+        // back into the shuttle
+        r = run({ ...r.s, player: { ...r.s.player, yaw: -EAST } }, 3000, FORWARD, x => x.phase !== 'playing');
+        expect(r.events).toContain('won');
+        expect(r.s.phase).toBe('won');
+        expect(cellAt(r.s.grid, playerCell(r.s))).toBe('exit');
+        expect(step(r.s, 100, rng0, FORWARD).events).toEqual([]);
+    });
 
-        ({ s, events } = act(s, 'back'));
-        expect(events).toContain('won');
-        expect(s.phase).toBe('won');
-        expect(reduce(s, 'forward').events).toEqual([]);
+    it('does not let the shuttle leave early', () =>
+    {
+        const s = newGame(deck(['##########', '#P.E..*..#', '##########', '#A########', '##########']), rng0);
+        const r = run(s, 350, FORWARD);
+        expect(cellAt(r.s.grid, playerCell(r.s))).toBe('exit');
+        expect(r.s.phase).toBe('playing');
+    });
+
+    it('does not pick up what is a cell away', () =>
+    {
+        const s = at(newGame(deck(['#######', '#P.*..#', '#A#####', '#######']), rng0), 8);
+        expect(run(s, 100).s.items).toEqual([10]);
+        expect(run(at(s, 10), 100).s.collected).toBe(1);
     });
 
     it('offers the action of the place: lockers and doors', () =>
     {
         const s = newGame(deck(DOOR), rng0);
         expect(useAction(s)).toBeNull();
-        const atDoor = act(s, 'forward').s;
+        const atDoor = run(s, 100, FORWARD).s;
         expect(useAction(atDoor)).toBe('open');
         expect(useAction({ ...atDoor, closed: [] })).toBe('close');
         expect(useAction({ ...atDoor, closed: [], alien: { ...atDoor.alien, cell: 12 } })).toBeNull();
 
-        const inLocker = { ...newGame(LOCKER, rng0), player: { cell: 8, dir: 1 as Dir, hidden: false, busyMs: 0 } };
+        const inLocker = at(newGame(LOCKER, rng0), 8);
         expect(useAction(inLocker)).toBe('hide');
         expect(useAction(reduce(inLocker, 'use').state)).toBe('unhide');
+    });
+
+    it('uses a locker it looks at from the next cell, and steps into it', () =>
+    {
+        const s = newGame(LOCKER, rng0);
+        // at 9, facing west at the locker in 8
+        const west = at(s, 9, -EAST);
+        expect(useAction(west)).toBe('hide');
+        const r = reduce(west, 'use');
+        expect(r.state.player).toMatchObject({ hidden: true, x: 1.5, y: 1.5 });
+        // looks out, away from the wall it is fixed to
+        expect(Math.cos(r.state.player.yaw)).toBeLessThan(1);
+        expect(useAction(at(s, 10, EAST))).toBeNull();
+    });
+
+    it('cannot move while hidden, but gets out where it stood', () =>
+    {
+        let s = reduce(at(newGame(LOCKER, rng0), 8), 'use').state;
+        s = run(s, 1000, FORWARD).s;
+        expect(s.player).toMatchObject({ x: 1.5, hidden: true });
+        s = run(s, 400).s;
+        s = reduce(s, 'use').state;
+        expect(s.player.hidden).toBe(false);
+    });
+
+    it('opens and closes both cells of a door that spans the corridor', () =>
+    {
+        const m = ['#########', '#P..D...#', '#...D...#', '#########', '#A#######', '#########'];
+        const s = newGame(deck(m), rng0);
+        const door = s.closed;
+        expect(door).toHaveLength(2);
+        expect(doorGroup(s.grid, door[0])).toEqual(door);
+        const near = at(s, 12, EAST);
+        const open = reduce(near, 'use').state;
+        expect(open.closed).toEqual([]);
+        const shut = reduce(step(open, 400, rng0).state, 'use');
+        expect(shut.events).toContain('doorClose');
+        expect(shut.state.closed).toEqual(door);
+    });
+
+    it('does not shut a door on its own body', () =>
+    {
+        const s = newGame(deck(['#######', '#P.d.A#', '#######']), rng0);
+        const edge = (x: number) => ({ ...s, closed: [], player: { ...s.player, x, y: 1.5, yaw: EAST } });
+        // right at the door: the doorway would close on them
+        expect(useAction(edge(2.9))).toBeNull();
+        expect(useAction(edge(2.4))).toBe('close');
     });
 });
 
@@ -121,7 +246,7 @@ describe('creature', () =>
 {
     it('hears a door through the corridor and sees the player once it is open', () =>
     {
-        const s = act(newGame(deck(DOOR), rng0), 'forward').s;
+        const s = run(newGame(deck(DOOR), rng0), 100, FORWARD).s;
         const r = reduce(s, 'use');
         expect(r.events).toEqual(['doorOpen', 'heard']);
         expect(r.state.alien.mode).toBe('investigate');
@@ -133,7 +258,7 @@ describe('creature', () =>
 
     it('does not hear footsteps behind a closed door', () =>
     {
-        const { events, s } = act(newGame(deck(DOOR), rng0), 'forward');
+        const { events, s } = run(newGame(deck(DOOR), rng0), 200, FORWARD);
         expect(events).not.toContain('heard');
         expect(s.alien.mode).toBe('patrol');
     });
@@ -151,9 +276,9 @@ describe('creature', () =>
     it('kills a player who walks into it', () =>
     {
         const s = newGame(deck(['######', '#PA..#', '######']), rng0);
-        const r = reduce(s, 'forward');
+        const r = run(s, 1000, FORWARD, x => x.phase !== 'playing');
         expect(r.events).toContain('dead');
-        expect(r.state.phase).toBe('dead');
+        expect(r.s.phase).toBe('dead');
     });
 
     it('forces a closed door in its way', () =>
@@ -167,7 +292,7 @@ describe('creature', () =>
 
     it('passes by a hidden player', () =>
     {
-        let s = { ...newGame(LOCKER, rng0), player: { cell: 8, dir: 1 as Dir, hidden: false, busyMs: 0 } };
+        let s = at(newGame(LOCKER, rng0), 8);
         s = reduce(s, 'use').state;
         expect(s.player.hidden).toBe(true);
         expect(s.alien.sawHide).toBe(false);
@@ -181,8 +306,9 @@ describe('creature', () =>
 
     it('opens the locker it saw the player get into', () =>
     {
-        let s = { ...newGame(LOCKER, rng0), player: { cell: 8, dir: 1 as Dir, hidden: false, busyMs: 0 } };
-        s = { ...s, alien: { ...s.alien, cell: 12 } };
+        let s = at(newGame(LOCKER, rng0), 8);
+        // it looks west along the corridor
+        s = { ...s, alien: { ...s.alien, cell: 12, heading: -EAST } };
         s = step(s, 10, rng0).state;
         expect(s.alien.mode).toBe('hunt');
 
@@ -244,8 +370,10 @@ describe('vents', () =>
 {
     it('takes the ducts when they are a real shortcut', () =>
     {
-        const s = newGame(DUCTS, rng0);
-        expect(planPatrol(world(s), 10, rng0)).toEqual({ target: 12, ventPlan: 14 });
+        // the long way round is more than the ducts plus the walk to the grille
+        const s = newGame(deck(['#############', '#A.V#####V.P#', '##.#######.##', '##.........##', '#############']), rng0);
+        const seq = [0.9, 0.99, 0.1];
+        expect(planPatrol(world(s), 14, () => seq.shift() ?? 0)).toEqual({ target: 16, ventPlan: 22 });
     });
 
     it('crawls from vent to vent, tracked through the walls, and is heard coming out nearby', () =>
@@ -270,18 +398,17 @@ describe('vents', () =>
     {
         let s = newGame(DUCTS, rng0);
         s = { ...s, alien: { ...s.alien, cell: 14, mode: 'patrol', vent: { from: 14, to: 12, ms: 9000, totalMs: 9000 } } };
-        s = { ...s, player: { ...s.player, cell: 15 } };
-        const r = reduce(s, 'back');
-        expect(r.events).toContain('heard');
-        expect(r.state.alien.vent).toMatchObject({ to: 14 });
-        expect(r.state.alien.vent!.ms).toBeLessThanOrEqual(1500);
-        expect(r.state.alien.mode).toBe('investigate');
+        const r = hear(s.alien, world(at(s, 15)), 15, NOISE.step);
+        expect(r.heard).toBe(true);
+        expect(r.alien.vent).toMatchObject({ to: 14 });
+        expect(r.alien.vent!.ms).toBeLessThanOrEqual(1500);
+        expect(r.alien.mode).toBe('investigate');
     });
 
     it('cannot catch anyone from inside a duct', () =>
     {
         let s = newGame(DUCTS, rng0);
-        s = { ...s, player: { ...s.player, cell: 12 }, alien: { ...s.alien, cell: 12, vent: { from: 12, to: 14, ms: 5000, totalMs: 5000 } } };
+        s = { ...at(s, 12), alien: { ...s.alien, cell: 12, vent: { from: 12, to: 14, ms: 5000, totalMs: 5000 } } };
         expect(step(s, 100, rng0).state.phase).toBe('playing');
     });
 });
@@ -292,20 +419,35 @@ describe('terminals', () =>
 
     it('saves after standing at the terminal for a while', () =>
     {
-        let s = act(newGame(TERMINAL, rng0), 'forward').s;
+        let s = newGame(TERMINAL, rng0);
+        // the terminal is in the next cell, in front of the player
         expect(useAction(s)).toBe('save');
         const r = reduce(s, 'use');
         expect(r.events).toEqual(['saveStart']);
         expect(r.state.saveMs).toBe(SAVE_MS);
-        // turned to the screen, on the north wall
-        expect(r.state.player.dir).toBe(0);
+        // in its cell, turned to the screen on the north wall
+        expect(r.state.player).toMatchObject({ x: 2.5, y: 1.5, yaw: 0 });
         expect(useAction(r.state)).toBeNull();
-        expect(reduce(r.state, 'forward').events).toEqual([]);
+        expect(step(r.state, 500, rng0, FORWARD).state.player.x).toBe(2.5);
 
         s = r.state;
         const done = wait(s, SAVE_MS + 200, (_, e) => e.includes('saved'));
         expect(done.events).toContain('saved');
         expect(done.s.saveMs).toBe(0);
+    });
+
+    it('is spoilt by walking away or turning', () =>
+    {
+        const started = reduce(newGame(TERMINAL, rng0), 'use').state;
+        const walked = step(started, 100, rng0, FORWARD);
+        expect(walked.events).toContain('saveCancel');
+        expect(walked.state.saveMs).toBe(0);
+        expect(walked.state.player.holdMs).toBe(0);
+
+        const turned = step(started, 100, rng0, { move: 0, strafe: 0, turn: 0.4 });
+        expect(turned.events).toContain('saveCancel');
+        // a light touch below the threshold does not
+        expect(step(started, 100, rng0, { move: 0.1, strafe: 0, turn: 0 }).events).not.toContain('saveCancel');
     });
 });
 
@@ -320,7 +462,7 @@ describe('lockers', () =>
 
     it('a locker used too often gets opened', () =>
     {
-        let s: GameState = { ...newGame(LOCKER, rng0), player: { cell: 8, dir: 1 as Dir, hidden: false, busyMs: 0 }, hides: { 8: 2 } };
+        let s: GameState = { ...at(newGame(LOCKER, rng0), 8), hides: { 8: 2 } };
         s = reduce(s, 'use').state;
         expect(s.hides[8]).toBe(3);
         s = { ...s, alien: { ...s.alien, mode: 'investigate', target: 8, stepMs: 0 } };

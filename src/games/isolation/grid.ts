@@ -125,6 +125,22 @@ export function blocks(g: Grid, closed: readonly number[], i: number)
     return c === 'wall' || (c === 'door' && closed.includes(i));
 }
 
+/**
+ * The cells of a door. It spans the corridor, so it is one cell or two neighbouring ones (across the corridor, with
+ * a wall behind the other side) that open, close and lose power together.
+ */
+export function doorGroup(g: Grid, cell: number): number[]
+{
+    const group = [cell];
+    for (const d of [0, 1, 2, 3] as const)
+    {
+        const n = neighbour(g, cell, d);
+        const behind = neighbour(g, cell, ((d + 2) % 4) as Dir);
+        if (n >= 0 && cellAt(g, n) === 'door' && (behind < 0 || cellAt(g, behind) === 'wall')) group.push(n);
+    }
+    return group.sort((p, q) => p - q);
+}
+
 /** The wall a locker, terminal or vent stands against: the first solid side, north first. */
 export function mountWall(g: Grid, closed: readonly number[], i: number): Dir | null
 {
@@ -173,9 +189,9 @@ export function nextStep(g: Grid, from: number, to: number, passable: (i: number
 
 /**
  * How far a sound carries from `from` to `to`, in cells: it goes round walls, and each closed door it crosses
- * counts as `doorCost` cells. Infinity when walled off.
+ * counts as `doorCost` cells. Infinity when walled off, or farther than `limit` (the search stops there).
  */
-export function soundDistance(g: Grid, closed: readonly number[], from: number, to: number, doorCost: number): number
+export function soundDistance(g: Grid, closed: readonly number[], from: number, to: number, doorCost: number, limit = Infinity): number
 {
     const n = g.w * g.h;
     const dist = new Float64Array(n).fill(Infinity);
@@ -186,7 +202,7 @@ export function soundDistance(g: Grid, closed: readonly number[], from: number, 
     {
         let c = -1;
         for (let i = 0; i < n; i++) if (!done[i] && dist[i] < Infinity && (c < 0 || dist[i] < dist[c])) c = i;
-        if (c < 0) return Infinity;
+        if (c < 0 || dist[c] > limit) return Infinity;
         if (c === to) return dist[c];
         done[c] = 1;
         for (let d = 0; d < 4; d++)

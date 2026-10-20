@@ -1,4 +1,4 @@
-import { CAMPAIGN } from './decks';
+import { CAMPAIGN, playable } from './decks';
 import type { Difficulty } from './difficulty';
 import { generateDeck, generatedId, parseGeneratedId } from './generate';
 import { carryOf, newGame, type GameState } from './game';
@@ -25,10 +25,10 @@ export function levelOf(deckId: string): number
 export const CAMPAIGN_LENGTH = CAMPAIGN.length;
 
 export const startCampaign = (difficulty: Difficulty, rng: Rng): GameState =>
-    newGame(CAMPAIGN[0], rng, { difficulty, bag: { scrap: 0, wires: 0, chems: 0, decoys: 0, flares: 0, fuel: 0, flamer: false }, jones: false, logs: [], fires: 0, spotted: 0, score: 0, timeMs: 0 });
+    newGame(playable(CAMPAIGN[0]), rng, { difficulty, bag: { scrap: 0, wires: 0, chems: 0, decoys: 0, flares: 0, fuel: 0, flamer: false }, jones: false, logs: [], fires: 0, spotted: 0, score: 0, timeMs: 0 });
 
 export const startInfinite = (seed: number, difficulty: Difficulty, rng: Rng): GameState =>
-    newGame(generateDeck(seed, 1), rng, { difficulty, bag: { scrap: 0, wires: 0, chems: 0, decoys: 0, flares: 0, fuel: 0, flamer: false }, jones: false, logs: [], fires: 0, spotted: 0, score: 0, timeMs: 0 });
+    newGame(playable(generateDeck(seed, 1)), rng, { difficulty, bag: { scrap: 0, wires: 0, chems: 0, decoys: 0, flares: 0, fuel: 0, flamer: false }, jones: false, logs: [], fires: 0, spotted: 0, score: 0, timeMs: 0 });
 
 /** Points a deck is worth in the endless mode: depth, speed and not being seen. */
 export function deckScore(s: GameState): number
@@ -43,9 +43,9 @@ export function advance(s: GameState, rng: Rng): GameState | null
 {
     const carry = { ...carryOf(s), score: s.score + deckScore(s) };
     const g = parseGeneratedId(s.deck);
-    if (g) return newGame(generateDeck(g.seed, g.level + 1), rng, carry);
+    if (g) return newGame(playable(generateDeck(g.seed, g.level + 1)), rng, carry);
     const i = CAMPAIGN.findIndex(d => d.id === s.deck);
-    return i >= 0 && i < CAMPAIGN.length - 1 ? newGame(CAMPAIGN[i + 1], rng, carry) : null;
+    return i >= 0 && i < CAMPAIGN.length - 1 ? newGame(playable(CAMPAIGN[i + 1]), rng, carry) : null;
 }
 
 /** How the campaign ends for a player who reached the shuttle. */

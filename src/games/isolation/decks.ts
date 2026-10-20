@@ -1,5 +1,6 @@
 import type { Dir, Sign } from './grid';
 import { generateDeck, parseGeneratedId } from './generate';
+import { scaleDeck } from './scale';
 
 /** What a terminal does besides saving: it can show a crew log, switch Ash off or divert power to a door. */
 export interface TerminalDef
@@ -234,10 +235,24 @@ export const CAMPAIGN: readonly DeckDef[] = [DECK_C, DECK_B, DECK_LAB, DECK_MAIN
 
 export const DECKS: Record<string, DeckDef> = Object.fromEntries(CAMPAIGN.map(d => [d.id, d]));
 
-/** A deck by id: the campaign's, or one generated from a seed (`inf:<seed>:<level>`). */
+const scaled = new WeakMap<DeckDef, DeckDef>();
+
+/** A deck as it is played: drawn on the small grid, scaled 2x2 for free movement (`scale.ts`). */
+export function playable(deck: DeckDef): DeckDef
+{
+    let out = scaled.get(deck);
+    if (!out)
+    {
+        out = scaleDeck(deck);
+        scaled.set(deck, out);
+    }
+    return out;
+}
+
+/** A deck by id, ready to play: the campaign's, or one generated from a seed (`inf:<seed>:<level>`). */
 export function deckFor(id: string): DeckDef | null
 {
-    if (id in DECKS) return DECKS[id];
+    if (id in DECKS) return playable(DECKS[id]);
     const g = parseGeneratedId(id);
-    return g ? generateDeck(g.seed, g.level) : null;
+    return g ? playable(generateDeck(g.seed, g.level)) : null;
 }

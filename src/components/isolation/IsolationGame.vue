@@ -1,21 +1,22 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
-import { useIsolationStore } from '@/stores/useIsolationStore';
+import { useIsolationStore, SENSITIVITY_STEPS } from '@/stores/useIsolationStore';
 import { useLogStore } from '@/stores/useLogStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import { advance, deckScore, endingOf, levelOf, modeOf, startCampaign, startInfinite, CAMPAIGN_LENGTH } from '@/games/isolation/campaign';
 import { RECIPES, canCraft } from '@/games/isolation/crafting';
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '@/games/isolation/difficulty';
-import { BACK_MS, SAVE_MS, TURN_MS, WALK_MS, alienDistance, reduce, step, terminalTask, useAction, type GameEvent, type GameState, type Input } from '@/games/isolation/game';
+import { MOVE, SAVE_MS, alienDistance, reduce, step, terminalTask, useAction, type Controls, type GameEvent, type GameState, type Input } from '@/games/isolation/game';
 import { deckFor } from '@/games/isolation/decks';
 import { newSeed } from '@/games/isolation/generate';
 import { ENDINGS, LOGS, type Ending } from '@/games/isolation/logs';
 import { ACHIEVEMENTS, infiniteUnlocked } from '@/games/isolation/progress';
 import { restore, snapshot, type SavedGame } from '@/games/isolation/save';
 import { messageFor, objective } from '@/games/isolation/story';
-import { cellPose, type Pose } from '@/games/isolation/view';
+import type { Pose } from '@/games/isolation/view';
+import { aimPixels } from '@/games/marines/aim';
 import { tick } from '@/utils/haptics';
 import { bar, formatDuration } from '@/utils/tui';
 import IsolationArchive from './IsolationArchive.vue';
@@ -29,6 +30,12 @@ const log = useLogStore();
 const settings = useSettingsStore();
 const sound = useSoundStore();
 const bridgeEvents = useBridgeEventStore();
+
+/** The movement keys of a keyboard. */
+type HoldKey = 'forward' | 'back' | 'left' | 'right';
+
+/** radians a drag of one pixel turns the player, at sensitivity 1 */
+const TURN_PER_PX = 0.0065;
 
 const FRAME_MS = 1000 / 30;
 const MESSAGE_MS = 4000;
@@ -61,34 +68,106 @@ const ending = ref<Ending | null>(null);
 let raf = 0;
 let last = 0;
 let backgrounded = false;
-let held: Input | null = null;
+/** the movement keys held down on a keyboard */
+const held = new Set<HoldKey>();
+/** the joystick, both -1..1 */
+const stick = { strafe: 0, forward: 0 };
+/** radians still to turn from drags on the view */
+let turnAcc = 0;
 let lastPing = -1e9;
 let deadAt = 0;
 let lastBeat = 0;
 
-// the camera glides between cells: from `fromPose` to the player's pose over `animMs`
-let fromPose: Pose = poseOf(state.value);
-let animStart = 0;
-let animMs = 0;
-let animWalk = false;
-
-function poseOf(s: GameState): Pose
+/** The camera is where the player is; it bobs a little as they walk. */
+function currentPose(): { pose: Pose; bob: number }
 {
-    return cellPose(s.grid, s.player.cell, s.player.dir);
+    const p = state.value.player;
+    const bob = reducedMotion ? 0 : Math.sin(p.walked * 3.2) * 0.02 * Math.min(1, p.speed / MOVE.speed);
+    return { pose: { x: p.x, y: p.y, yaw: p.yaw }, bob };
 }
 
-function currentPose(now: number): { pose: Pose; bob: number }
+/** What the held keys ask for now. */
+function controls(dt: number): Controls
 {
-    const to = poseOf(state.value);
-    const t = animMs ? Math.min(1, (now - animStart) / animMs) : 1;
-    if (t >= 1) return { pose: to, bob: 0 };
-    const e = t * t * (3 - 2 * t);
-    let dyaw = to.yaw - fromPose.yaw;
-    dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
+    const axis = (plus: HoldKey, minus: HoldKey) => (held.has(plus) ? 1 : 0) - (held.has(minus) ? 1 : 0);
+    const turn = axis('right', 'left') * MOVE.turnRate * dt / 1000 + turnAcc;
+    turnAcc = 0;
     return {
-        pose: { x: fromPose.x + (to.x - fromPose.x) * e, y: fromPose.y + (to.y - fromPose.y) * e, yaw: fromPose.yaw + dyaw * e },
-        bob: animWalk ? -Math.sin(t * Math.PI) * 0.025 : 0,
+        move: Math.max(-1, Math.min(1, axis('forward', 'back') + stick.forward)),
+        strafe: stick.strafe,
+        turn,
     };
+}
+
+function onMove(strafe: number, forward: number)
+{
+    stick.strafe = strafe;
+    stick.forward = forward;
+}
+
+// ---- turning: a drag on the view. It follows one finger by its identifier and uses how far it moved, so where the
+// screen's curvature draws things does not matter.
+let aimId: number | null = null;
+let aimX = 0;
+let mouseAim = false;
+
+const turnPerPx = () => TURN_PER_PX * isolation.prefs.sensitivity;
+const aiming = () => screen.value === 'playing' && !bagOpen.value && !mapOpen.value;
+
+function aimStart(e: TouchEvent)
+{
+    if (aimId !== null || !aiming()) return;
+    const t = e.changedTouches[0];
+    aimId = t.identifier;
+    aimX = t.clientX;
+}
+
+function aimMove(e: TouchEvent)
+{
+    if (aimId === null) return;
+    for (const t of Array.from(e.changedTouches))
+    {
+        if (t.identifier !== aimId) continue;
+        turnAcc += aimPixels(t.clientX - aimX) * turnPerPx();
+        aimX = t.clientX;
+    }
+}
+
+function aimEnd(e: TouchEvent)
+{
+    if (aimId === null) return;
+    for (const t of Array.from(e.changedTouches)) if (t.identifier === aimId) aimId = null;
+}
+
+function onMouseDown(e: MouseEvent)
+{
+    if (e.button === 0 && aiming()) mouseAim = true;
+}
+
+function onMouseMove(e: MouseEvent)
+{
+    if (mouseAim) turnAcc += e.movementX * turnPerPx();
+}
+
+function onMouseUp()
+{
+    mouseAim = false;
+}
+
+function nextSensitivity()
+{
+    const i = SENSITIVITY_STEPS.findIndex(v => v >= isolation.prefs.sensitivity - 1e-6);
+    isolation.prefs = { ...isolation.prefs, sensitivity: SENSITIVITY_STEPS[(i + 1) % SENSITIVITY_STEPS.length] };
+}
+
+/** Lets go of everything the hands were holding. */
+function release()
+{
+    held.clear();
+    stick.strafe = stick.forward = 0;
+    turnAcc = 0;
+    aimId = null;
+    mouseAim = false;
 }
 
 function apply(input: Input)
@@ -98,13 +177,6 @@ function apply(input: Input)
     const before = state.value;
     const r = reduce(before, input);
     if (r.state === before) return;
-    if (r.state.player.cell !== before.player.cell || r.state.player.dir !== before.player.dir)
-    {
-        fromPose = currentPose(now).pose;
-        animStart = now;
-        animWalk = r.state.player.cell !== before.player.cell;
-        animMs = reducedMotion ? 0 : animWalk ? (input === 'back' ? BACK_MS : WALK_MS) : TURN_MS;
-    }
     state.value = r.state;
     handle(r.events, now);
 }
@@ -171,11 +243,11 @@ function handle(events: GameEvent[], now: number)
                 if (settings.haptics) tick(80);
                 break;
             case 'meow': sound.playAlways('ping'); break;
-            case 'bump': sound.play('back'); break;
+            case 'bump': case 'saveCancel': sound.play('back'); break;
             case 'won': deckWon(now); break;
             case 'dead':
                 deadAt = now;
-                held = null;
+                release();
                 bagOpen.value = false;
                 mapOpen.value = false;
                 sound.playAlways(state.value.death === 'blast' ? 'blast' : 'screech');
@@ -198,7 +270,7 @@ function deckWon(now: number)
 {
     sound.playAlways('alert');
     const done = state.value;
-    held = null;
+    release();
     bagOpen.value = false;
     mapOpen.value = false;
     remember({ type: 'deck', state: done }, now);
@@ -227,25 +299,24 @@ function frame(now: number)
 
     if (screen.value === 'playing' && state.value.phase === 'playing')
     {
-        if (held) apply(held);
-        const r = step(state.value, dt, rng);
+        const r = step(state.value, dt, rng, controls(dt));
         state.value = r.state;
         handle(r.events, now);
     }
     clock.value = now;
 
     const s = state.value;
-    const { pose, bob } = currentPose(now);
+    const { pose, bob } = currentPose();
     const dist = alienDistance(s);
     const live = screen.value === 'playing' && s.phase === 'playing';
-    if (live && dist <= 1.5 && now - lastBeat > HEARTBEAT_MS)
+    if (live && dist <= 3 && now - lastBeat > HEARTBEAT_MS)
     {
         lastBeat = now;
         if (settings.haptics) tick(35);
     }
     view.value?.draw({
         state: s, pose, bob, now,
-        interference: reducedMotion || s.phase !== 'playing' ? 0 : Math.min(1, Math.max(0, (3.5 - dist) / 3)),
+        interference: reducedMotion || s.phase !== 'playing' ? 0 : Math.min(1, Math.max(0, (7 - dist) / 6)),
         sincePing: now - lastPing,
         flash: s.phase === 'dead' ? Math.max(0, 1 - (now - deadAt) / FLASH_MS) : 0,
     });
@@ -274,9 +345,7 @@ function begin(s: GameState, on: 'playing' | 'paused' | 'briefing')
     state.value = s;
     inGame = true;
     pending.value = null;
-    fromPose = poseOf(s);
-    animMs = 0;
-    held = null;
+    release();
     earned.value = [];
     message.value = { text: objective(s), at: performance.now() };
     bagOpen.value = false;
@@ -318,7 +387,7 @@ function toTitle()
     suspend();
     inGame = false;
     pending.value = null;
-    held = null;
+    release();
     bagOpen.value = false;
     mapOpen.value = false;
     screen.value = 'title';
@@ -331,7 +400,7 @@ function nextDeck()
 
 function pause()
 {
-    held = null;
+    release();
     bagOpen.value = false;
     if (screen.value === 'playing' && state.value.phase === 'playing') screen.value = 'paused';
 }
@@ -356,21 +425,30 @@ function onKey(e: KeyboardEvent)
         bagOpen.value = false;
         return;
     }
+    const key = HOLD_KEYS[e.key];
+    if (key)
+    {
+        e.preventDefault();
+        held.add(key);
+        return;
+    }
     const input = KEYS[e.key];
     if (!input) return;
     e.preventDefault();
-    if (input === 'forward' || input === 'back') held = input;
-    else if (!e.repeat) apply(input);
+    if (!e.repeat) apply(input);
 }
 
 function onKeyUp(e: KeyboardEvent)
 {
-    if (KEYS[e.key] === held) held = null;
+    const key = HOLD_KEYS[e.key];
+    if (key) held.delete(key);
 }
 
+const HOLD_KEYS: Record<string, HoldKey> = {
+    ArrowUp: 'forward', w: 'forward', ArrowDown: 'back', s: 'back', ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right',
+};
+
 const KEYS: Record<string, Input> = {
-    ArrowUp: 'forward', w: 'forward', ArrowDown: 'back', s: 'back',
-    ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right',
     ' ': 'use', e: 'use', Enter: 'use', t: 'tracker', 1: 'throwDecoy', 2: 'throwFlare', f: 'fire',
 };
 
@@ -471,6 +549,8 @@ onMounted(() =>
     bridgeEvents.addEventListener(onBridgeEvent);
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
 });
 
 onBeforeUnmount(() =>
@@ -480,6 +560,8 @@ onBeforeUnmount(() =>
     bridgeEvents.removeEventListener(onBridgeEvent);
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
 });
 </script>
 
@@ -493,7 +575,9 @@ onBeforeUnmount(() =>
             <button v-else class="head-key pressable" @click="isolation.close()">[X]</button>
         </div>
 
-        <div class="stage">
+        <div
+            class="stage" data-no-swipe
+            @touchstart="aimStart" @touchmove="aimMove" @touchend="aimEnd" @touchcancel="aimEnd" @mousedown="onMouseDown">
             <IsolationView ref="view" />
 
             <IsolationBag
@@ -506,7 +590,8 @@ onBeforeUnmount(() =>
                 <div class="big">AISLAMIENTO</div>
                 <div class="dim">LA NOSTROMO · 5 CUBIERTAS · 1 ORGANISMO</div>
                 <div class="dim help">
-                    ▲ AVANZA, MANTÉN PARA CAMINAR · ◄ ► GIRA<br />
+                    JOYSTICK: CAMINA (SUAVE = SIGILO)<br />
+                    ARRASTRE SOBRE LA VISTA PARA GIRAR<br />
                     USAR: PUERTAS, TAQUILLAS Y TERMINALES<br />
                     EL RASTREADOR SOLO VE LO QUE SE MUEVE, Y SE OYE<br />
                     SEÑUELO ATRAE · BENGALA ILUMINA · FUEGO ESPANTA
@@ -554,6 +639,7 @@ onBeforeUnmount(() =>
                 <div class="actions col">
                     <button class="act pressable" @click="screen = 'playing'">[CONTINUAR]</button>
                     <button v-if="isolation.save" class="act pressable" @click="load(isolation.save)">[CARGAR GUARDADO]</button>
+                    <button class="act pressable" @click="nextSensitivity">[SENSIBILIDAD ×{{ isolation.prefs.sensitivity }}]</button>
                     <button class="act pressable" @click="toTitle">[MENÚ]</button>
                     <button class="act pressable" @click="isolation.close()">[SALIR]</button>
                 </div>
@@ -619,7 +705,7 @@ onBeforeUnmount(() =>
         <IsolationControls
             :use="useLabel" :tracker="state.tracker.raised" :hidden="state.player.hidden"
             :decoys="state.bag.decoys" :flares="state.bag.flares" :fuel="state.bag.flamer ? state.bag.fuel : null"
-            @input="apply" @hold="held = $event" />
+            @input="apply" @move="onMove" />
     </div>
 </template>
 
@@ -665,6 +751,10 @@ onBeforeUnmount(() =>
     min-height: 0;
     border: 1px solid var(--ph-dim);
     margin: 0 10px;
+    // a drag on the view turns the player: the page must not scroll with it
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .panel {

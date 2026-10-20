@@ -1,5 +1,5 @@
 import { cellAt } from './grid';
-import type { GameState } from './game';
+import { playerCell, type GameState } from './game';
 
 const ARROWS = ['▲', '►', '▼', '◄'] as const;
 
@@ -11,13 +11,16 @@ export function planRows(s: GameState): string[]
 {
     const g = s.grid;
     const rows: string[] = [];
+    const here = playerCell(s);
+    // the arrow points at the nearest of the four directions
+    const arrow = ARROWS[((Math.round(s.player.yaw / (Math.PI / 2)) % 4) + 4) % 4];
     for (let y = 0; y < g.h; y++)
     {
         let row = '';
         for (let x = 0; x < g.w; x++)
         {
             const i = y * g.w + x;
-            if (i === s.player.cell) { row += ARROWS[s.player.dir]; continue; }
+            if (i === here) { row += arrow; continue; }
             if (s.items.includes(i)) { row += '*'; continue; }
             switch (cellAt(g, i))
             {
