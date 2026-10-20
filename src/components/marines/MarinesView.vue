@@ -82,103 +82,98 @@ function draw(f: Frame)
 }
 
 type Pt = [number, number];
-type Seg = [number, number, number, number];
-/** The drawing of a weapon, in order: `part` is a filled outline, `lines` loose strokes at an opacity. */
-type Op = { part: Pt[] } | { lines: Seg[]; alpha?: number };
+type V3 = [number, number, number];
+/** A box of the weapon: x0, x1, y0, y1, z0, z1 in metres from the bore axis (x right, y down, z forward). */
+type Cuboid = [number, number, number, number, number, number];
+/** The drawing of a weapon, far to near: `box` is a solid block, `lines` are loose strokes on it at an opacity. */
+type Op = { box: Cuboid } | { lines: [number, number, number, number, number, number][]; alpha?: number };
 
 interface Art
 {
     ops: Op[];
-    /** where the round counter sits, and where the muzzle flash starts */
-    counter: Pt;
-    muzzle: Pt;
+    /** where the round counter sits on the weapon, and where the muzzle flash starts */
+    counter: V3;
+    muzzle: V3;
+    /** where a grenade leaves (the launcher under the barrel), if it has one */
+    launcher?: V3;
     /** how big the flash is and how hard the weapon kicks, against the rifle's 1 */
     flash: number;
     kick: number;
 }
 
-const box = (x0: number, y0: number, x1: number, y1: number): Seg[] => [[x0, y0, x1, y0], [x0, y1, x1, y1], [x0, y0, x0, y1], [x1, y0, x1, y1]];
-const rect = (x0: number, y0: number, x1: number, y1: number): Pt[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
-
-/** Every weapon in its own units: +x towards the muzzle, +y down. The butt is at the left, the muzzle at the right. */
+/**
+ * Every weapon as it is held: seen from behind and to the right, pointing at the middle of the view, the way the
+ * hands carry it in a shooter. Coordinates are from the bore axis, which the carry offset then moves to the lower
+ * right; +x is to the right, +y down and +z forward. The barrel runs away from the viewer and so shortens in
+ * perspective, with the front sight just under the crosshair.
+ */
 const ART: Record<WeaponId, Art> = {
-    // the butt, the launcher under the barrel, the receiver, the shroud with its cooling slots, the barrel, the
-    // carrying handle and the pistol grip with its guard, and the housing of the counter
+    // the barrel with its flash hider, the launcher under the handguard, the receiver with the carrying handle and
+    // the sight, the magazine and the pistol grip
     rifle: {
-        counter: [-65, -12], muzzle: [284, 0], flash: 1, kick: 1,
+        counter: [-0.046, 0.0, 0.26], muzzle: [0, 0, 1.08], launcher: [0, 0.058, 0.8], flash: 1, kick: 1,
         ops: [
-            { part: [[-120, -14], [-195, -4], [-195, 44], [-120, 36]] },
-            { part: rect(30, 22, 185, 46) },
-            { lines: [[105, 22, 105, 46], [50, 34, 90, 34], [120, 34, 170, 34]] },
-            { part: rect(-120, -26, 40, 36) },
-            { part: rect(40, -17, 175, 19) },
-            { lines: Array.from({ length: 8 }, (_, i): Seg => [56 + i * 16, -11, 56 + i * 16, 11]), alpha: 0.6 },
-            { lines: [[175, -5, 262, -5], [175, 5, 262, 5]], alpha: 1 },
-            { part: rect(262, -9, 282, 9) },
-            { lines: [[270, -9, 270, 9], [276, -9, 276, 9]], alpha: 0.8 },
-            { part: [[-72, -26], [-56, -54], [8, -54], [24, -26]] },
-            { lines: [[-52, -41, 4, -41]], alpha: 0.6 },
-            { part: [[-88, 36], [-104, 96], [-64, 98], [-46, 36]] },
-            { lines: [[-40, 36, -30, 62], [-30, 62, -4, 62], [-4, 62, 8, 36]], alpha: 0.8 },
-            { lines: box(-104, -21, -26, -3), alpha: 0.9 },
+            { box: [-0.012, 0.012, -0.012, 0.012, 0.62, 1.0] },
+            { box: [-0.02, 0.02, -0.02, 0.02, 1.0, 1.08] },
+            { box: [-0.004, 0.004, -0.04, -0.012, 0.95, 0.97] },
+            { box: [-0.03, 0.03, 0.04, 0.075, 0.42, 0.8] },
+            { box: [-0.04, 0.04, -0.03, 0.035, 0.36, 0.64] },
+            { lines: Array.from({ length: 6 }, (_, i): [number, number, number, number, number, number] => { const z = 0.4 + i * 0.04; return [-0.04, -0.015, z, -0.04, 0.02, z]; }), alpha: 0.6 },
+            { box: [-0.025, 0.025, 0.05, 0.15, 0.22, 0.3] },
+            { box: [-0.02, 0.02, 0.05, 0.13, 0.12, 0.17] },
+            { box: [-0.045, 0.045, -0.05, 0.05, 0.12, 0.38] },
+            { box: [-0.02, 0.02, -0.085, -0.05, 0.12, 0.34] },
+            { box: [-0.004, 0.004, -0.115, -0.085, 0.3, 0.32] },
         ],
     },
-    // a long barrel over the magazine tube, the pump under it
+    // a long barrel over the magazine tube, the pump under it, a bead at the end
     shotgun: {
-        counter: [-70, -6], muzzle: [272, -8], flash: 1.8, kick: 2.2,
+        counter: [-0.042, 0.0, 0.27], muzzle: [0, -0.02, 1.02], flash: 1.8, kick: 2.2,
         ops: [
-            { part: [[-120, -14], [-195, 2], [-195, 42], [-120, 30]] },
-            { part: [[-88, 30], [-104, 92], [-64, 94], [-46, 30]] },
-            { lines: [[-40, 30, -30, 56], [-30, 56, -4, 56], [-4, 56, 8, 30]], alpha: 0.8 },
-            { part: rect(-120, -24, 30, 30) },
-            { part: rect(30, 6, 225, 17) },
-            { part: rect(30, -14, 270, -2) },
-            { lines: [[30, -8, 262, -8]], alpha: 0.5 },
-            { lines: [[262, -14, 262, -2], [268, -14, 268, -2]], alpha: 0.9 },
-            { part: rect(80, 19, 178, 40) },
-            { lines: [[98, 19, 98, 40], [112, 19, 112, 40], [126, 19, 126, 40], [140, 19, 140, 40]], alpha: 0.6 },
-            { lines: box(-95, -17, -45, 5), alpha: 0.9 },
+            { box: [-0.014, 0.014, -0.034, -0.006, 0.4, 1.0] },
+            { box: [-0.004, 0.004, -0.046, -0.034, 0.98, 1.0] },
+            { box: [-0.012, 0.012, 0.006, 0.03, 0.4, 0.95] },
+            { box: [-0.03, 0.03, 0.0, 0.05, 0.55, 0.75] },
+            { lines: Array.from({ length: 4 }, (_, i): [number, number, number, number, number, number] => { const z = 0.58 + i * 0.04; return [-0.03, 0.005, z, -0.03, 0.045, z]; }), alpha: 0.6 },
+            { box: [-0.02, 0.02, 0.05, 0.13, 0.14, 0.19] },
+            { box: [-0.04, 0.04, -0.04, 0.05, 0.14, 0.4] },
         ],
     },
-    // heavy, with the ammunition box under the body and the gimbal arm out in front
+    // heavy: the body, the ammunition box under it, the sensor on top and the gimbal arm out in front
     smartgun: {
-        counter: [-70, -8], muzzle: [288, 0], flash: 0.8, kick: 0.5,
+        counter: [-0.062, 0.0, 0.3], muzzle: [0, 0, 1.06], flash: 0.8, kick: 0.5,
         ops: [
-            { part: [[-150, -34], [-60, -44], [70, -44], [70, 40], [-150, 40]] },
-            { part: [[-134, 40], [-96, 40], [-84, 96], [-124, 98]] },
-            { part: rect(-60, 40, 36, 98) },
-            { lines: [[-60, 58, 36, 58], [-60, 78, 36, 78]], alpha: 0.6 },
-            { part: [[-90, -44], [-74, -72], [40, -72], [56, -44]] },
-            { lines: [[-60, -58, 20, -58]], alpha: 0.6 },
-            { part: [[70, -24], [135, -14], [135, 14], [70, 24]] },
-            { part: rect(135, -18, 250, 18) },
-            { lines: Array.from({ length: 6 }, (_, i): Seg => [150 + i * 16, -12, 150 + i * 16, 12]), alpha: 0.6 },
-            { part: rect(250, -11, 288, 11) },
-            { lines: [[266, -11, 266, 11]], alpha: 0.8 },
-            { lines: box(-110, -20, -30, 4), alpha: 0.9 },
+            { box: [-0.02, 0.02, -0.02, 0.02, 0.95, 1.05] },
+            { box: [-0.03, 0.03, -0.03, 0.03, 0.75, 0.95] },
+            { lines: Array.from({ length: 4 }, (_, i): [number, number, number, number, number, number] => { const z = 0.78 + i * 0.045; return [-0.03, -0.02, z, -0.03, 0.02, z]; }), alpha: 0.6 },
+            { box: [-0.03, 0.03, -0.03, 0.03, 0.5, 0.75] },
+            { box: [-0.05, 0.05, 0.06, 0.14, 0.2, 0.45] },
+            { box: [-0.03, 0.03, -0.09, -0.05, 0.2, 0.45] },
+            { box: [-0.06, 0.06, -0.05, 0.06, 0.15, 0.5] },
         ],
     },
-    // a tank behind, a hose to the gun, a long nozzle with a pilot light at its tip
+    // a nozzle with a pilot light at its tip, a hose back to the tank, a guard over the trigger
     flamer: {
-        counter: [-10, -4], muzzle: [272, 0], flash: 0, kick: 0.3,
+        counter: [-0.04, 0.0, 0.25], muzzle: [0, 0, 1.04], flash: 0, kick: 0.3,
         ops: [
-            { part: rect(-170, 10, -20, 104) },
-            { lines: [[-170, 36, -20, 36], [-170, 78, -20, 78]], alpha: 0.6 },
-            { lines: [[-20, 52, 12, 52], [12, 52, 34, 28]], alpha: 0.8 },
-            { part: [[-30, 30], [-44, 88], [-6, 90], [8, 30]] },
-            { part: rect(-60, -20, 40, 30) },
-            { part: rect(40, -9, 240, 9) },
-            { lines: [[90, -9, 90, 9], [150, -9, 150, 9]], alpha: 0.7 },
-            { part: rect(240, -14, 268, 14) },
-            { lines: [[254, -14, 254, 14]], alpha: 0.8 },
-            { lines: box(-50, -14, 30, 6), alpha: 0.9 },
+            { lines: [[-0.03, 0.04, 0.2, -0.16, 0.2, 0.12], [-0.03, 0.05, 0.22, -0.15, 0.22, 0.14]], alpha: 0.8 },
+            { box: [-0.015, 0.015, -0.015, 0.015, 0.4, 0.96] },
+            { lines: [[-0.015, -0.015, 0.6, -0.015, 0.015, 0.6], [-0.015, -0.015, 0.8, -0.015, 0.015, 0.8]], alpha: 0.7 },
+            { box: [-0.025, 0.025, -0.025, 0.025, 0.96, 1.03] },
+            { box: [-0.02, 0.02, 0.04, 0.12, 0.15, 0.2] },
+            { box: [-0.035, 0.035, -0.04, 0.04, 0.14, 0.4] },
         ],
     },
 };
 
+/** Where the bore axis is carried, from the eye: to the right and down, so the barrel points at the middle of the view. */
+const CARRY = { x: 0.085, y: 0.15 };
+/** The parts are drawn at this share of their size and pushed this far from the eye, so the weapon stays slim and the back of it is not huge. */
+const FIT = { scale: 0.75, push: 0.18 };
+
 /**
- * The weapon in hand, held low at the right, its barrel towards the middle; the round counter is an inverse-video
- * block. Drawn in its own units (+x towards the muzzle, +y down) under a transform that tips it into the corner.
+ * The weapon in hand, drawn in perspective from behind it. Its parts are blocks, far to near; each block shows the
+ * faces that look at the eye. The round counter is an inverse-video block on the side of the receiver.
  */
 function drawWeapon(ctx: CanvasRenderingContext2D, w: number, h: number, ph: string, bg: string, font: string, p: Player, f: Frame)
 {
@@ -186,27 +181,30 @@ function drawWeapon(ctx: CanvasRenderingContext2D, w: number, h: number, ph: str
     const k = Math.max(0, 1 - p.firedMs / 90) * art.kick;
     // the launcher under the barrel kicks when a grenade leaves
     const launch = Math.max(0, 1 - p.launchMs / 180);
-    // recoil kicks it back and down; walking sways it
+    // recoil kicks it back and up; walking sways it
     const sway = f.reduced ? 0 : p.moveAmt;
-    // foreshortened (the barrel is squeezed along its length) and only slightly tilted, so that it points into the screen
-    const s = h * 0.0013;
-    const sx = s * 0.7;
-    const a = 0.5;
-    const cos = Math.cos(a);
-    const sin = Math.sin(a);
-    const ox = w * 0.82 + k * 5 + launch * 4 + Math.sin(f.now / 180) * sway * 4;
-    const oy = h * 0.95 + k * 8 + launch * 9 + Math.abs(Math.cos(f.now / 180)) * sway * 3;
-    const toScreen = (x: number, y: number): [number, number] => [ox + (-cos * sx * x - sin * s * y), oy + (-sin * sx * x + cos * s * y)];
+    const dx = CARRY.x + Math.sin(f.now / 180) * sway * 0.006;
+    const dy = CARRY.y - k * 0.012 + launch * 0.01 + Math.abs(Math.cos(f.now / 180)) * sway * 0.005;
+    const dz = -k * 0.03 - launch * 0.015;
+    const focal = w * 0.62;
+    const cx = w / 2;
+    const cy = h / 2;
+    const project = (x: number, y: number, z: number): Pt =>
+    {
+        const zz = Math.max(0.05, z + FIT.push + dz);
+        return [cx + (x * FIT.scale + dx) / zz * focal, cy + (y * FIT.scale + dy) / zz * focal];
+    };
+    const sx = (x: number) => x * FIT.scale + dx;
+    const sy = (y: number) => y * FIT.scale + dy;
 
-    ctx.save();
-    ctx.transform(-cos * sx, -sin * sx, -sin * s, cos * s, ox, oy);
-    const trace = (pts: Pt[], close = true) =>
+    const trace = (pts: Pt[]) =>
     {
         ctx.beginPath();
         pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-        if (close) ctx.closePath();
+        ctx.closePath();
     };
-    const part = (pts: Pt[]) =>
+    /** A face: filled with the background so what is behind it doesn't show, outlined with a soft stroke under a thin one. */
+    const face = (pts: Pt[]) =>
     {
         trace(pts);
         ctx.globalAlpha = 1;
@@ -214,89 +212,102 @@ function drawWeapon(ctx: CanvasRenderingContext2D, w: number, h: number, ph: str
         ctx.fill();
         ctx.strokeStyle = ph;
         ctx.globalAlpha = 0.25 * settings.bloom;
-        ctx.lineWidth = 4 / s;
+        ctx.lineWidth = 4;
         ctx.stroke();
         ctx.globalAlpha = 1;
-        ctx.lineWidth = 1.4 / s;
+        ctx.lineWidth = 1.4;
         ctx.stroke();
     };
-    const lines = (segs: Seg[], alpha = 0.75) =>
+    const block = ([x0, x1, y0, y1, z0, z1]: Cuboid) =>
+    {
+        const P = (x: number, y: number, z: number) => project(x, y, z);
+        // the faces that look at the eye, which sits at the origin: the side nearer to it, the top if it is below the
+        // eye line, and always the back. Painted far to near so they cover each other right.
+        if (sy(y1) < 0) face([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)]);
+        if (sx(x1) < 0) face([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)]);
+        if (sx(x0) > 0) face([P(x0, y0, z0), P(x0, y1, z0), P(x0, y1, z1), P(x0, y0, z1)]);
+        if (sy(y0) > 0) face([P(x0, y0, z0), P(x1, y0, z0), P(x1, y0, z1), P(x0, y0, z1)]);
+        face([P(x0, y0, z0), P(x1, y0, z0), P(x1, y1, z0), P(x0, y1, z0)]);
+    };
+    const strokes = (segs: [number, number, number, number, number, number][], alpha = 0.75) =>
     {
         ctx.beginPath();
-        for (const [x0, y0, x1, y1] of segs)
+        for (const [x0, y0, z0, x1, y1, z1] of segs)
         {
-            ctx.moveTo(x0, y0);
-            ctx.lineTo(x1, y1);
+            const a = project(x0, y0, z0);
+            const b = project(x1, y1, z1);
+            ctx.moveTo(a[0], a[1]);
+            ctx.lineTo(b[0], b[1]);
         }
         ctx.strokeStyle = ph;
         ctx.globalAlpha = alpha;
-        ctx.lineWidth = 1.2 / s;
+        ctx.lineWidth = 1.2;
         ctx.stroke();
         ctx.globalAlpha = 1;
     };
+
     for (const op of art.ops)
     {
-        if ('part' in op) part(op.part);
-        else lines(op.lines, op.alpha);
+        if ('box' in op) block(op.box);
+        else strokes(op.lines, op.alpha);
     }
-    ctx.restore();
 
-    // the round counter, upright so that it can be read
-    const [cx, cy] = toScreen(art.counter[0], art.counter[1]);
+    // the round counter, upright so that it can be read, on the side of the receiver
+    const [cxs, cys] = project(...art.counter);
     const size = Math.max(13, Math.round(h * 0.03));
     ctx.font = `${size}px ${font}`;
     const text = String(p.mag).padStart(2, '0');
     const bw = ctx.measureText(text).width + 8;
     ctx.globalAlpha = 1;
     ctx.fillStyle = ph;
-    ctx.fillRect(cx - bw / 2, cy - size * 0.5, bw, size);
+    ctx.fillRect(cxs - bw / 2, cys - size * 0.5, bw, size);
     ctx.fillStyle = bg;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, cx, cy + 1);
+    ctx.fillText(text, cxs, cys + 1);
 
     ctx.strokeStyle = ph;
     ctx.lineWidth = 1.6;
     // the muzzle flash: small, and only while a round leaves
     if (art.flash > 0 && p.firedMs < 55)
     {
-        const [mx, my] = toScreen(art.muzzle[0], art.muzzle[1]);
+        const [mx, my] = project(...art.muzzle);
         ctx.globalAlpha = 1 - p.firedMs / 55;
         const spin = Math.floor(f.now / 40) * 0.7;
         ctx.beginPath();
         for (let i = 0; i < 6; i++)
         {
-            const t = spin + i * TAU / 6;
+            const a = spin + i * TAU / 6;
             const len = (9 + (i % 2) * 8) * art.flash;
-            ctx.moveTo(mx + Math.cos(t) * 3, my + Math.sin(t) * 3);
-            ctx.lineTo(mx + Math.cos(t) * len, my + Math.sin(t) * len);
+            ctx.moveTo(mx + Math.cos(a) * 3, my + Math.sin(a) * 3);
+            ctx.lineTo(mx + Math.cos(a) * len, my + Math.sin(a) * len);
         }
         ctx.stroke();
     }
     // the flamethrower's pilot light, always lit and always flickering
     if (p.weapon === 'flamer')
     {
-        const [mx, my] = toScreen(art.muzzle[0] + 6, art.muzzle[1]);
+        const [mx, my] = project(art.muzzle[0], art.muzzle[1], art.muzzle[2] + 0.02);
         const flick = f.reduced ? 0.5 : (Math.sin(f.now / 55) + Math.sin(f.now / 83) + 2) / 4;
         ctx.globalAlpha = 0.9;
         ctx.beginPath();
         ctx.moveTo(mx, my);
-        ctx.lineTo(mx - 5 - flick * 9, my - 2);
+        ctx.lineTo(mx - 3 - flick * 5, my - 2);
         ctx.moveTo(mx, my);
-        ctx.lineTo(mx - 3 - flick * 6, my - 6 - flick * 4);
+        ctx.lineTo(mx - 2 - flick * 4, my - 5 - flick * 3);
         ctx.stroke();
     }
     // a grenade leaving the launcher under the barrel
-    if (p.launchMs < 90)
+    if (art.launcher && p.launchMs < 90)
     {
-        const [mx, my] = toScreen(150, 40);
+        const [mx, my] = project(...art.launcher);
         ctx.globalAlpha = 1 - p.launchMs / 90;
         ctx.beginPath();
         for (let i = 0; i < 5; i++)
         {
-            const t = i * TAU / 5 + f.now / 60;
-            ctx.moveTo(mx + Math.cos(t) * 3, my + Math.sin(t) * 3);
-            ctx.lineTo(mx + Math.cos(t) * 11, my + Math.sin(t) * 11);
+            const a = i * TAU / 5 + f.now / 60;
+            ctx.moveTo(mx + Math.cos(a) * 3, my + Math.sin(a) * 3);
+            ctx.lineTo(mx + Math.cos(a) * 11, my + Math.sin(a) * 11);
         }
         ctx.stroke();
     }
