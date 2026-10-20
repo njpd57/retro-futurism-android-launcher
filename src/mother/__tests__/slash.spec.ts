@@ -35,6 +35,9 @@ describe('parseSlash', () =>
         expect(parseSlash('/sesiones')).toEqual({ type: 'sessions' });
         expect(parseSlash('/nueva')).toEqual({ type: 'new' });
         expect(parseSlash('/borrar')).toEqual({ type: 'clear' });
+        expect(parseSlash('/jugar')).toEqual({ type: 'play' });
+        expect(parseSlash('/partida')).toEqual({ type: 'game' });
+        expect(parseSlash('/PISTA')).toEqual({ type: 'hint' });
         expect(parseSlash('/')).toEqual({ type: 'help' });
         expect(parseSlash('/ayuda')).toEqual({ type: 'help' });
         expect(parseSlash('/volar')).toEqual({ type: 'unknown', word: 'volar' });

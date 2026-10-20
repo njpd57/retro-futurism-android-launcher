@@ -143,3 +143,38 @@ describe('buildView', () =>
         expect(buildView(scene(CORRIDOR, { pose: { x: 0.5, y: 0.5, yaw: 0 } }))).toEqual([]);
     });
 });
+
+describe('the android and the steam', () =>
+{
+    // a corridor going north from the player, with something three cells ahead
+    const HALL = ['#####', '#A#.#', '###.#', '###.#', '###.#', '###P#', '#####'];
+    const at = (cell: number) => ({ cell, off: false });
+    const ahead = 3 * 5 + 3;
+
+    it('draws Ash as a man in front of the camera, and only when he is in sight', () =>
+    {
+        const shapes = buildView(scene(HALL, { ash: at(ahead) }));
+        const ash = tagged(shapes, 'ash');
+        expect(ash.some(s => s.kind === 'poly')).toBe(true);
+        // two eyes while he is on
+        expect(ash.filter(s => s.kind === 'line')).toHaveLength(2);
+        expect(numbers(shapes).every(Number.isFinite)).toBe(true);
+        expect(tagged(buildView(scene(HALL)), 'ash')).toHaveLength(0);
+        // behind a wall he is not drawn
+        expect(tagged(buildView(scene(HALL, { ash: at(1 * 5 + 1) })), 'ash')).toHaveLength(0);
+    });
+
+    it('draws him with the eyes dark when he is switched off', () =>
+    {
+        const ash = tagged(buildView(scene(HALL, { ash: { cell: ahead, off: true } })), 'ash');
+        expect(ash.some(s => s.kind === 'poly')).toBe(true);
+        expect(ash.filter(s => s.kind === 'line')).toHaveLength(0);
+    });
+
+    it('draws steam only where it is venting', () =>
+    {
+        expect(tagged(buildView(scene(HALL, { steam: [ahead] })), 'steam').length).toBeGreaterThan(5);
+        expect(tagged(buildView(scene(HALL, { steam: [] })), 'steam')).toHaveLength(0);
+        expect(tagged(buildView(scene(HALL)), 'steam')).toHaveLength(0);
+    });
+});

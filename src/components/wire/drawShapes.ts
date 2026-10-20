@@ -5,6 +5,8 @@ const STYLE: Record<string, { width: number; glowWidth: number; boost: number }>
     alien: { width: 1.6, glowWidth: 4, boost: 1 },
     flare: { width: 1.6, glowWidth: 4, boost: 2 },
     flame: { width: 1.8, glowWidth: 5, boost: 2 },
+    ash: { width: 1.6, glowWidth: 4, boost: 1 },
+    steam: { width: 1.2, glowWidth: 5, boost: 1.4 },
     // MARINES
     enemy: { width: 1.6, glowWidth: 4, boost: 1 },
     marine: { width: 1.4, glowWidth: 4, boost: 1 },

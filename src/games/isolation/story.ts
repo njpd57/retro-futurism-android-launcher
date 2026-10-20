@@ -1,4 +1,5 @@
 import type { GameEvent, GameState } from './game';
+import { logOf } from './logs';
 
 /** MOTHER's line for what just happened, or null when nothing is worth saying. Later events win. */
 export function messageFor(events: readonly GameEvent[], s: GameState): string | null
@@ -15,7 +16,20 @@ export function messageFor(events: readonly GameEvent[], s: GameState): string |
             case 'lootWires': line = 'CABLES RECUPERADOS.'; break;
             case 'lootChems': line = 'QUÍMICOS RECUPERADOS.'; break;
             case 'lootFlamer': line = 'LANZALLAMAS RECUPERADO. ES RUIDOSO.'; break;
+            case 'lootCat': line = 'JONES A BORDO. CUIDADO CON LOS RUIDOS.'; break;
             case 'bagFull': line = 'NO CABE MÁS.'; break;
+            case 'locked': line = 'PUERTA SIN ENERGÍA. DESVÍELA DESDE UN PANEL.'; break;
+            case 'steamBlock': line = 'VAPOR. ESPERE A QUE CALLE EL SILBIDO.'; break;
+            case 'ashSpotted': line = 'ASH: «NO SE MUEVA, TRIPULANTE.»'; break;
+            case 'ashOff': line = 'ASH DESCONECTADO.'; break;
+            case 'diverted': line = 'ENERGÍA DESVIADA. PUERTA DISPONIBLE.'; break;
+            case 'mapped': line = 'PLANO DESCARGADO. USE [PLANO].'; break;
+            case 'log': line = `REGISTRO: ${logOf(s.logs[s.logs.length - 1])?.title ?? '???'}.`; break;
+            case 'blackout': line = 'FALLO DE ENERGÍA EN UNA ZONA.'; break;
+            case 'powerBack': line = 'ENERGÍA RESTABLECIDA.'; break;
+            case 'countdown': line = countdownLine(s.countdownMs ?? 0); break;
+            case 'meow': line = 'JONES MAÚLLA.'; break;
+            case 'blast': line = 'AUTODESTRUCCIÓN COMPLETADA.'; break;
             case 'craftDecoy': line = 'SEÑUELO FABRICADO.'; break;
             case 'craftFlare': line = 'BENGALA FABRICADA.'; break;
             case 'craftFuel': line = 'COMBUSTIBLE CARGADO.'; break;
@@ -44,8 +58,17 @@ export function messageFor(events: readonly GameEvent[], s: GameState): string |
     return line;
 }
 
+/** MOTHER counts down every minute and the last half minute. */
+export function countdownLine(ms: number): string
+{
+    if (ms <= 30000) return 'AUTODESTRUCCIÓN: 30 SEGUNDOS.';
+    const m = Math.ceil(ms / 60000);
+    return `AUTODESTRUCCIÓN EN ${m} MINUTO${m === 1 ? '' : 'S'}.`;
+}
+
 /** The current goal, for the HUD. */
 export function objective(s: GameState): string
 {
+    if (s.countdownMs !== null) return s.collected < s.needed ? `CÉLULAS ${s.collected}/${s.needed} ANTES DE LA EXPLOSIÓN` : 'A LA LANZADERA ANTES DE LA EXPLOSIÓN';
     return s.collected < s.needed ? `RECUPERE CÉLULAS ${s.collected}/${s.needed}` : 'VAYA A LA LANZADERA';
 }

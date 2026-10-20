@@ -9,6 +9,9 @@ export type SlashCommand =
     | { type: 'open'; query: string }
     | { type: 'organize'; request: string }
     | { type: 'sessions' }
+    | { type: 'play' }
+    | { type: 'game' }
+    | { type: 'hint' }
     | { type: 'new' }
     | { type: 'clear' }
     | { type: 'help' }
@@ -23,6 +26,7 @@ export const SLASH_HELP = [
     '/ABRIR <APP>',
     '/ORDENAR <PETICIÓN>',
     '/SESIONES · /NUEVA · /BORRAR',
+    '/JUGAR · /PARTIDA · /PISTA (AISLAMIENTO)',
     'TAB RELLENA LA ORDEN. EL RESTO SE LO PREGUNTAS A MOTHER.',
 ];
 
@@ -59,6 +63,9 @@ export function parseSlash(input: string): SlashCommand | null
         case 'ordenar':
             return rest ? { type: 'organize', request: rest } : { type: 'invalid', usage: '/ORDENAR <PETICIÓN>' };
         case 'sesiones': return { type: 'sessions' };
+        case 'jugar': return { type: 'play' };
+        case 'partida': return { type: 'game' };
+        case 'pista': return { type: 'hint' };
         case 'nueva': return { type: 'new' };
         case 'borrar': return { type: 'clear' };
         case 'ayuda':

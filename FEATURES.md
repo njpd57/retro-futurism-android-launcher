@@ -36,10 +36,10 @@ Supervivencia en la Nostromo con vista subjetiva de alambre (`> aislamiento`). P
 
 - **Fase 3, herramientas** (sin probar en el teléfono): materiales por la cubierta (chatarra, cables, químicos; 3 de cada), `[OBJETOS]` con fabricación en tiempo real (señuelo, bengala, combustible), señuelo (10 s llamando a la criatura donde cae), bengala (ilumina 4 celdas 30 s), ala este sin energía (solo se ve la celda de al lado, brillan terminales y células; la criatura te ve de lejos solo si estás iluminado), lanzallamas (alcance 3, ahuyenta a la criatura hacia los conductos y cada quemadura acorta su huida). Por ahora el lanzallamas y el material están en la CUBIERTA C para poder probarlos; pasan a la cubierta 2 cuando exista.
 
-Fases siguientes:
+- **Fase 4, campaña** (hecha, sin probar en el teléfono): cinco cubiertas en orden (C tutorial; B · CONDUCTOS a oscuras, con el lanzallamas; LABORATORIO · ASH con el androide, que no oye, no se frena con fuego y se apaga desde un terminal o tras una puerta cerrada; MANTENIMIENTO · FALLOS con fugas de vapor, apagones por zonas y una puerta sin energía que se abre desviándola desde un panel; HANGAR · AUTODESTRUCCIÓN con cuenta atrás de 5 minutos y a Jones, el gato), 12 registros de la tripulación que se leen en los terminales, tres finales (con Jones, sola, la explosión), pantallas de título, dificultad, misión e informe, plano de la cubierta descargable desde un terminal y tres dificultades (FÁCIL regala señuelo y bengala por cubierta y frena a la criatura).
+- **Fase 5, infinito y extras** (hecha, sin probar en el teléfono): modo infinito con sectores generados por semilla (se abre al terminar la campaña; cada sector añade oscuridad, vapor, Ash, apagones), 10 logros, estadísticas, `[ARCHIVO]` con los registros, widget AISLAMIENTO en el panel y `/jugar` `/partida` `/pista` en el chat de MOTHER (sin API).
 
-4. **Campaña:** 5 cubiertas (JONES, CONDUCTOS, ASH, FALLOS, AUTODESTRUCCIÓN), el androide, fallos de la nave, cuenta atrás, registros de la tripulación, finales, pantallas de título e informe, dificultad.
-5. **Infinito y extras:** cubiertas generadas con semilla, logros, estadísticas, archivo, widget en el panel, `/jugar` `/partida` `/pista` en MOTHER.
+Ideas para más adelante: un segundo organismo en los sectores profundos, registros que cambien con la dificultad, una semilla del día compartida.
 
 ## MARINES (juego de acción en pantalla propia)
 

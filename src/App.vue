@@ -168,6 +168,7 @@ function askMother(text: string)
     const slash = parseSlash(text);
     if (slash?.type === 'sessions') { sessionsOpen.value = true; return; }
     if (slash?.type === 'organize') { organizer.show(slash.request); return; }
+    if (slash?.type === 'play') { isolation.show(); return; }
     mother.send(text);
 }
 

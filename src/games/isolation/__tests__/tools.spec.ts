@@ -74,7 +74,8 @@ describe('loot', () =>
         const reach = distances(m.grid, m.start, i => m.grid.cells[i] !== 'wall');
         expect(m.loot.length).toBeGreaterThanOrEqual(6);
         for (const l of m.loot) expect(reach[l.cell], l.kind).toBeGreaterThanOrEqual(0);
-        expect(m.loot.filter(l => l.kind === 'flamer')).toHaveLength(1);
+        // the flamethrower is not here: it waits on the next deck
+        expect(m.loot.filter(l => l.kind === 'flamer')).toHaveLength(0);
         // enough to make something of each kind
         for (const kind of ['scrap', 'wires', 'chems'] as const) expect(m.loot.filter(l => l.kind === kind).length).toBeGreaterThanOrEqual(2);
     });

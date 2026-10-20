@@ -14,6 +14,8 @@ import { createSseParser, extractDelta, extractToolCallDeltas, extractUsage } fr
 import { searchApps } from "@/utils/appSearch";
 import { useAppsStore } from "./useAppsStore";
 import { useLaunchStore } from "./useLaunchStore";
+import { describeSave, hintForSave } from "@/games/isolation/hints";
+import { useIsolationStore } from "./useIsolationStore";
 import { useLogStore } from "./useLogStore";
 import { useOrganizerStore } from "./useOrganizerStore";
 import { useSettingsStore } from "./useSettingsStore";
@@ -191,6 +193,11 @@ export const useMotherStore = defineStore('mother', () =>
         speak(text);
     }
 
+    /** The game left halfway, or else the last terminal save. Never sent to the API. */
+    const savedGame = () => { const g = useIsolationStore(); return g.suspended ?? g.save; };
+    const gameReport = () => { const g = savedGame(); return g ? ['AISLAMIENTO', ...describeSave(g)] : ['SIN PARTIDA DE AISLAMIENTO.', 'ESCRIBE /JUGAR']; };
+    const gameHint = () => { const g = savedGame(); return g ? ['PISTA DE MOTHER:', ...hintForSave(g)] : ['SIN PARTIDA. NO HAY NADA QUE ACONSEJAR.', 'ESCRIBE /JUGAR']; };
+
     /** `/commands` of the MOTHER chat: they run on the phone, with no API and no key. */
     function runSlash(content: string, cmd: SlashCommand)
     {
@@ -208,6 +215,9 @@ export const useMotherStore = defineStore('mother', () =>
             case 'invalid': reply(`USO: ${cmd.usage}`); break;
             case 'unknown': reply(`ORDEN DESCONOCIDA: /${cmd.word.toUpperCase()}`, 'ESCRIBE /AYUDA'); break;
             case 'sessions': reply('ABRE LAS SESIONES CON EL BOTÓN SESIONES'); break;
+            case 'play': useIsolationStore().show(); break;
+            case 'game': reply(...gameReport()); break;
+            case 'hint': reply(...gameHint()); break;
         }
     }
 

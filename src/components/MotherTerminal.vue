@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
 import AssistedInput from './AssistedInput.vue';
+import { useIsolationStore } from '@/stores/useIsolationStore';
 import { useOrganizerStore } from '@/stores/useOrganizerStore';
 import { parseSlash } from '@/mother/slash';
 import { useMotherStore } from '@/stores/useMotherStore';
@@ -17,6 +18,7 @@ async function scrollToEnd()
 
 const emit = defineEmits<{ (e: 'sessions'): void }>();
 const organizer = useOrganizerStore();
+const isolation = useIsolationStore();
 
 function submit(value: string)
 {
@@ -25,6 +27,7 @@ function submit(value: string)
     const slash = parseSlash(value);
     if (slash?.type === 'sessions') { emit('sessions'); return; }
     if (slash?.type === 'organize') { organizer.show(slash.request); return; }
+    if (slash?.type === 'play') { isolation.show(); return; }
     mother.send(value);
 }
 

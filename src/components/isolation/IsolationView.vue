@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { TRACKER, flameCells, litMask, type GameState } from '@/games/isolation/game';
-import { ALIEN_OUTLINE, buildView, type Pose } from '@/games/isolation/view';
+import { TRACKER, flameCells, litMask, steaming, type GameState } from '@/games/isolation/game';
+import { ALIEN_OUTLINE, ASH_OUTLINE, buildView, type Pose } from '@/games/isolation/view';
 import { drawShapes } from '@/components/wire/drawShapes';
 
 /** Everything one frame needs; the game loop calls `draw` with it. */
@@ -55,13 +55,14 @@ function draw(f: Frame)
 
     if (f.flash > 0)
     {
-        drawDeath(ctx, w, h, ph, bg, f.flash);
+        drawDeath(ctx, w, h, ph, bg, f.flash, s.death);
         return;
     }
 
     const shapes = buildView({
         grid: s.grid, closed: s.closed, items: s.items, signs: s.signs, pose: f.pose,
         alien: s.alien.vent ? null : s.alien.cell, hiddenIn: s.player.hidden ? s.player.cell : null,
+        ash: s.ash ? { cell: s.ash.cell, off: !s.ash.active } : null, steam: s.steam.filter(c => steaming(s, c)),
         lit: litMask(s), decoys: s.decoys.map(d => d.cell), flares: s.flares.map(fl => fl.cell),
         flame: s.flameMs > 0 ? { reach: flameCells(s).length, seed: Math.floor(f.now / 60) } : null,
         pulse: (Math.sin(f.now / 260) + 1) / 2, bob: f.bob, w, h,
@@ -179,16 +180,18 @@ function drawTracker(ctx: CanvasRenderingContext2D, w: number, h: number, ph: st
     ctx.fillText(label, 10, 8);
 }
 
-/** The end: the screen lights up and the creature fills it. */
-function drawDeath(ctx: CanvasRenderingContext2D, w: number, h: number, ph: string, bg: string, flash: number)
+/** The end: the screen lights up and what killed the player fills it (the blast is only light). */
+function drawDeath(ctx: CanvasRenderingContext2D, w: number, h: number, ph: string, bg: string, flash: number, death: GameState['death'])
 {
     ctx.globalAlpha = flash;
     ctx.fillStyle = ph;
     ctx.fillRect(0, 0, w, h);
     ctx.globalAlpha = 1;
-    const size = Math.max(w, h) * 1.3;
+    if (death === 'blast') return;
+    const outline = death === 'ash' ? ASH_OUTLINE : ALIEN_OUTLINE;
+    const size = Math.max(w, h) * (death === 'ash' ? 1.0 : 1.3);
     ctx.beginPath();
-    ALIEN_OUTLINE.forEach(([x, y], i) =>
+    outline.forEach(([x, y], i) =>
     {
         const px = w / 2 + x * size;
         const py = h * 0.55 + y * size;

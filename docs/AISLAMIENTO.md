@@ -2,7 +2,7 @@
 
 Documento para retomar el trabajo en otra sesión. Resume lo decidido, lo hecho, lo que falta y cómo verificarlo. La arquitectura corta está en `CLAUDE.md` (párrafo AISLAMIENTO) y la lista de fases en `FEATURES.md`; aquí está el detalle.
 
-Último estado: fases 1, 2 y 3 hechas, commiteadas y subidas a `main` (`a74ba95`, `f5569e6`, `6963933`). Fase 3 desplegada en el teléfono pero **sin probar por el usuario**. Quedan las fases 4 y 5.
+Último estado: las cinco fases están hechas. Las fases 1 a 3 están commiteadas y subidas a `main` (`a74ba95`, `f5569e6`, `6963933`); las fases 4 y 5 (campaña, infinito y extras) están implementadas y con pruebas, **sin probar en el teléfono**.
 
 ## Qué es
 
@@ -43,12 +43,12 @@ Conductos (la criatura viaja entre rejillas, el rastreador la sigue a través de
 
 ### Mapa de archivos
 
-- `src/games/isolation/`: `rng.ts`, `grid.ts` (mapas de texto, BFS, `soundDistance`, `lineOfSight`, `rectMask`), `alien.ts`, `game.ts` (`reduce`/`step`, `TOOLS`, `NOISE`), `crafting.ts`, `view.ts` (alambre como formas planas), `decks.ts`, `story.ts` (mensajes de MOTHER), `save.ts`.
-- `src/components/isolation/`: `IsolationGame.vue` (pantalla, bucle a 30 fps, eventos, sonidos), `IsolationView.vue` (canvas, rastreador, muerte), `IsolationControls.vue`, `IsolationBag.vue`.
+- `src/games/isolation/`: `rng.ts`, `grid.ts` (mapas de texto, BFS, `soundDistance`, `lineOfSight`, `rectMask`), `alien.ts`, `android.ts` (Ash), `game.ts` (`reduce`/`step`, `TOOLS`, `NOISE`, `STEAM`), `crafting.ts`, `view.ts` (alambre como formas planas), `decks.ts`, `generate.ts`, `campaign.ts`, `difficulty.ts`, `progress.ts`, `logs.ts`, `plan.ts`, `hints.ts`, `story.ts` (mensajes de MOTHER), `save.ts` (`v: 3`).
+- `src/components/isolation/`: `IsolationGame.vue` (pantalla, bucle a 30 fps, eventos, sonidos), `IsolationView.vue` (canvas, rastreador, muerte), `IsolationControls.vue`, `IsolationBag.vue`, `IsolationMap.vue`, `IsolationArchive.vue`; el widget en `components/widgets/IsolationWidget.vue`.
 - `src/stores/useIsolationStore.ts`: `open`, `save` (`widget.isolation.save`), `suspended` (`widget.isolation.suspend`).
 - `src/audio/sfx.ts`: `step`, `door`, `hiss`, `screech`, `vent`, `flame`, `clatter`.
 - Integración: `App.vue` (overlay), `utils/commands.ts` (`aislamiento`, `juego`, `alien`), `composables/useCommandConsole.ts`, `utils/commandRegistry.ts`.
-- Pruebas: `src/games/isolation/__tests__/` (`grid`, `game`, `tools`, `crafting`, `view`, `story`, `save`). 320 pruebas en total en el repo.
+- Pruebas: `src/games/isolation/__tests__/` (`grid`, `game`, `tools`, `crafting`, `view`, `story`, `save`, `decks`, `generate`, `campaign`, `plan`).
 
 ### Convenciones del juego
 
@@ -57,32 +57,27 @@ Conductos (la criatura viaja entre rejillas, el rastreador la sigue a través de
 - Nuevas entradas del jugador: ampliar `Input`, `reduce`, `KEYS` en `IsolationGame.vue` y una tecla en `IsolationControls.vue`.
 - Un nuevo campo en el estado que deba sobrevivir a salir/guardar: añadirlo a `SavedGame` (`save.ts`: `snapshot`, `restore`, `isSavedGame`), subir `v` si el cambio rompe lo anterior y añadir casos a `save.spec.ts`.
 
-## Falta
+### Fase 4, campaña (hecha, sin probar en el teléfono)
 
-### Fase 4, campaña (la más larga)
+- **Cubiertas** (`decks.ts`, `CAMPAIGN`): `c` CUBIERTA C (tutorial: material para fabricar, sin lanzallamas ni oscuridad), `b` CONDUCTOS (ala sur y este a oscuras, el lanzallamas en la zona con luz), `lab` LABORATORIO · ASH (Ash patrulla el pasillo central; terminal de control en la sala SE que lo apaga), `maint` MANTENIMIENTO · FALLOS (3 fugas de vapor, apagón periódico del ala suroeste y una puerta `X` sin energía que cierra la bahía de carga con la lanzadera, abierta desde el panel del taller), `hangar` HANGAR · AUTODESTRUCCIÓN (cuenta atrás de 300 s, 2 células, Jones en un hueco del pasillo sur, la Narcissus en el este). Cada una es un `DeckDef` con su mapa de texto; las letras nuevas están en `grid.ts` (`H`, `X`, `~`, `j`).
+- **Terminales con función** (`DeckDef.terminals`): cada `T` guarda, y además lee un registro (`log`), apaga a Ash (`ashOff`) o desvía la energía a una puerta (`opens`). Tras los 3 s de guardado se aplica todo (`finishTerminal` en `game.ts`) y el terminal envía el plano (`mapped`). `terminalTask(s)` da lo que hará [USAR] para el texto de la tecla.
+- **Ash** (`android.ts`): ve en línea recta (6 celdas, 2 si estás a oscuras), persigue más lento que el jugador (620 ms frente a 380), no oye, no traspasa puertas cerradas, el fuego no le afecta, el rastreador no le ve y mata al llegar. Apagado se queda de pie y estorba.
+- **Peligros** (`game.ts`): vapor (`steaming`, 3,5 s de cada 9 s, cada fuga desfasada), apagón por zonas (`blackout`, se recalcula al restaurar), puertas sin energía (`locked`; la criatura tampoco las fuerza), cuenta atrás (`countdownMs`, aviso de MOTHER cada minuto y a los 30 s; a 0 muerte `blast`), Jones (recogerlo hace `jones`; maúlla cada 22 s y el ruido llega a 3 celdas).
+- **Campaña y dificultad** (`campaign.ts`, `difficulty.ts`): `startCampaign`, `advance` (lleva la bolsa, Jones, registros y contadores a la cubierta siguiente; la criatura, las puertas y el material empiezan de nuevo), guardado automático al empezar cada cubierta, `deckScore` para el modo infinito. FÁCIL: criatura 30 % más lenta, ve 5 celdas, regala un señuelo y una bengala por cubierta, +90 s de cuenta atrás. DIFÍCIL: más rápida, ve 8, −45 s. Todas las cubiertas se terminan sin lanzallamas (no abre nada, solo espanta).
+- **Historia** (`logs.ts`, `story.ts`): 12 registros originales repartidos por los terminales (3 en C, 2 en B, 3 en LAB, 2 en MAINT, 2 en HANGAR), tres finales (`jones`, `solo`, `blast`) y los mensajes de MOTHER.
+- **Pantallas** (`IsolationGame.vue`): título (`[CONTINUAR]`, `[NUEVA CAMPAÑA]`, `[MODO INFINITO]` bloqueado hasta terminar la campaña, `[ARCHIVO]`), dificultad, misión, juego, pausa, informe de cubierta, final. Al ganar una cubierta se crea y se guarda la siguiente de inmediato, así que salir en el informe no pierde nada.
 
-Orden sugerido:
-1. **Paso entre cubiertas.** Hoy `IsolationGame.vue` usa `DECK_C` fijo y `start()` crea un juego nuevo. Hace falta un estado de campaña (cubierta actual, dificultad, lo que se lleva el jugador entre cubiertas, estadísticas) y que `won` en una cubierta lleve a la siguiente con guardado automático. Probable `campaign.ts` puro y `useIsolationStore` con el progreso (`widget.isolation.progress`).
-2. **CUBIERTA B · CONDUCTOS:** oscuridad, bengalas, fabricación; recuperar el lanzallamas (mover el de la C aquí).
-3. **LABORATORIO · ASH:** `android.ts`. Ash no oye, te sigue a la vista y más lento, mata al alcanzarte; el lanzallamas no le afecta; se apaga desde un terminal concreto o se encierra tras una puerta sellada. Enlaza con la ORDEN ESPECIAL 937 (huevo de pascua existente de MOTHER).
-4. **MANTENIMIENTO · FALLOS:** `hazards.ts`: fugas de vapor que cortan un pasillo unos segundos, apagones por zonas, puertas bloqueadas que necesitan energía desviada desde un panel (guiño a REENRUTAR). La criatura ya se adapta al fuego.
-5. **HANGAR · AUTODESTRUCCIÓN:** cuenta atrás de ~5 min con avisos de MOTHER cada minuto, llegar a la Narcissus.
-6. **Historia:** ~12 registros de la tripulación originales (inspirados en la película, no copiados) que se leen en terminales y se guardan; finales (escapar con Jones, solo, o morir en la explosión) con texto de MOTHER y epílogo; pantallas de título (CONTINUAR, NUEVA CAMPAÑA, MODO INFINITO bloqueado, ARCHIVO, SALIR), informe de misión y final.
-7. **Dificultad** FÁCIL / NORMAL / DIFÍCIL guardada en la partida; FÁCIL debe poder terminarse sin lanzallamas.
+### Fase 5, infinito y extras (hecha, sin probar en el teléfono)
 
-Pruebas a añadir: **cada cubierta es resoluble** (BFS a células, salida y objetivos de subcubierta; ya hay una prueba así para el loot de la C en `tools.spec.ts`), Ash solo a la vista, cuenta atrás, avance de campaña y su guardado.
-
-### Fase 5, infinito y extras
-- `generate.ts`: cubiertas con semilla visible (rejilla con habitaciones, 3 células, lanzadera; siempre resolubles, probar con muchas semillas); cada cubierta sube la dificultad y suma puntos. `rng.ts` ya tiene `seeded` (mulberry32).
-- `progress.ts`: ~10 logros (`SIN SER VISTO`, `JONES A SALVO`, `ARCHIVISTA`, `ORDEN 937`, `SIN FUEGO`, `SUPERVIVIENTE`, `CUBIERTA 10` en infinito…) y estadísticas (tiempo, muertes, cubiertas, usos del lanzallamas, mejor marca y semilla).
-- `IsolationArchive.vue`: registros, logros, estadísticas. Plano descargable de la cubierta (`IsolationMap.vue`).
-- `IsolationWidget.vue` en `src/widgets/registry.ts` (categoría `juegos`, `span: 2`, **con `description` y `preview` o `registry.spec.ts` falla**). Muestra cubierta y objetivo o mejor marca, con `[CONTINUAR]` / `[JUGAR]`.
-- MOTHER sin API: `/jugar`, `/partida`, `/pista` en `mother/slash.ts` (actualizar `SLASH_HELP` y `COMMANDS.mother`), `/jugar` abre el juego desde `askMother` en `App.vue` y `submit` en `MotherTerminal.vue` (como `/sesiones`), `/partida` y `/pista` se responden en `runSlash` de `useMotherStore`; `hints.ts` calcula la pista. El juego **no** se añade al contexto enviado a la API. Los mensajes de la partida pueden ir al LOG con `useLogStore().push('MOTHER', ...)`.
-- Documentación: `README.md` (juego en español), `CLAUDE.md` y `FEATURES.md` al terminar.
+- **Modo infinito** (`generate.ts`): sectores de laberinto con bucles y salas, tamaño creciente hasta 23×17, siempre resolubles (60 semillas × 7 niveles en las pruebas); id `inf:<semilla>:<nivel>`, que es lo único que guarda la partida. A partir del nivel 2 hay una zona a oscuras, en el 3 vapor, en el 4 Ash, desde el 5 apagones periódicos; el lanzallamas aparece cada cuatro niveles.
+- **Archivo** (`progress.ts`, `IsolationArchive.vue`): registros leídos, finales vistos, 10 logros (`SIN SER VISTO`, `JONES A SALVO`, `ARCHIVISTA`, `ORDEN 937`, `SIN FUEGO`, `SUPERVIVIENTE`, `VETERANO`, `APAGADO`, `SECTOR 5`, `SECTOR 10`), estadísticas y mejor sector con su semilla; `useIsolationStore.progress` (`widget.isolation.progress`).
+- **Plano** (`plan.ts`, `IsolationMap.vue`): el mapa de la cubierta como texto, desbloqueado por cualquier terminal (`[PLANO]`, tecla `m`); nunca muestra a la criatura.
+- **Widget** `IsolationWidget` (`registry.ts`, categoría `juegos`, `span: 2`).
+- **MOTHER sin API:** `/jugar`, `/partida` (resumen de la partida suspendida o guardada) y `/pista` (`hints.ts`: la célula o la salida más cercana, la puerta sin energía y su panel, Ash y su terminal, la cuenta atrás). El juego no se añade al contexto que se envía a la API. Los mensajes de la partida van también al LOG (`MTR`).
 
 ### Pendiente del lado del usuario
-- Probar fase 3 en el teléfono: fluidez de la llama y la bengala, tamaño de los tres botones nuevos, equilibrio del ala oscura.
-- Confirmar fase 2: conductos, `[GUARDAR]` en terminales (3 s), suspender y `[CONTINUAR]`, taquillas que la criatura aprende, vibración de latido.
+- Probar en el teléfono las fases 2 a 5: fluidez, tamaño de las teclas nuevas (`[PLANO]` y la tecla de USAR con textos largos como `APAGAR A ASH`), equilibrio de la cuenta atrás, Ash, el vapor y los apagones, y el modo infinito.
+- Las partidas guardadas con la versión anterior (`v: 2`) se leen como sin guardado.
 
 ## Riesgos conocidos
 

@@ -12,6 +12,12 @@ export type { Pose, Shape } from '../wire/camera';
 export { VIEW_DEPTH, depthAlpha, dirYaw } from '../wire/camera';
 export { ALIEN_OUTLINE } from '../wire/creature';
 
+/** The android's silhouette, like the creature's: across (-0.5..0.5), and down from the top (-0.5) to the floor (0.5). A man in a uniform, arms at his sides. */
+export const ASH_OUTLINE: readonly P2[] = ([
+    [-0.1, 0], [-0.02, 0], [-0.02, 0.34], [0.02, 0.34], [0.02, 0], [0.1, 0], [0.1, 0.4], [0.17, 0.4], [0.17, 0.62],
+    [0.07, 0.66], [0.06, 0.7], [0.05, 0.77], [0, 0.8], [-0.05, 0.77], [-0.06, 0.7], [-0.07, 0.66], [-0.17, 0.62], [-0.17, 0.4], [-0.1, 0.4],
+] as P2[]).map(([u, h]): P2 => [u, 0.5 - h]);
+
 export interface Scene
 {
     grid: Grid;
@@ -21,6 +27,10 @@ export interface Scene
     pose: Pose;
     /** creature cell to draw, or null */
     alien: number | null;
+    /** the android's cell, or null; `ashOff` draws him slumped, switched off */
+    ash?: { cell: number; off: boolean } | null;
+    /** cells where steam is venting right now */
+    steam?: readonly number[];
     /** locker cell the player is inside: not drawn */
     hiddenIn: number | null;
     /** per cell, whether it is lit; null when the whole deck has power. Unlit cells show only one step away. */
@@ -38,7 +48,7 @@ export interface Scene
     h: number;
 }
 
-export type ShapeTag = 'floor' | 'wall' | 'door' | 'frame' | 'locker' | 'terminal' | 'vent' | 'item' | 'exit' | 'alien' | 'sign' | 'decoy' | 'flare' | 'flame';
+export type ShapeTag = 'floor' | 'wall' | 'door' | 'frame' | 'locker' | 'terminal' | 'vent' | 'item' | 'exit' | 'alien' | 'sign' | 'decoy' | 'flare' | 'flame' | 'ash' | 'steam';
 
 /** how bright an unlit cell next to the player is */
 const DARK_DIM = 0.65;
@@ -139,6 +149,8 @@ export function buildView(s: Scene): Shape[]
             if (s.flares.includes(c)) add(distTo(cx, cy), flareShapes(cx, cy, depthAlpha(distTo(cx, cy))));
 
             if (s.alien === c) add(distTo(cx, cy) - 0.01, alienShapes(cx, cy, alpha));
+            if (s.ash && s.ash.cell === c) add(distTo(cx, cy) - 0.01, ashShapes(cx, cy, alpha, s.ash.off));
+            if (s.steam?.includes(c)) add(distTo(cx, cy) - 0.02, steamShapes(cx, cy, alpha));
         },
     });
 
@@ -162,6 +174,37 @@ export function buildView(s: Scene): Shape[]
         const body = poly('alien', ALIEN_OUTLINE.map(at), true, alpha);
         const tail = ALIEN_TAIL.slice(1).map((p, i) => line('alien', at(ALIEN_TAIL[i]), at(p), alpha));
         return [body, ...tail];
+    }
+
+    /** The android: a man's outline, upright and still. Switched off, the head is bowed and the eyes are dark. */
+    function ashShapes(cx: number, cy: number, alpha: number, off: boolean): (Shape | null)[]
+    {
+        const at = ([u, v]: P2): V3 => cam(cx + cos * u, cy + sin * u, v);
+        const body = poly('ash', ASH_OUTLINE.map(([u, v]) => at([u, off && v < -0.14 ? v + 0.03 : v])), true, alpha);
+        if (off) return [body];
+        // the eyes: two short strokes that stay lit
+        const eye = Math.max(alpha, 0.7);
+        return [body, line('ash', at([-0.04, -0.23]), at([-0.015, -0.23]), eye), line('ash', at([0.015, -0.23]), at([0.04, -0.23]), eye)];
+    }
+
+    /** Steam from a pipe: wavering strokes that rise from the floor to the ceiling. */
+    function steamShapes(cx: number, cy: number, alpha: number): (Shape | null)[]
+    {
+        const a = Math.max(alpha, 0.6);
+        const out: (Shape | null)[] = [];
+        for (let k = -2; k <= 2; k++)
+        {
+            let prev: V3 = cam(cx + k * 0.12, cy, 0.48);
+            for (let j = 1; j <= 5; j++)
+            {
+                const v = 0.5 - j * 0.19;
+                const sway = Math.sin(s.pulse * Math.PI * 2 + k + j) * 0.05;
+                const next: V3 = cam(cx + k * 0.12 + sway, cy + sway * 0.6, v);
+                out.push(line('steam', prev, next, a * (1 - j * 0.12)));
+                prev = next;
+            }
+        }
+        return out;
     }
 
     /** A noisemaker on the floor, its aerial blinking. */

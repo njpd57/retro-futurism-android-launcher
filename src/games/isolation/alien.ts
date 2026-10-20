@@ -49,6 +49,11 @@ export interface World
     hidden: boolean;
     /** the player stands in the dark: it sees much less far */
     dark?: boolean;
+    /** doors without power: shut, and no force opens them */
+    locked?: readonly number[];
+    /** the difficulty: multiplies the time between its moves (more is slower), and how far it sees */
+    pace?: number;
+    sight?: number;
 }
 
 export const ALIEN = {
@@ -74,6 +79,9 @@ export const ALIEN = {
 };
 
 const NEVER = 1e9;
+
+/** Time between its moves in `mode`, with the difficulty applied. */
+const stepFor = (w: World, mode: AlienMode) => ALIEN.stepMs[mode] * (w.pace ?? 1);
 
 const walkable = (g: Grid) => (i: number) => cellAt(g, i) !== 'wall';
 
@@ -170,7 +178,7 @@ export function scare(a: Alien, w: World, burns: number): Alien
     else fromAlien.forEach((d, i) => { if (d >= 0 && fromPlayer[i] > fromPlayer[target]) target = i; });
 
     return {
-        ...a, mode: 'flee', target, ventPlan, fleeMs: fleeMsFor(burns), stepMs: Math.min(a.stepMs, ALIEN.stepMs.flee),
+        ...a, mode: 'flee', target, ventPlan, fleeMs: fleeMsFor(burns), stepMs: Math.min(a.stepMs, stepFor(w, 'flee')),
         forceMs: 0, searchMs: 0, sawHide: false,
     };
 }
@@ -199,7 +207,7 @@ export function hear(a: Alien, w: World, cell: number, loudness: number): { alie
 
     if (soundDistance(w.grid, w.closed, a.cell, cell, ALIEN.doorCost) > loudness) return { alien: a, heard: false };
     return {
-        alien: { ...a, mode: 'investigate', target: cell, ventPlan: null, stepMs: Math.min(a.stepMs, ALIEN.stepMs.investigate) },
+        alien: { ...a, mode: 'investigate', target: cell, ventPlan: null, stepMs: Math.min(a.stepMs, stepFor(w, 'investigate')) },
         heard: true,
     };
 }
@@ -215,7 +223,7 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
         const ms = alien.vent.ms - dtMs;
         // moving all the time: the tracker follows it through the walls
         if (ms > 0) return { alien: { ...alien, stillMs: 0, vent: { ...alien.vent, ms } }, closed, events };
-        const out: Alien = { ...alien, cell: alien.vent.to, vent: null, stillMs: 0, stepMs: ALIEN.stepMs[alien.mode] };
+        const out: Alien = { ...alien, cell: alien.vent.to, vent: null, stillMs: 0, stepMs: stepFor(w, alien.mode) };
         if (out.mode === 'flee')
         {
             // it got away
@@ -241,7 +249,7 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
             a.target = searchTarget(w, a.cell, rng);
         }
     }
-    else if (!w.hidden && lineOfSight(w.grid, closed, a.cell, w.player, w.dark ? ALIEN.darkSight : ALIEN.sight))
+    else if (!w.hidden && lineOfSight(w.grid, closed, a.cell, w.player, w.dark ? ALIEN.darkSight : (w.sight ?? ALIEN.sight)))
     {
         if (a.mode !== 'hunt') events.push('spotted');
         a.mode = 'hunt';
@@ -286,19 +294,21 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
     }
 
     // running away never goes through the player
-    const passable = a.mode === 'flee' ? (i: number) => walkable(w.grid)(i) && i !== w.player : walkable(w.grid);
+    // ...and no force opens a door without power
+    const open = (i: number) => walkable(w.grid)(i) && !w.locked?.includes(i);
+    const passable = a.mode === 'flee' ? (i: number) => open(i) && i !== w.player : open;
     const next = nextStep(w.grid, a.cell, a.target, passable);
     if (a.mode === 'flee' && (next < 0 || next === a.cell))
     {
         // cornered far away: waits for the fear to pass
-        a.stepMs = ALIEN.stepMs.flee;
+        a.stepMs = stepFor(w, 'flee');
         return { alien: a, closed, events };
     }
     if (next < 0 || next === a.cell)
     {
         a.target = patrolTarget(w, a.cell, rng);
         a.ventPlan = null;
-        a.stepMs = ALIEN.stepMs[a.mode];
+        a.stepMs = stepFor(w, a.mode);
         return { alien: a, closed, events };
     }
 
@@ -309,7 +319,7 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
         {
             closed = closed.filter(c => c !== next);
             a.forceMs = 0;
-            a.stepMs = ALIEN.stepMs[a.mode];
+            a.stepMs = stepFor(w, a.mode);
             events.push('doorForced');
         }
         return { alien: a, closed, events };
@@ -318,7 +328,7 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
     a.cell = next;
     a.forceMs = 0;
     a.stillMs = 0;
-    a.stepMs = ALIEN.stepMs[a.mode];
+    a.stepMs = stepFor(w, a.mode);
     return { alien: a, closed, events };
 }
 

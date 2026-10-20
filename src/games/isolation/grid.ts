@@ -22,7 +22,7 @@ export interface Grid
 export interface Sign { x: number; y: number; dir: Dir; text: string }
 
 /** What lies on the floor to pick up besides the power cells. */
-export type LootKind = 'scrap' | 'wires' | 'chems' | 'flamer';
+export type LootKind = 'scrap' | 'wires' | 'chems' | 'flamer' | 'cat';
 
 export interface Loot { cell: number; kind: LootKind }
 
@@ -33,21 +33,29 @@ export interface ParsedMap
     alien: number;
     items: number[];
     loot: Loot[];
-    /** doors that start closed */
+    /** doors that start closed (the locked ones too) */
     closed: number[];
+    /** doors that start without power: a terminal has to divert it before they open */
+    locked: number[];
+    /** where the android starts, if the deck has one */
+    ash: number | null;
+    /** floor cells where a pipe leaks steam now and then */
+    steam: number[];
 }
 
 const CELLS: Record<string, Cell> = {
     '#': 'wall', '.': 'floor', 'D': 'door', 'd': 'door', 'L': 'locker', 'E': 'exit', '*': 'floor', 'P': 'floor', 'A': 'floor',
-    'T': 'terminal', 'V': 'vent', 's': 'floor', 'w': 'floor', 'c': 'floor', 'f': 'floor',
+    'T': 'terminal', 'V': 'vent', 's': 'floor', 'w': 'floor', 'c': 'floor', 'f': 'floor', 'j': 'floor',
+    'H': 'floor', 'X': 'door', '~': 'floor',
 };
 
-const LOOT: Record<string, LootKind> = { s: 'scrap', w: 'wires', c: 'chems', f: 'flamer' };
+const LOOT: Record<string, LootKind> = { s: 'scrap', w: 'wires', c: 'chems', f: 'flamer', j: 'cat' };
 
 /**
  * Map drawn as text: `#` wall, `.` floor, `D` closed door, `d` open door, `L` locker, `E` exit, `*` power cell,
  * `T` terminal, `V` vent, `P` player start, `A` alien start, and on the floor `s` scrap, `w` wires, `c` chemicals,
- * `f` flamethrower. Throws on a malformed map (they are written by hand, the tests catch it).
+ * `f` flamethrower, `j` the cat. Also `H` the android's start, `X` a door without power and `~` a floor cell with a
+ * steam leak. Throws on a malformed map (they are written by hand, the tests catch it).
  */
 export function parseMap(rows: readonly string[]): ParsedMap
 {
@@ -57,8 +65,11 @@ export function parseMap(rows: readonly string[]): ParsedMap
     const items: number[] = [];
     const loot: Loot[] = [];
     const closed: number[] = [];
+    const locked: number[] = [];
+    const steam: number[] = [];
     let start = -1;
     let alien = -1;
+    let ash: number | null = null;
 
     rows.forEach((row, y) =>
     {
@@ -71,13 +82,16 @@ export function parseMap(rows: readonly string[]): ParsedMap
             cells.push(cell);
             if (ch === '*') items.push(i);
             if (ch in LOOT) loot.push({ cell: i, kind: LOOT[ch] });
-            if (ch === 'D') closed.push(i);
+            if (ch === 'D' || ch === 'X') closed.push(i);
+            if (ch === 'X') locked.push(i);
+            if (ch === '~') steam.push(i);
             if (ch === 'P') start = i;
             if (ch === 'A') alien = i;
+            if (ch === 'H') ash = i;
         });
     });
     if (start < 0 || alien < 0) throw new Error('map needs a P and an A');
-    return { grid: { w, h, cells }, start, alien, items, loot, closed };
+    return { grid: { w, h, cells }, start, alien, items, loot, closed, locked, ash, steam };
 }
 
 /** Per cell, whether it lies in any of the rectangles `[x0, y0, x1, y1]` (inclusive). */

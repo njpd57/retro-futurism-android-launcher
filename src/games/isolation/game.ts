@@ -1,4 +1,6 @@
 import { ALIEN, alienPosition, hear, newAlien, patrolTarget, scare, stepAlien, type Alien, type World } from './alien';
+import { newAsh, stepAsh, type Ash, type AshWorld } from './android';
+import { DIFFICULTY, type Difficulty } from './difficulty';
 import { BAG_MAX, FUEL_FOUND, craft, canCraft, emptyBag, recipeOf, type Bag, type RecipeId } from './crafting';
 import { blocks, cellAt, cellX, cellY, distances, mountWall, neighbour, parseMap, rectMask, turn, type Dir, type Grid, type Loot, type Sign } from './grid';
 import type { DeckDef } from './decks';
@@ -31,6 +33,12 @@ export const TOOLS = {
     flameShowMs: 500,
 };
 
+/** Pipes that leak: a leaking cell can't be crossed for `onMs` of every `periodMs`. */
+export const STEAM = { periodMs: 9000, onMs: 3500, stagger: 3100 };
+
+/** Jones meows while he is carried, and the sound carries. */
+export const MEOW = { everyMs: 22000, loudness: 3 };
+
 export const TRACKER = {
     /** cells */
     range: 12,
@@ -57,7 +65,8 @@ const CRAFT: Record<CraftInput, RecipeId> = { craftDecoy: 'decoy', craftFlare: '
 
 export type GameEvent =
     | 'step' | 'turn' | 'bump' | 'doorOpen' | 'doorClose' | 'doorForced' | 'pickup' | 'allCells' | 'exitLocked'
-    | 'lootScrap' | 'lootWires' | 'lootChems' | 'lootFlamer' | 'bagFull'
+    | 'lootScrap' | 'lootWires' | 'lootChems' | 'lootFlamer' | 'lootCat' | 'bagFull' | 'locked' | 'steamBlock' | 'steam'
+    | 'ashSpotted' | 'ashLost' | 'ashOff' | 'diverted' | 'log' | 'mapped' | 'blackout' | 'powerBack' | 'countdown' | 'blast' | 'meow'
     | 'hide' | 'unhide' | 'saveStart' | 'saved' | 'trackerUp' | 'trackerDown' | 'ping'
     | CraftInput | 'noParts' | 'throwDecoy' | 'throwFlare' | 'noDecoy' | 'noFlare' | 'noFlamer' | 'noFuel'
     | 'fire' | 'scare' | 'decoyPing' | 'flareOut'
@@ -81,9 +90,30 @@ export interface Decoy { cell: number; ms: number; pulseMs: number }
 /** A burning flare: lights the cells around it for a while. */
 export interface Flare { cell: number; ms: number; lit: number[] }
 
+/** What a terminal does besides saving, resolved to cell indexes. */
+export interface TerminalRole { log?: string; ashOff?: boolean; opens?: number }
+
+/** Why the run ended, for the screen that follows. */
+export type Death = 'alien' | 'ash' | 'blast';
+
+/** What the player takes from one deck to the next. */
+export interface Carry
+{
+    difficulty: Difficulty;
+    bag: Bag;
+    jones: boolean;
+    logs: readonly string[];
+    fires: number;
+    spotted: number;
+    score: number;
+    timeMs: number;
+}
+
 export interface GameState
 {
     phase: 'playing' | 'dead' | 'won';
+    death: Death | null;
+    difficulty: Difficulty;
     deck: string;
     title: string;
     grid: Grid;
@@ -97,6 +127,33 @@ export interface GameState
     flares: readonly Flare[];
     /** per cell: no power, so unlit unless a flare reaches it (empty when the deck has no dark zone) */
     dark: readonly boolean[];
+    /** the zones that lose power now and then: the cells in them, and whether they are out right now */
+    blackout: { mask: readonly boolean[]; base: readonly boolean[]; periodMs: number; offMs: number; on: boolean } | null;
+    /** doors without power, shut until a terminal diverts it */
+    locked: readonly number[];
+    /** cells with a steam leak */
+    steam: readonly number[];
+    /** what each terminal does besides saving (by cell index) */
+    roles: Readonly<Record<number, TerminalRole>>;
+    /** the android, if the deck has one */
+    ash: Ash | null;
+    /** self-destruct countdown left, or null */
+    countdownMs: number | null;
+    /** Jones is with the player */
+    jones: boolean;
+    /** the crew logs read in this run */
+    logs: readonly string[];
+    /** flamethrower shots fired in this run, and times the creature spotted the player */
+    fires: number;
+    spotted: number;
+    /** `spotted` when this deck began */
+    spottedStart: number;
+    /** points of the endless mode, from the decks already done */
+    score: number;
+    /** a terminal has sent the map of the deck */
+    mapped: boolean;
+    /** `timeMs` when this deck began */
+    startMs: number;
     /** left of the flame being drawn */
     flameMs: number;
     /** times the creature has been burnt: it flees for less each time */
@@ -119,11 +176,23 @@ export interface GameState
     timeMs: number;
 }
 
-export function newGame(deck: DeckDef, rng: Rng): GameState
+export function newGame(deck: DeckDef, rng: Rng, carry?: Carry): GameState
 {
     const map = parseMap(deck.map);
+    const difficulty = carry?.difficulty ?? 'normal';
+    const def = DIFFICULTY[difficulty];
+    const base = rectMask(map.grid, deck.dark ?? []);
+    const bag: Bag = carry ? { ...carry.bag } : emptyBag();
+    // the gift of the easy mode: a decoy and a flare at the start of every deck, up to the limit
+    for (const k of ['decoys', 'flares'] as const) bag[k] = Math.min(BAG_MAX, bag[k] + (def.gift[k] ?? 0));
+    const cellOfXY = (x: number, y: number) => y * map.grid.w + x;
+    const roles: Record<number, TerminalRole> = {};
+    for (const t of deck.terminals ?? [])
+        roles[cellOfXY(t.x, t.y)] = { log: t.log, ashOff: t.ashOff, opens: t.opens && cellOfXY(t.opens[0], t.opens[1]) };
     const s: GameState = {
         phase: 'playing',
+        death: null,
+        difficulty,
         deck: deck.id,
         title: deck.title,
         grid: map.grid,
@@ -131,10 +200,24 @@ export function newGame(deck: DeckDef, rng: Rng): GameState
         closed: map.closed,
         items: map.items,
         loot: map.loot,
-        bag: emptyBag(),
+        bag,
         decoys: [],
         flares: [],
-        dark: rectMask(map.grid, deck.dark ?? []),
+        dark: base,
+        blackout: deck.blackout ? { mask: rectMask(map.grid, deck.blackout.rects), base, periodMs: deck.blackout.periodMs, offMs: deck.blackout.offMs, on: false } : null,
+        locked: map.locked,
+        steam: map.steam,
+        roles,
+        ash: map.ash === null ? null : newAsh(map.ash),
+        countdownMs: deck.countdownMs === undefined ? null : Math.max(60000, deck.countdownMs + def.countdownMs),
+        jones: carry?.jones ?? false,
+        logs: carry?.logs ?? [],
+        fires: carry?.fires ?? 0,
+        spotted: carry?.spotted ?? 0,
+        spottedStart: carry?.spotted ?? 0,
+        score: carry?.score ?? 0,
+        mapped: false,
+        startMs: carry?.timeMs ?? 0,
         flameMs: 0,
         burns: 0,
         needed: map.items.length,
@@ -145,16 +228,43 @@ export function newGame(deck: DeckDef, rng: Rng): GameState
         saveMs: 0,
         hides: {},
         near: false,
-        timeMs: 0,
+        timeMs: carry?.timeMs ?? 0,
     };
     return { ...s, alien: { ...s.alien, target: patrolTarget(world(s), s.alien.cell, rng) } };
 }
+
+/** What to take along when the deck is done. */
+export const carryOf = (s: GameState): Carry => ({
+    difficulty: s.difficulty, bag: { ...s.bag }, jones: s.jones, logs: [...s.logs], fires: s.fires, spotted: s.spotted, score: s.score, timeMs: s.timeMs,
+});
 
 export const isLit = (s: GameState, cell: number) => !s.dark[cell] || s.flares.some(f => f.lit.includes(cell));
 
 export const world = (s: GameState): World => ({
     grid: s.grid, closed: s.closed, player: s.player.cell, hidden: s.player.hidden, dark: !isLit(s, s.player.cell),
+    locked: s.locked, pace: DIFFICULTY[s.difficulty].pace, sight: DIFFICULTY[s.difficulty].sight,
 });
+
+const ashWorld = (s: GameState): AshWorld => ({
+    grid: s.grid, closed: s.closed, player: s.player.cell, hidden: s.player.hidden, dark: !isLit(s, s.player.cell),
+});
+
+/** A steam leak is venting at `cell` at the time `timeMs`. */
+export function steaming(s: GameState, cell: number, timeMs = s.timeMs): boolean
+{
+    const i = s.steam.indexOf(cell);
+    return i >= 0 && (timeMs + i * STEAM.stagger) % STEAM.periodMs < STEAM.onMs;
+}
+
+/** What the terminal under the player does, for its key: the extra task if there is one still to do, else save. */
+export function terminalTask(s: GameState): 'divert' | 'ashOff' | 'log' | 'save'
+{
+    const role = s.roles[s.player.cell];
+    if (role?.opens !== undefined && s.locked.includes(role.opens)) return 'divert';
+    if (role?.ashOff && s.ash?.active) return 'ashOff';
+    if (role?.log && !s.logs.includes(role.log)) return 'log';
+    return 'save';
+}
 
 /** Which cells can be seen, or null when the whole deck has power. */
 export function litMask(s: GameState): boolean[] | null
@@ -225,6 +335,7 @@ export function useAction(s: GameState): 'hide' | 'unhide' | 'save' | 'open' | '
     if (here === 'terminal') return 'save';
     const ahead = neighbour(s.grid, p.cell, p.dir);
     if (cellAt(s.grid, ahead) !== 'door') return null;
+    if (s.locked.includes(ahead)) return null;
     if (s.closed.includes(ahead)) return 'open';
     return s.alien.cell === ahead && !s.alien.vent ? null : 'close';
 }
@@ -329,7 +440,7 @@ export function reduce(s: GameState, input: Input): { state: GameState; events: 
         events.push('fire');
         const hit = !s.alien.vent && flameCells(s).includes(s.alien.cell);
         let next: GameState = {
-            ...s, bag: { ...s.bag, fuel: s.bag.fuel - 1 }, flameMs: TOOLS.flameShowMs, burns: hit ? s.burns + 1 : s.burns,
+            ...s, bag: { ...s.bag, fuel: s.bag.fuel - 1 }, flameMs: TOOLS.flameShowMs, burns: hit ? s.burns + 1 : s.burns, fires: s.fires + 1,
             player: { ...p, busyMs: TOOLS.fireMs },
         };
         if (hit)
@@ -348,9 +459,9 @@ export function reduce(s: GameState, input: Input): { state: GameState; events: 
     }
 
     const to = neighbour(s.grid, p.cell, input === 'forward' ? p.dir : turn(p.dir, 2));
-    if (blocks(s.grid, s.closed, to))
+    if (blocks(s.grid, s.closed, to) || steaming(s, to) || (s.ash && !s.ash.active && s.ash.cell === to))
     {
-        events.push('bump');
+        events.push(s.locked.includes(to) ? 'locked' : steaming(s, to) ? 'steamBlock' : 'bump');
         return { state: { ...s, player: { ...p, busyMs: TURN_MS } }, events };
     }
 
@@ -359,7 +470,12 @@ export function reduce(s: GameState, input: Input): { state: GameState; events: 
     if (s.alien.cell === to && !s.alien.vent)
     {
         events.push('dead');
-        return { state: { ...next, phase: 'dead' }, events };
+        return { state: { ...next, phase: 'dead', death: 'alien' }, events };
+    }
+    if (s.ash?.active && s.ash.cell === to)
+    {
+        events.push('dead');
+        return { state: { ...next, phase: 'dead', death: 'ash' }, events };
     }
     next = makeNoise(next, to, NOISE.step, events);
 
@@ -388,6 +504,11 @@ export function reduce(s: GameState, input: Input): { state: GameState; events: 
 function collect(s: GameState, loot: Loot, events: GameEvent[]): GameState
 {
     let bag = s.bag;
+    if (loot.kind === 'cat')
+    {
+        events.push('lootCat');
+        return makeNoise({ ...s, jones: true, loot: s.loot.filter(l => l !== loot) }, loot.cell, NOISE.pickup + 1, events);
+    }
     if (loot.kind === 'flamer')
     {
         events.push('lootFlamer');
@@ -406,6 +527,47 @@ function collect(s: GameState, loot: Loot, events: GameEvent[]): GameState
     return makeNoise({ ...s, bag, loot: s.loot.filter(l => l !== loot) }, loot.cell, NOISE.pickup, events);
 }
 
+/** Brings the lit zones in line with the clock: some parts of a deck lose power now and then. */
+export function syncBlackout(s: GameState, events: GameEvent[] = []): GameState
+{
+    const b = s.blackout;
+    if (!b) return s;
+    const on = s.timeMs % b.periodMs >= b.periodMs - b.offMs;
+    if (on === b.on) return s;
+    events.push(on ? 'blackout' : 'powerBack');
+    return { ...s, blackout: { ...b, on }, dark: on ? b.mask.map((m, i) => m || b.base[i]) : b.base };
+}
+
+/** The player stood at a terminal long enough: it saves, and does what it is there for. */
+function finishTerminal(s: GameState, events: GameEvent[]): GameState
+{
+    events.push('saved');
+    const role = s.roles[s.player.cell];
+    let next = s;
+    if (!next.mapped)
+    {
+        next = { ...next, mapped: true };
+        events.push('mapped');
+    }
+    if (role?.log && !next.logs.includes(role.log))
+    {
+        next = { ...next, logs: [...next.logs, role.log] };
+        events.push('log');
+    }
+    if (role?.ashOff && next.ash?.active)
+    {
+        next = { ...next, ash: { ...next.ash, active: false } };
+        events.push('ashOff');
+    }
+    if (role?.opens !== undefined && next.locked.includes(role.opens))
+    {
+        const door = role.opens;
+        next = { ...next, locked: next.locked.filter(c => c !== door), closed: next.closed.filter(c => c !== door) };
+        events.push('diverted');
+    }
+    return next;
+}
+
 /** Time passing: the creature moves, the tracker pings, a save completes. */
 export function step(s: GameState, dtMs: number, rng: Rng): { state: GameState; events: GameEvent[] }
 {
@@ -417,6 +579,27 @@ export function step(s: GameState, dtMs: number, rng: Rng): { state: GameState; 
         player: { ...s.player, busyMs: Math.max(0, s.player.busyMs - dtMs) },
         flameMs: Math.max(0, s.flameMs - dtMs),
     };
+    next = syncBlackout(next, events);
+    if (s.steam.some(c => !steaming(s, c) && steaming(next, c))) events.push('steam');
+
+    if (next.countdownMs !== null)
+    {
+        const left = Math.max(0, next.countdownMs - dtMs);
+        if (left <= 0)
+        {
+            events.push('blast', 'dead');
+            return { state: { ...next, countdownMs: 0, phase: 'dead', death: 'blast', saveMs: 0 }, events };
+        }
+        // MOTHER calls every minute, and the last half minute
+        if (Math.ceil(left / 60000) < Math.ceil(next.countdownMs / 60000) || (left <= 30000 && next.countdownMs > 30000)) events.push('countdown');
+        next = { ...next, countdownMs: left };
+    }
+
+    if (next.jones && Math.floor(next.timeMs / MEOW.everyMs) > Math.floor(s.timeMs / MEOW.everyMs))
+    {
+        events.push('meow');
+        next = makeNoise(next, next.player.cell, MEOW.loudness, events);
+    }
 
     if (next.decoys.length)
     {
@@ -447,7 +630,7 @@ export function step(s: GameState, dtMs: number, rng: Rng): { state: GameState; 
     if (next.saveMs > 0)
     {
         next = { ...next, saveMs: Math.max(0, next.saveMs - dtMs) };
-        if (next.saveMs === 0) events.push('saved');
+        if (next.saveMs === 0) next = finishTerminal(next, events);
     }
 
     if (next.tracker.raised)
@@ -469,10 +652,23 @@ export function step(s: GameState, dtMs: number, rng: Rng): { state: GameState; 
     const r = stepAlien(before, world(next), dtMs, rng);
     next = { ...next, alien: r.alien, closed: r.closed };
     events.push(...r.events.filter(e => e !== 'heard'));
+    if (r.events.includes('spotted')) next = { ...next, spotted: next.spotted + 1 };
     if (r.events.includes('ventOut') && alienDistance(next) <= VENT_HEARD_CELLS) events.push('ventNear');
+
+    if (next.ash)
+    {
+        const ar = stepAsh(next.ash, ashWorld(next), dtMs, rng);
+        next = { ...next, ash: ar.ash };
+        events.push(...ar.events);
+    }
 
     const a = next.alien;
     const p = next.player;
+    if (next.ash?.active && next.ash.cell === p.cell)
+    {
+        events.push('dead');
+        return { state: { ...next, phase: 'dead', death: 'ash', saveMs: 0 }, events };
+    }
     if (!a.vent && a.cell === p.cell)
     {
         // walked into the player's cell: in the open, or in a locker it saw them get into, or one it has learnt to check
@@ -483,7 +679,7 @@ export function step(s: GameState, dtMs: number, rng: Rng): { state: GameState; 
         {
             if (found) events.push('found');
             events.push('dead');
-            return { state: { ...next, phase: 'dead', saveMs: 0 }, events };
+            return { state: { ...next, phase: 'dead', death: 'alien', saveMs: 0 }, events };
         }
     }
 
