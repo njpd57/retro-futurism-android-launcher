@@ -5,9 +5,10 @@ import { SENSITIVITY_STEPS, useMarinesStore } from '@/stores/useMarinesStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import type { SfxName } from '@/audio/sfx';
-import { LOW_HEALTH, PLAYER, act, newGame, owned, step, weldAim, type Action, type Controls, type GameEvent, type MarinesState } from '@/games/marines/game';
+import { LOW_HEALTH, PLAYER, act, inSights, newGame, owned, step, weldAim, type Action, type Controls, type GameEvent, type MarinesState } from '@/games/marines/game';
 import { ARENAS, ARENA_OPERATIONS, ARENA_ORDER } from '@/games/marines/map';
 import { messageFor, status } from '@/games/marines/radio';
+import { aimPixels } from '@/games/marines/aim';
 import { ACHIEVEMENTS, achievementById, earnedBy } from '@/games/marines/achievements';
 import { DIFFICULTY, DIFFICULTY_ORDER, MISSIONS, missionById, unlocked } from '@/games/marines/campaign';
 import { buildReport, type Beaten, type Report } from '@/games/marines/report';
@@ -79,7 +80,7 @@ function controls(dt: number): Controls
         forward: (held.forward ? 1 : 0) - (held.back ? 1 : 0) + stick.forward,
         strafe: (held.right ? 1 : 0) - (held.left ? 1 : 0) + stick.strafe,
         turn,
-        fire: held.fire,
+        fire: held.fire || (marines.prefs.fire === 'auto' && inSights(state.value)),
     };
 }
 
@@ -99,7 +100,7 @@ function onMove(strafe: number, forward: number)
 
 function onFireAim(dx: number)
 {
-    if (screen.value === 'playing') turnAcc += dx * turnPerPx();
+    if (screen.value === 'playing') turnAcc += aimPixels(dx) * turnPerPx();
 }
 
 function onFire(down: boolean)
@@ -344,7 +345,7 @@ function aimMove(e: TouchEvent)
     for (const t of Array.from(e.changedTouches))
     {
         if (t.identifier !== aimId) continue;
-        turnAcc += (t.clientX - aimX) * turnPerPx();
+        turnAcc += aimPixels(t.clientX - aimX) * turnPerPx();
         aimX = t.clientX;
     }
 }
@@ -432,6 +433,16 @@ function nextSensitivity()
     marines.prefs = { ...marines.prefs, sensitivity: SENSITIVITY_STEPS[(i + 1) % SENSITIVITY_STEPS.length] };
 }
 
+function toggleFire()
+{
+    marines.prefs = { ...marines.prefs, fire: marines.prefs.fire === 'auto' ? 'manual' : 'auto' };
+}
+
+function toggleLefty()
+{
+    marines.prefs = { ...marines.prefs, lefty: !marines.prefs.lefty };
+}
+
 function toggleFps()
 {
     marines.prefs = { ...marines.prefs, fps: marines.prefs.fps === 30 ? 60 : 30 };
@@ -456,6 +467,8 @@ const lowAmmo = computed(() =>
 });
 
 const weld = computed(() => weldAim(state.value)?.action ?? null);
+// read on every frame (`clock` changes), so the pad can show when the weapon is on a target
+const sights = computed(() => (clock.value, inSights(state.value)));
 const kindLines = computed(() => report.value
     ? (Object.keys(ENEMIES) as (keyof typeof ENEMIES)[]).filter(k => report.value!.data.killsBy[k] > 0).map(k => `${ENEMIES[k].name} ×${report.value!.data.killsBy[k]}`)
     : []);
@@ -513,7 +526,8 @@ onBeforeUnmount(() =>
             <div class="dim help">
                 ARRASTRE SOBRE LA VISTA PARA GIRAR<br />
                 JOYSTICK PARA MOVERSE<br />
-                MANTENGA FUEGO PARA RÁFAGAS<br />
+                EL ARMA DISPARA SOLA AL APUNTAR<br />
+                (PAUSA: DISPARO MANUAL)<br />
                 GRANADA: LANZAGRANADAS DEL RIFLE<br />
                 TORRETA: CENTINELA · SOLDAR: SELLA PUERTAS<br />
                 ARMA: CAMBIA · SEGUIR / QUIETOS: ESCUADRA<br />
@@ -544,6 +558,10 @@ onBeforeUnmount(() =>
             <div class="actions">
                 <button class="act pressable" @click="nextSensitivity">[SENSIBILIDAD ×{{ marines.prefs.sensitivity }}]</button>
                 <button class="act pressable" @click="toggleFps">[{{ marines.prefs.fps }} FPS]</button>
+            </div>
+            <div class="actions">
+                <button class="act pressable" @click="toggleFire">[DISPARO: {{ marines.prefs.fire === 'auto' ? 'AUTO' : 'MANUAL' }}]</button>
+                <button class="act pressable" @click="toggleLefty">[{{ marines.prefs.lefty ? 'ZURDO' : 'DIESTRO' }}]</button>
             </div>
             <div class="actions">
                 <button class="act pressable" @click="start">[REINICIAR]</button>
@@ -598,7 +616,7 @@ onBeforeUnmount(() =>
         <div class="msg">» {{ line }}</div>
 
         <MarinesControls
-            :reloading="state.player.reloadMs > 0" :grenades="state.player.grenades" :weapons="owned(state.player).length" :order="state.order" :turrets="state.player.turrets" :weld="weld"
+            :reloading="state.player.reloadMs > 0" :grenades="state.player.grenades" :weapons="owned(state.player).length" :order="state.order" :turrets="state.player.turrets" :weld="weld" :auto="marines.prefs.fire === 'auto'" :sights="sights" :lefty="marines.prefs.lefty"
             @move="onMove" @fire="onFire" @aim="onFireAim" @reload="perform('reload')" @switch="perform('switch')" @grenade="perform('grenade')" @order="perform('order')" @deploy="deploy" />
     </div>
 </template>

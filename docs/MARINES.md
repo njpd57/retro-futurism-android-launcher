@@ -105,6 +105,13 @@ Simulación de equilibrio (bot mediocre: apunta al más cercano, dispara sin par
 - Estadísticas acumuladas (`report.addStats`, `widget.marines.stats`): partidas, bajas, tiempo, disparos, torretas, soldaduras y misiones; salen en el título y en el widget.
 - README y `FEATURES.md` al día.
 
+### Controles: apuntar y disparar con dos pulgares (hecho, sin probar en el teléfono)
+- **Las teclas de acción actúan en `touchstart`** (con `preventDefault`): con un dedo en el joystick el navegador no envía `click` al segundo toque, así que antes RECARGA y las demás solo iban quietos.
+- **Disparo automático** (`prefs.fire`, por defecto `auto`; PAUSA `[DISPARO: AUTO|MANUAL]`): el arma dispara sola mientras `inSights(state)` (criatura en un cono estrecho, en alcance y a la vista; `AUTO_CONE_DEG` 4° como mínimo, el del arma si es mayor). El pad derecho solo gira y muestra `FUEGO` cuando hay objetivo; en manual, tocar el pad dispara.
+- **Disposición:** arriba GRANADA, TORRETA/SOLDAR y SEGUIR (menos usadas); abajo el joystick a un lado y, al otro, el pad `APUNTAR` con RECARGA y ARMA debajo, al alcance del mismo pulgar. `prefs.lefty` (PAUSA `[ZURDO]`) espeja las dos mitades.
+- **Giro** (`aim.ts`, `aimPixels`): los movimientos pequeños del dedo se mantienen finos y los rápidos se estiran hasta ×2,2. Vale para el pad y para el arrastre sobre la vista.
+- Vibración corta al pulsar una tecla de acción (si la háptica está activada).
+
 ### Pendiente del lado del usuario (solo se ve en el teléfono)
 - **Multitoque**: mover el joystick con un pulgar y arrastrar la vista con el otro, **y mantener FUEGO a la vez**: eso son tres dedos, o el pulgar de apuntar tiene que cubrir también FUEGO. En CDP funcionan los tres a la vez (ver «Cómo verificar»), pero la ergonomía solo se ve en el teléfono; si estorba, plantear disparo automático mientras se arrastra o un FUEGO que se pueda alcanzar con el mismo pulgar.
 - **Joystick**: radio de 48 px y zona muerta del 14 % (`STICK`), tamaño de la zona (≈ 190×160 px), si el pulgar cae bien o conviene una zona más grande.

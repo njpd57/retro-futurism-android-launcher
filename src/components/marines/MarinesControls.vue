@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { stickAxes } from '@/games/marines/stick';
+import { useSettingsStore } from '@/stores/useSettingsStore';
+import { tick } from '@/utils/haptics';
 
-defineProps<{
+const props = defineProps<{
     /** a magazine is going in: the reload key is spent */
     reloading: boolean;
     /** grenades left, and how many weapons are carried (one: the weapon key has nothing to switch to) */
@@ -13,7 +15,14 @@ defineProps<{
     /** sentry turrets left to set down, and what the blowtorch would do to the door in front (null: no door) */
     turrets: number;
     weld: 'weld' | 'cut' | null;
+    /** the weapon fires by itself when aimed: the pad only turns, and shows when something is in the sights */
+    auto: boolean;
+    sights: boolean;
+    /** the controls are mirrored */
+    lefty: boolean;
 }>();
+
+const settings = useSettingsStore();
 
 const emit = defineEmits<{
     /** the joystick moved: both -1..1, forward positive; (0, 0) when let go */
@@ -110,24 +119,49 @@ onMounted(() =>
     window.addEventListener('mouseup', onMouseUp);
 });
 
-// ---- FUEGO
-const firing = ref(false);
+// ---- the tap keys. A finger tapping one while another is on the joystick or FUEGO sends no `click` (the browser takes
+// two touches at once for a gesture), so they act on `touchstart`, like FUEGO; `preventDefault` there also stops the
+// emulated mouse events, so a tap never fires twice. The mouse still works on a desktop.
+const pressed = ref<string | null>(null);
+let pressedTimer = 0;
 
-// the thumb on FUEGO also aims: it follows its own finger and reports how far it moved sideways
+function tap(name: string, e: Event)
+{
+    if (e.cancelable) e.preventDefault();
+    // the key shows inverse for a moment: a touch that is not cancelled would have shown `:active`, this one is
+    pressed.value = name;
+    clearTimeout(pressedTimer);
+    pressedTimer = window.setTimeout(() => { pressed.value = null; }, 120);
+    if (settings.haptics) tick(15);
+    if (name === 'reload') emit('reload');
+    else if (name === 'switch') emit('switch');
+    else if (name === 'grenade') emit('grenade');
+    else if (name === 'deploy') emit('deploy');
+    else emit('order');
+}
+
+// ---- the aim pad. The right thumb rests on it and drags to turn; in manual mode touching it also fires, in auto mode
+// the weapon fires by itself whenever it is aimed at a creature. It follows its own finger and reports how far it moved.
+const firing = ref(false);
+const touching = ref(false);
 let fireTouch: number | null = null;
 let fireX = 0;
 
 function fireDown(e: Event)
 {
     if (e.cancelable) e.preventDefault();
-    if (firing.value) return;
-    firing.value = true;
+    if (touching.value) return;
+    touching.value = true;
     if (e instanceof TouchEvent)
     {
         fireTouch = e.changedTouches[0].identifier;
         fireX = e.changedTouches[0].clientX;
     }
-    emit('fire', true);
+    if (!props.auto)
+    {
+        firing.value = true;
+        emit('fire', true);
+    }
 }
 
 function fireMove(e: TouchEvent)
@@ -144,6 +178,7 @@ function fireMove(e: TouchEvent)
 function fireUp()
 {
     fireTouch = null;
+    touching.value = false;
     if (!firing.value) return;
     firing.value = false;
     emit('fire', false);
@@ -155,19 +190,18 @@ onBeforeUnmount(() =>
     window.removeEventListener('mouseup', onMouseUp);
     end();
     fireUp();
+    clearTimeout(pressedTimer);
 });
 </script>
 
 <template>
     <div class="controls" @contextmenu.prevent>
         <div class="strip">
-            <button class="key small pressable" :class="{ off: reloading }" @click="emit('reload')">RECARGA</button>
-            <button class="key small pressable" :class="{ off: weapons < 2 }" @click="emit('switch')">ARMA</button>
-            <button class="key small pressable" :class="{ off: grenades < 1 }" @click="emit('grenade')">GRANADA {{ grenades }}</button>
-            <button class="key small pressable" :class="{ held: weld !== null, off: weld === null && turrets < 1 }" @click="emit('deploy')">{{ weld === 'weld' ? 'SOLDAR' : weld === 'cut' ? 'CORTAR' : `TORRETA ${turrets}` }}</button>
-            <button class="key small pressable" :class="{ held: order === 'hold' }" @click="emit('order')">{{ order === 'hold' ? 'QUIETOS' : 'SEGUIR' }}</button>
+            <button class="key small" :class="{ off: grenades < 1, on: pressed === 'grenade' }" @touchstart="tap('grenade', $event)" @mousedown="tap('grenade', $event)">GRANADA {{ grenades }}</button>
+            <button class="key small" :class="{ held: weld !== null, off: weld === null && turrets < 1, on: pressed === 'deploy' }" @touchstart="tap('deploy', $event)" @mousedown="tap('deploy', $event)">{{ weld === 'weld' ? 'SOLDAR' : weld === 'cut' ? 'CORTAR' : `TORRETA ${turrets}` }}</button>
+            <button class="key small" :class="{ held: order === 'hold', on: pressed === 'order' }" @touchstart="tap('order', $event)" @mousedown="tap('order', $event)">{{ order === 'hold' ? 'QUIETOS' : 'SEGUIR' }}</button>
         </div>
-        <div class="pad">
+        <div class="pad" :class="{ lefty }">
             <div
                 class="stick" :class="{ active: knob.active }"
                 @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd" @touchcancel="onTouchEnd"
@@ -178,10 +212,19 @@ onBeforeUnmount(() =>
                 <span class="arrow e">►</span>
                 <span class="knob" :style="{ transform: `translate(${knob.x}px, ${knob.y}px)` }" />
             </div>
-            <button
-                class="key fire" :class="{ on: firing }"
-                @touchstart="fireDown" @touchmove="fireMove" @touchend="fireUp" @touchcancel="fireUp"
-                @mousedown="fireDown" @mouseup="fireUp" @mouseleave="fireUp">FUEGO</button>
+            <div class="right">
+                <button
+                    class="key fire" :class="{ on: touching && !auto || (auto && sights), rest: auto && !touching && !sights }"
+                    @touchstart="fireDown" @touchmove="fireMove" @touchend="fireUp" @touchcancel="fireUp"
+                    @mousedown="fireDown" @mouseup="fireUp" @mouseleave="fireUp">
+                    <template v-if="auto">{{ sights ? 'FUEGO' : 'APUNTAR' }}<small>AUTO</small></template>
+                    <template v-else>FUEGO</template>
+                </button>
+                <div class="duo">
+                    <button class="key" :class="{ off: reloading, on: pressed === 'reload' }" @touchstart="tap('reload', $event)" @mousedown="tap('reload', $event)">RECARGA</button>
+                    <button class="key" :class="{ off: weapons < 2, on: pressed === 'switch' }" @touchstart="tap('switch', $event)" @mousedown="tap('switch', $event)">ARMA</button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -202,18 +245,36 @@ $half: 18px;
     touch-action: none;
 }
 
-// the keys that are not held down: reload, next weapon, grenade, turret or blowtorch, and the squad's order
+// the keys that are not used in the heat of the fight: grenade, turret or blowtorch, and the squad's order
 .strip {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
 }
 
-// the joystick and FUEGO
+// the joystick on one side and the aim pad with reload and weapon on the other (mirrored for the left-handed)
 .pad {
     display: grid;
     grid-template-columns: 1.15fr 1fr;
     gap: 14px;
+    &.lefty { grid-template-columns: 1fr 1.15fr; }
+    &.lefty .stick { order: 2; }
+}
+
+.right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    .fire { flex: 1; }
+}
+
+// reload and the weapon key, under the thumb that aims: tall enough to hit without looking
+.duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    .key { padding: 14px 0; font-size: 0.85em; }
 }
 
 // the zone the thumb may land on, and the cross it moves over
@@ -265,7 +326,11 @@ $half: 18px;
 
     &:active, &.on, &.held { @include inverse; }
     &.off { color: var(--ph-dim); border-color: var(--ph-dim); box-shadow: none; }
-    &.fire { font-size: 1.5em; }
+    &.fire { font-size: 1.5em; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+    &.fire small { font-size: 0.5em; color: var(--ph-dim); }
+    &.fire.on small { color: inherit; }
+    // waiting for a target: quieter than a key that can be pressed
+    &.rest { border-color: var(--ph-dim); }
     // the row of small keys: terse, so that five fit across a narrow phone
     &.small { padding: 7px 0; font-size: 0.68em; white-space: nowrap; overflow: hidden; }
 }

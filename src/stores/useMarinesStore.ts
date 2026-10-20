@@ -16,6 +16,10 @@ export interface MarinesPrefs
     fps: 30 | 60;
     /** the arena the title screen has picked */
     arena: string;
+    /** `auto`: the weapon fires by itself while it is aimed at a creature; `manual`: only while the pad is held */
+    fire: 'auto' | 'manual';
+    /** mirrors the controls: the joystick on the right, the pad on the left */
+    lefty: boolean;
     /** `waves` (the endless defence) or `campaign` */
     mode: 'waves' | 'campaign';
     difficulty: DifficultyId;
@@ -49,7 +53,7 @@ export const useMarinesStore = defineStore('marines', () =>
         write: v => JSON.stringify(v),
     } });
     const suspended = useLocalStorage<SavedGame | null>('widget.marines.suspend', null, { serializer: nullableJson(isSavedGame) });
-    const prefs = useLocalStorage<MarinesPrefs>('widget.marines.prefs', { sensitivity: 1, fps: 30, arena: 'operaciones', mode: 'waves', difficulty: 'veterano', mission: 'aguanten' }, { mergeDefaults: true });
+    const prefs = useLocalStorage<MarinesPrefs>('widget.marines.prefs', { sensitivity: 1, fps: 30, arena: 'operaciones', fire: 'auto', lefty: false, mode: 'waves', difficulty: 'veterano', mission: 'aguanten' }, { mergeDefaults: true });
 
     /** The missions won, with the difficulty and the time of the best run of each. */
     const campaign = useLocalStorage<Record<string, Won>>('widget.marines.campaign', {}, { serializer: {

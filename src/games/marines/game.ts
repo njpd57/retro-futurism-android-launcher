@@ -64,6 +64,9 @@ export const ACID = { lifeMs: 7000, radius: 0.45, tickMs: 400, damage: 3.5, spla
 /** Fire keeps hurting after the flame has moved on. */
 export const BURN = { ms: 2200, dps: 2.5 };
 
+/** Degrees: the least cone the automatic fire looks along, for weapons with little or no aim assist. */
+export const AUTO_CONE_DEG = 4;
+
 /** Time spent drawing another weapon. */
 export const SWITCH_MS = 350;
 
@@ -279,6 +282,19 @@ export const owned = (p: Player): WeaponId[] => WEAPON_ORDER.filter(id => id ===
 
 /** True while a facehugger is on the player's face. */
 export const grabbed = (s: MarinesState) => s.enemies.some(e => e.clung);
+
+/**
+ * True while a creature is where the weapon is pointing: inside a narrow cone, in range and in plain view. The
+ * automatic fire uses it, so the weapon shoots only when it is aimed.
+ */
+export function inSights(s: MarinesState): boolean
+{
+    const p = s.player;
+    if (s.phase !== 'playing') return false;
+    const def = WEAPONS[p.weapon];
+    const cone = Math.max(def.assistDeg, def.coneDeg, AUTO_CONE_DEG);
+    return assistTarget(s.grid, s.closed, p.x, p.y, p.yaw, targetsOf(s.enemies.filter(e => !e.clung)), { ...def, assistDeg: cone }) !== null;
+}
 
 /** The creature the sights are marking, for weapons that mark one. */
 export function lockTarget(s: MarinesState): number | null
