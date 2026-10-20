@@ -28,6 +28,8 @@ export const COMMANDS: Record<CommandScope, CommandDef[]> = {
         { name: 'imagenes', args: '', hint: 'VISOR DE IMÁGENES CRT', example: 'imagenes' },
         { name: 'aislamiento', args: '', hint: 'JUEGO DE SUPERVIVENCIA', example: 'aislamiento' },
         { name: 'marines', args: '', hint: 'JUEGO DE ACCIÓN: LV-426', example: 'marines' },
+        { name: 'recordar', args: '<HORA> <TEXTO>', hint: 'RECORDATORIO A UNA HORA', example: 'recordar ' },
+        { name: 'semana', args: '', hint: 'INFORME DE USO DE LA SEMANA', example: 'semana' },
         { name: 'estasis', args: '', hint: 'VER LA CÁPSULA DE HIPERSUEÑO', example: 'estasis' },
         { name: 'desmagnetizar', args: '', hint: 'SACUDE EL TUBO', example: 'desmagnetizar' },
         { name: 'ayuda', args: '', hint: 'LISTA DE ÓRDENES', example: 'ayuda' },
@@ -37,6 +39,7 @@ export const COMMANDS: Record<CommandScope, CommandDef[]> = {
         { name: 'informe', args: '', hint: 'AGENDA, CLIMA Y ALARMA', example: 'INFORME', bare: true },
         { name: 'temp', args: '<MINUTOS>', hint: 'TEMPORIZADOR', example: 'temp 5' },
         { name: 'nota', args: '<TEXTO>', hint: 'AÑADE UNA NOTA', example: 'nota ' },
+        { name: 'recordar', args: '<HORA> <TEXTO>', hint: 'RECORDATORIO A UNA HORA', example: 'recordar ' },
         { name: 'tema', args: '<COLOR>', hint: 'CAMBIA LA PALETA', example: 'tema ' },
         { name: 'abrir', args: '<APP>', hint: 'ABRE UNA APP', example: 'abrir ' },
         { name: 'ordenar', args: '<PETICIÓN>', hint: 'ORGANIZA TUS APPS (USA LA API)', example: 'ordenar ' },
@@ -60,6 +63,7 @@ export const COLOR_WORDS = ['ámbar', 'verde', 'blanco', 'azul', 'rojo'];
 export const SORT_WORDS = ['alfa', 'uso', 'reciente'];
 export const LIST_WORDS = ['simple', 'larga'];
 export const TIMER_MINUTES = ['1', '5', '10', '25'];
+export const REMIND_EXAMPLES = ['en 20 min ', 'mañana 9:00 ', '18:30 '];
 export const ORGANIZE_EXAMPLES = [
     'agrupa por tipo',
     'carpeta de juegos',
@@ -111,6 +115,7 @@ function argumentSuggestions(scope: CommandScope, name: string, rest: string, ct
         case 'tema': return starts(COLOR_WORDS);
         case 'orden': return starts(SORT_WORDS);
         case 'lista': return starts(LIST_WORDS);
+        case 'recordar': return rest.trim() ? [] : REMIND_EXAMPLES;
         case 'temp': return TIMER_MINUTES.filter(m => m.startsWith(rest.trim()) && m !== rest.trim());
         case 'abrir': return rest.trim() ? (ctx.apps?.(rest.trim()) ?? []).slice(0, 4) : [];
         case 'ordenar':

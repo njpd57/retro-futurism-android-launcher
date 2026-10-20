@@ -2,13 +2,18 @@ import { defineStore } from "pinia";
 import { onScopeDispose, ref } from "vue";
 import { isIdle } from "@/utils/idle";
 import { useBridgeEventStore } from "./useBridgeEventStore";
+import { useEffectiveSettings } from "./useEffectiveSettings";
 import { useSettingsStore } from "./useSettingsStore";
+
+/** With the ATRACADO-style protocols (`bigClock`) the rest screen comes up after this many minutes even when REPOSO is off. */
+const DOCKED_IDLE_MIN = 2;
 
 /** Idle detection: after N minutes without a touch or key the launcher shows the idle clock. Stops while paused. */
 export const useIdleStore = defineStore('idle', () =>
 {
     const settings = useSettingsStore();
     const bridgeEvents = useBridgeEventStore();
+    const effective = useEffectiveSettings();
 
     const idle = ref(false);
     let last = Date.now();
@@ -21,7 +26,7 @@ export const useIdleStore = defineStore('idle', () =>
 
     function check()
     {
-        if (!idle.value && isIdle(Date.now(), last, settings.idleMinutes)) idle.value = true;
+        if (!idle.value && isIdle(Date.now(), last, settings.idleMinutes || (effective.bigClock ? DOCKED_IDLE_MIN : 0))) idle.value = true;
     }
 
     function wake()

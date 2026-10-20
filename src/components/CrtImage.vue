@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { applyCrtColor, applyDuotone, parseColor, type ImageFilter, type Rgb } from '@/utils/crtFilter';
 
 const props = defineProps<{ blob: Blob | null; filter: ImageFilter }>();
 
-const settings = useSettingsStore();
+const effective = useEffectiveSettings();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const failed = ref(false);
 
@@ -52,7 +52,7 @@ async function draw()
 
 onMounted(draw);
 // the data-phosphor attribute is updated by CrtScreen first, so redraw after the DOM flush
-watch(() => [props.blob, props.filter, settings.phosphor, settings.nightShift], draw, { flush: 'post' });
+watch(() => [props.blob, props.filter, effective.phosphor, effective.bloom], draw, { flush: 'post' });
 </script>
 
 <template>

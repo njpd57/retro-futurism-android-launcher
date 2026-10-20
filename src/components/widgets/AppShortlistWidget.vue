@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useAppsStore, type InstalledAppInfo } from '@/stores/useAppsStore';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import AppRow from '../AppRow.vue';
 
 const props = defineProps<{ mode: 'favorites' | 'recent' }>();
@@ -11,13 +12,14 @@ defineEmits<{ (e: 'menu', app: InstalledAppInfo): void }>();
 const appsStore = useAppsStore();
 const launchStore = useLaunchStore();
 const settings = useSettingsStore();
+const effective = useEffectiveSettings();
 
 const apps = computed(() =>
 {
     const packages = props.mode === 'favorites' ? settings.favorites : launchStore.recents;
     return packages
         .map(p => appsStore.apps.get(p))
-        .filter((a): a is InstalledAppInfo => a !== undefined && !settings.hiddenApps.includes(a.packageName))
+        .filter((a): a is InstalledAppInfo => a !== undefined && !effective.hiddenApps.includes(a.packageName))
         .slice(0, 5);
 });
 </script>

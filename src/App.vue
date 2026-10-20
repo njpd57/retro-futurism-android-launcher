@@ -7,6 +7,7 @@ import { useAppsStore, type InstalledAppInfo } from '@/stores/useAppsStore';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { useUsageStore } from '@/stores/useUsageStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
 import { useWindowInsetsStore } from '@/stores/useWindowInsetsStore';
@@ -24,6 +25,10 @@ import SoftKeys, { type SoftKey } from '@/components/SoftKeys.vue';
 import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
+import AlertStrip from '@/components/AlertStrip.vue';
+import QuarantineGate from '@/components/QuarantineGate.vue';
+import QuarantineMenu from '@/components/QuarantineMenu.vue';
+import { useQuarantineStore } from '@/stores/useQuarantineStore';
 import BootSequence from '@/components/BootSequence.vue';
 import ExtraResults from '@/components/ExtraResults.vue';
 import MotherOrganizer from '@/components/MotherOrganizer.vue';
@@ -80,6 +85,8 @@ const settingsOpen = ref(false);
 const menuApp = ref<InstalledAppInfo | null>(null);
 const renameApp = ref<InstalledAppInfo | null>(null);
 const folderApp = ref<InstalledAppInfo | null>(null);
+const quarantineApp = ref<InstalledAppInfo | null>(null);
+const quarantine = useQuarantineStore();
 const { shortcuts: menuShortcuts, start: startShortcut } = useAppShortcuts(computed(() => menuApp.value?.packageName ?? null));
 
 const MIN_STATUS_BAR_PX = 24;
@@ -96,6 +103,7 @@ function openStatusBar()
 }
 const insetBottom = computed(() => Math.max(insets.navigationBars.bottom, insets.ime.bottom));
 
+const effective = useEffectiveSettings();
 const usageStore = useUsageStore();
 const searchOptions = computed(() => ({
     sort: settings.sortMode,
@@ -103,7 +111,7 @@ const searchOptions = computed(() => ({
     firstSeen: appsStore.firstSeen,
     usage: Object.fromEntries(usageStore.apps.map(a => [a.packageName, a.totalTimeMs])),
 }));
-const results = computed(() => isCommandInput(query.value) ? [] : searchApps(appsStore.apps.values(), query.value, settings.hiddenApps, searchOptions.value));
+const results = computed(() => isCommandInput(query.value) ? [] : searchApps(appsStore.apps.values(), query.value, effective.hiddenApps, searchOptions.value));
 const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
     ? [
         { label: editing.value ? 'LISTO' : 'EDITAR', action: () => { editing.value = !editing.value; } },
@@ -127,7 +135,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || quarantineApp.value !== null || quarantine.pending !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open);
 
 function launch(app: InstalledAppInfo)
 {
@@ -198,6 +206,8 @@ function closeOverlays()
     menuApp.value = null;
     renameApp.value = null;
     folderApp.value = null;
+    quarantineApp.value = null;
+    quarantine.cancel();
     sessionsOpen.value = false;
     organizer.close();
     imagesStore.close();
@@ -207,9 +217,10 @@ function closeOverlays()
 
 function menuAction(action: (packageName: string) => void)
 {
-    if (menuApp.value)
-        action(menuApp.value.packageName);
+    const packageName = menuApp.value?.packageName;
+    // the overlays close first: an app in quarantine opens its gate from the action, and closing would cancel it
     closeOverlays();
+    if (packageName) action(packageName);
 }
 
 // Bridge forwards the back button to the WebView history: one entry per layer that back should close
@@ -300,6 +311,7 @@ onUnmounted(() =>
             :style="{ 'padding-top': px(insetTop), 'padding-bottom': px(insetBottom) }">
             <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
             <TopBar :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" @open-notifications="notificationsOpen = true" />
+            <AlertStrip />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
             <MotherTerminal v-else-if="settings.activeTab === 'mother'" @sessions="sessionsOpen = true" />
             <template v-else>
@@ -330,6 +342,8 @@ onUnmounted(() =>
         <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
         <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />
+        <QuarantineMenu v-if="quarantineApp" :app="quarantineApp" @close="quarantineApp = null" />
+        <QuarantineGate v-if="quarantine.pending" />
 
         <TermMenu v-if="menuApp" :title="menuApp.label.toUpperCase()" @close="menuApp = null">
             <MenuItem v-for="sc in menuShortcuts" :key="sc.id" @click="menuAction(() => startShortcut(sc.id))">
@@ -342,6 +356,7 @@ onUnmounted(() =>
             <MenuItem @click="menuAction(p => Bridge.requestOpenAppInfo(p))"><span>INFO</span></MenuItem>
             <MenuItem @click="renameApp = menuApp; menuApp = null"><span>RENOMBRAR</span></MenuItem>
             <MenuItem @click="folderApp = menuApp; menuApp = null"><span>CARPETA</span></MenuItem>
+            <MenuItem @click="quarantineApp = menuApp; menuApp = null"><span>CUARENTENA</span><span>{{ quarantine.has(menuApp.packageName) ? '[X]' : '' }}</span></MenuItem>
             <MenuItem @click="menuAction(p => settings.hideApp(p))"><span>OCULTAR</span></MenuItem>
             <MenuItem @click="menuAction(p => Bridge.requestAppUninstall(p))"><span>DESINSTALAR</span></MenuItem>
         </TermMenu>

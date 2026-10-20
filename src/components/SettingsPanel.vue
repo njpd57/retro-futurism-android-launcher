@@ -6,6 +6,7 @@ import { bridgeHas } from '@/utils/bridgeHas';
 import BackupMenu from './BackupMenu.vue';
 import HiddenAppsMenu from './HiddenAppsMenu.vue';
 import PermissionsMenu from './PermissionsMenu.vue';
+import ProtocolsMenu from './ProtocolsMenu.vue';
 import MotherSettings from './MotherSettings.vue';
 import TermMenu from './TermMenu.vue';
 import MenuItem from './MenuItem.vue';
@@ -13,11 +14,14 @@ import { canVibrate } from '@/utils/haptics';
 import { nextIdleMinutes } from '@/utils/idle';
 import { IMAGE_FILTERS, nextFilter } from '@/utils/crtFilter';
 import { defaultLayoutSet } from '@/utils/dashboardLayout';
+import { useProtocolsStore } from '@/stores/useProtocolsStore';
 
 defineEmits<{ (e: 'close'): void }>();
 
 const settings = useSettingsStore();
 const toggles = useTogglesStore();
+const protocols = useProtocolsStore();
+const protocolsOpen = ref(false);
 
 // the value only changes once Bridge sends the event back
 const bridgeButtonShown = computed(() => toggles.bridgeButtonVisibility === 'shown');
@@ -119,6 +123,11 @@ const bloomPct = computed({
         </MenuItem>
         <MenuItem @click="settings.nightShift = !settings.nightShift"><span>TURNO NOCTURNO</span><span>{{ onOff(settings.nightShift) }}</span></MenuItem>
         <MenuItem @click="settings.hypersleep = !settings.hypersleep"><span>HIPERSUEÑO</span><span>{{ onOff(settings.hypersleep) }}</span></MenuItem>
+        <MenuItem @click="protocolsOpen = true"><span>PROTOCOLOS DE TURNO ({{ protocols.active.length }}/{{ protocols.rules.length }})</span><span>›</span></MenuItem>
+        <MenuItem @click="settings.alertsEvent = !settings.alertsEvent"><span>ALERTA: EVENTO PRÓXIMO</span><span>{{ onOff(settings.alertsEvent) }}</span></MenuItem>
+        <MenuItem @click="settings.alertsBattery = !settings.alertsBattery"><span>ALERTA: BATERÍA CRÍTICA</span><span>{{ onOff(settings.alertsBattery) }}</span></MenuItem>
+        <MenuItem @click="settings.alertsAlarm = !settings.alertsAlarm"><span>ALERTA: ALARMA DE NOCHE</span><span>{{ onOff(settings.alertsAlarm) }}</span></MenuItem>
+        <MenuItem @click="settings.alertsKlaxon = !settings.alertsKlaxon"><span>KLAXON DE ALERTA</span><span>{{ onOff(settings.alertsKlaxon) }}</span></MenuItem>
         <MenuItem @click="settings.showType = !settings.showType"><span>COLUMNA TIPO</span><span>{{ onOff(settings.showType) }}</span></MenuItem>
         <MenuItem @click="settings.folderBoxes = !settings.folderBoxes"><span>CARPETAS EN CAJAS</span><span>{{ onOff(settings.folderBoxes) }}</span></MenuItem>
         <MenuItem v-if="settings.folderBoxes" @click="settings.appsLayout = settings.appsLayout === 'deck' ? 'boxes' : 'deck'"><span>VISTA DE CAJAS</span><span>{{ settings.appsLayout === 'deck' ? 'CUBIERTAS' : 'REJILLA' }}</span></MenuItem>
@@ -142,6 +151,7 @@ const bloomPct = computed({
         <MotherSettings v-if="motherOpen" @close="motherOpen = false" />
         <BackupMenu v-if="backupOpen" @close="backupOpen = false" />
         <PermissionsMenu v-if="permissionsOpen" @close="permissionsOpen = false" />
+        <ProtocolsMenu v-if="protocolsOpen" @close="protocolsOpen = false" />
         <HiddenAppsMenu v-if="hiddenOpen" @close="hiddenOpen = false" />
 
         <TermMenu v-if="diagnosticOpen" title="DIAGNÓSTICO" @close="diagnosticOpen = false">

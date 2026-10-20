@@ -56,17 +56,21 @@ Compilado el fork de Bridge e instalado, y probado en un teléfono real:
 
 - **PANEL DE SISTEMAS** (M, fork): widget y pantalla para controlar el teléfono sin salir del launcher: `LINTERNA [X]`, `VOLUMEN ▓▓▓░░`, `BRILLO ▓▓░░░`, `NO MOLESTAR [ ]`, `ROTACIÓN [X]` y accesos a los ajustes de Wi‑Fi, Bluetooth y datos. Linterna (`CameraManager.setTorchMode`) y volumen (`AudioManager`) no piden permiso; brillo (`WRITE_SETTINGS`) y No molestar (`ACCESS_NOTIFICATION_POLICY`) sí, y se añaden a `PERMISOS`.
 - **ENLACES PERIFÉRICOS** (S‑M, fork): dispositivos Bluetooth conectados con su batería (`AURICULARES ··· ▓▓▓▓░ 80%`, `RELOJ ··· ENLACE PERDIDO`). Al conectar o desconectar, un chirrido de datos y una línea en el LOG.
+- **RECORDATORIOS con la app cerrada** (fork): programar con `AlarmManager.setExactAndAllowWhileIdle` y una notificación propia (ver Fase 6).
 
-### Protocolos automáticos
+### Protocolos y alertas (hecho y probado en el teléfono)
 
-- **PROTOCOLOS DE TURNO** (L, sin fork al principio): motor de reglas puro y testeado. *Si* hora / cargando / Wi‑Fi X / auriculares / batería < N, *entonces* cambia de panel (P1..P4), de fósforo o de apps visibles, o activa el turno nocturno. Ejemplos: `ATRACADO` (cargando de noche: reloj grande, fósforo rojo), `EN TRÁNSITO` (auriculares: panel con MEDIA), `JORNADA` (laborables de 9 a 18: oculta juegos).
-- **SISTEMA DE ALERTAS DE A BORDO** (M, sin fork): avisos proactivos dentro del launcher (`EVENTO EN 10 MIN`, `BATERÍA CRÍTICA`, `ALARMA EN 6H — RECOMIENDO REPOSO`) como franja en video inverso con parpadeo `steps()` y klaxon opcional; cada tipo se activa por separado y MOTHER redacta el texto. Comparte motor con PROTOCOLOS DE TURNO.
-- **RECORDATORIOS** (M, fork): `> recordar 18:30 comprar pan` o `/recordar` en MOTHER, programado con `AlarmManager` en el fork para que avise aunque el launcher no esté en pantalla.
+- **PROTOCOLOS DE TURNO** (`AJUSTES › PROTOCOLOS DE TURNO`): reglas *si… entonces…* evaluadas cada 30 s con la hora, si carga, la batería y si hay Wi‑Fi. Condiciones: `HORA` (desde/hasta, con días; el tramo puede cruzar la medianoche), `CARGANDO` / `SIN CARGA`, `BATERÍA < N %` y `WI‑FI` / `SIN WI‑FI`; todas deben cumplirse y una regla sin condiciones nunca se activa. Efectos: mostrar un panel (P1..P4, una sola vez al empezar el protocolo, para que deslizar siga funcionando), cambiar de fósforo, forzar el turno nocturno, ocultar una carpeta de apps y `RELOJ GRANDE EN REPOSO` (el reposo sale a los 2 min aunque `REPOSO` esté en OFF). **Nunca cambian tus ajustes**: se superponen mientras se cumplen (`useEffectiveSettings`), y al terminar todo vuelve como lo dejaste. Cada cambio escribe `PRT: ATRACADO ACTIVO` en el LOG. Plantillas `ATRACADO` (cargando de 22 a 7: rojo y reloj grande), `EN TRÁNSITO` (sin Wi‑Fi ni carga: panel P2) y `JORNADA` (L‑V de 9 a 18: oculta la carpeta JUEGOS). Motor puro en `src/protocols/rules.ts`.
+- **ALERTAS DE A BORDO**: franja en video inverso bajo la barra superior (`AlertStrip`); un toque la descarta, por id y por día. Tipos, cada uno con su interruptor: `EVENTO EN 10 MIN: <TÍTULO>`, `BATERÍA CRÍTICA 10 %` (sin cargar) y `ALARMA EN 5H30 — RECOMIENDO REPOSO` (de noche, alarma en menos de 6 h); los recordatorios vencidos salen siempre. `KLAXON DE ALERTA` (apagado) suena solo con el sonido de la interfaz activado. Textos locales en voz de MOTHER, sin API. Lógica en `src/protocols/alerts.ts`.
+- **RECORDATORIOS**: `> recordar 18:30 comprar pan`, `en 20 min …`, `mañana 9:00 …` y `/recordar` en MOTHER; `> recordar` sin texto lista los pendientes; widget `RECORDATORIOS`. Saltan como alerta **solo con el launcher en marcha**; con la app cerrada hace falta el `AlarmManager` del fork (Fase 6). Lógica en `utils/reminders.ts`.
 
-### Bienestar digital
+Pendiente: las condiciones `auriculares` y Wi‑Fi por nombre (Fase 6, fork) y que MOTHER redacte las alertas con la API (opcional).
 
-- **CUARENTENA** (M, sin fork): apps marcadas como "contaminadas". Abrir una pide `AUTORIZACIÓN REQUERIDA · MOTIVO:` con una cuenta atrás de 10 s y un presupuesto diario sacado de `useUsageStore` (`INSTAGRAM 34/30 MIN — EXCEDIDO`).
-- **INFORME DE TURNO SEMANAL** (S, sin fork): tendencia de uso, desbloqueos y apps nuevas con sparklines `▁▂▃▅`, comparado con la semana anterior; MOTHER puede comentarlo.
+### Bienestar digital (hecho, sin probar en el teléfono)
+
+- **CUARENTENA**: `CUARENTENA` en el menú de pulsación larga de una app (`[PONER EN CUARENTENA]`, presupuesto diario con `[-]` `[+]` de 5 en 5 min hasta 240, o 0 = sin presupuesto, y `[LIBERAR]`). Abrirla, desde la lista, un widget, MOTHER o la consola (todo pasa por `useLaunchStore.launch`), abre `AUTORIZACIÓN REQUERIDA`: `INSTAGRAM 34/30 MIN — EXCEDIDO` (o `DENTRO DEL LÍMITE` / `SIN PRESUPUESTO`) con su barra, `MOTIVO:` obligatorio y 10 s de espera antes de que `[AUTORIZAR]` funcione. El motivo queda en el LOG (`QRT: …`). Atrás o `[CANCELAR]` lo cierran sin abrir nada. El gasto sale de `useUsageStore` (hace falta el acceso al uso de apps). Lógica en `utils/quarantine.ts`; ajuste `settings.quarantine`.
+- **INFORME DE TURNO SEMANAL**: widget `INFORME SEMANAL` (total de 7 días, cambio frente a la semana anterior, barras por día `LMXJVSD`, las 5 apps más usadas y las apps nuevas de la semana) y `> semana`. `[COMENTAR]` manda el resumen (nombres de apps y minutos) a MOTHER, solo al tocarlo. `useUsageStore.loadHistory()` pide 14 días a `getAppUsageURL(from, to)` y guarda los días cerrados en `widget.weekly.cache` (20 apps por día). Lógica en `utils/weeklyReport.ts`.
+- **Desbloqueos**: no están en la API; hace falta `getUnlockCount(from, to)` en el fork (Fase 6) y entonces el informe los muestra.
 
 ### Comunicaciones
 

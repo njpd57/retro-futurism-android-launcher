@@ -5,6 +5,7 @@ import { parsePhosphor } from '@/utils/commands';
 export type SlashCommand =
     | { type: 'timer'; minutes: number }
     | { type: 'note'; text: string }
+    | { type: 'remind'; text: string }
     | { type: 'theme'; phosphor: Phosphor }
     | { type: 'open'; query: string }
     | { type: 'organize'; request: string }
@@ -22,6 +23,7 @@ export const SLASH_HELP = [
     'ESTADO · INFORME · ORDEN ESPECIAL 937',
     '/TEMP <MINUTOS>',
     '/NOTA <TEXTO>',
+    '/RECORDAR <18:30 | EN 20 MIN | MAÑANA 9:00> <TEXTO>',
     '/TEMA <ÁMBAR|VERDE|BLANCO|AZUL|ROJO>',
     '/ABRIR <APP>',
     '/ORDENAR <PETICIÓN>',
@@ -53,6 +55,9 @@ export function parseSlash(input: string): SlashCommand | null
         }
         case 'nota':
             return rest ? { type: 'note', text: rest } : { type: 'invalid', usage: '/NOTA <TEXTO>' };
+        case 'recordar':
+        case 'recordatorio':
+            return rest ? { type: 'remind', text: rest } : { type: 'invalid', usage: '/RECORDAR <HORA> <TEXTO>' };
         case 'tema':
         {
             const phosphor = parsePhosphor(rest);

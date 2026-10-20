@@ -202,15 +202,17 @@ class ForkBridgeMock extends BridgeMock
         this.emit({ name: 'canReadUsageStatsChanged', newValue: true });
         return true;
     }
-    getAppUsageURL()
+    getAppUsageURL(from: number)
     {
+        // every day gets its own scale, so the weekly report has something to compare
+        const k = 0.4 + ((Math.floor(from / 86_400_000) * 7) % 10) / 8;
         const apps: BridgeAppUsage[] = [
             { packageName: 'com.android.chrome', totalTimeMs: 95 * MIN, openCount: 14, lastTimeUsed: Date.now() - 10 * MIN },
             { packageName: 'com.google.android.youtube', totalTimeMs: 52 * MIN, openCount: 5, lastTimeUsed: Date.now() - 40 * MIN },
             { packageName: 'com.google.android.gm', totalTimeMs: 21 * MIN, openCount: 9, lastTimeUsed: Date.now() - 5 * MIN },
             { packageName: 'com.google.android.apps.messaging', totalTimeMs: 12 * MIN, openCount: 20, lastTimeUsed: Date.now() - 2 * MIN },
         ];
-        return jsonUrl({ apps });
+        return jsonUrl({ apps: apps.map(a => ({ ...a, totalTimeMs: Math.round(a.totalTimeMs * k) })) });
     }
 
     // app shortcuts

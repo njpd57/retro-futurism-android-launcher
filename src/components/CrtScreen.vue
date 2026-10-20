@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
-import { useElementSize, useNow } from '@vueuse/core';
+import { useElementSize } from '@vueuse/core';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import { useTubeStore } from '@/stores/useTubeStore';
 import { tick } from '@/utils/haptics';
 import { bendK as bendCoef, bendOffset, correctPoint } from '@/utils/curvature';
-import { isNight, NIGHT_MAX_BLOOM } from '@/utils/nightShift';
+import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { nextDegaussMinutes } from '@/utils/degauss';
 import { burnBands, burnOpacity, type BurnBand } from '@/utils/burnIn';
 import { usePausableInterval } from '@/composables/usePausableInterval';
@@ -15,11 +15,10 @@ const settings = useSettingsStore();
 const sound = useSoundStore();
 const tube = useTubeStore();
 
-// night shift: red phosphor and less bloom by schedule, without touching the user's own choice
-const now = useNow({ interval: 60_000 });
-const night = computed(() => settings.nightShift && isNight(now.value));
-const phosphor = computed(() => night.value ? 'red' : settings.phosphor);
-const bloom = computed(() => night.value ? Math.min(settings.bloom, NIGHT_MAX_BLOOM) : settings.bloom);
+// the colour and bloom the tube shows: the night shift and the active protocols laid over the user's own choice
+const effective = useEffectiveSettings();
+const phosphor = computed(() => effective.phosphor);
+const bloom = computed(() => effective.bloom);
 
 // barrel distortion through an SVG displacement map. It bends what is painted, not where the touches land,
 // so clicks are redirected to the element that is drawn under the finger (see onClickCapture)
@@ -97,7 +96,7 @@ function playDegauss()
 
 watch(() => tube.degaussPulse, playDegauss);
 // a new phosphor is a new tube colour: degauss it (the first value is not a change)
-watch(() => settings.phosphor, () => tube.degauss());
+watch(phosphor, () => tube.degauss());
 onBeforeUnmount(() => cancelAnimationFrame(degaussFrame));
 
 const tubeStyle = computed(() => degaussing.value

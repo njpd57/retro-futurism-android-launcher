@@ -23,6 +23,8 @@ import ForecastWidget from '@/components/widgets/ForecastWidget.vue';
 import TelemetryWidget from '@/components/widgets/TelemetryWidget.vue';
 import CountdownWidget from '@/components/widgets/CountdownWidget.vue';
 import MoonWidget from '@/components/widgets/MoonWidget.vue';
+import WeeklyReportWidget from '@/components/widgets/WeeklyReportWidget.vue';
+import RemindersWidget from '@/components/widgets/RemindersWidget.vue';
 import ProtocolWidget from '@/components/widgets/ProtocolWidget.vue';
 import WorldClockWidget from '@/components/widgets/WorldClockWidget.vue';
 import IsolationWidget from '@/components/widgets/IsolationWidget.vue';
@@ -64,6 +66,8 @@ export const WIDGETS: Record<string, WidgetDef> = {
     contacts: { title: 'CONTACTOS', component: ContactsWidget, sizes: ['s', 't', 'l'], category: 'personal', description: 'CONTACTOS DESTACADOS', preview: ['» RIPLEY', '» DALLAS'] },
     screentime: { title: 'USO', component: ScreenTimeWidget, sizes: ['w', 'l'], category: 'sistema', description: 'TIEMPO DE PANTALLA DE HOY', preview: ['APP 1 ▓▓▓▓▓░░ 1H20', 'APP 2 ▓▓░░░░░ 0H35'] },
     protocol: { title: 'PROTOCOLO', component: ProtocolWidget, sizes: ['t', 's', 'l'], category: 'tiempo', description: 'LISTA DIARIA DE TAREAS', preview: ['[X] REVISAR', '[ ] INFORME'] },
+    reminders: { title: 'RECORDATORIOS', component: RemindersWidget, sizes: ['s', 't', 'w'], category: 'tiempo', description: 'AVISOS A UNA HORA: > RECORDAR', preview: ['18:30 COMPRAR PAN', 'MAÑ 09:00 LLAMAR'] },
+    weekly: { title: 'INFORME SEMANAL', component: WeeklyReportWidget, sizes: ['l', 't', 'w'], category: 'sistema', description: 'USO DE LA SEMANA FRENTE A LA ANTERIOR', preview: ['7 DÍAS 21H 40M', '▃▅▂▇▆▂▁  -8%'] },
     countdown: { title: 'T-MENOS', component: CountdownWidget, sizes: ['s', 'w'], category: 'tiempo', description: 'CUENTA ATRÁS A UNA FECHA', preview: ['T-MENOS', '012D 04H 30M'] },
     clocks: { title: 'COLONIAS', component: WorldClockWidget, sizes: ['s', 't'], category: 'tiempo', description: 'HORA EN OTRAS ZONAS', preview: ['MAD 12:00', 'TYO 20:00'] },
     moon: { title: 'FASE LUNAR', component: MoonWidget, sizes: ['s', 't', 'l'], category: 'entorno', description: 'FASE ACTUAL DE LA LUNA', preview: ['  ▄██▄', '  ▀██▀  62%'] },

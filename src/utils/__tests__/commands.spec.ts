@@ -123,4 +123,15 @@ describe('appendNoteLine', () =>
         expect(appendNoteLine('x\n', 'a')).toBe('x\na');
         expect(appendNoteLine('x', '  ')).toBe('x');
     });
+
+    it('parses > recordar with its text, and with none to list them', () =>
+    {
+        expect(parseCommand('> recordar 18:30 comprar pan')).toEqual({ type: 'remind', text: '18:30 comprar pan' });
+        expect(parseCommand('>recordatorios')).toEqual({ type: 'remind', text: '' });
+    });
+
+    it('parses > semana and its aliases', () =>
+    {
+        for (const w of ['semana', 'semanal', 'informe']) expect(parseCommand(`> ${w}`)).toEqual({ type: 'week' });
+    });
 });

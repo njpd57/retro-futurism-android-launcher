@@ -9,6 +9,8 @@ import { ACTIONS_NOTE, buildPersona } from "@/mother/context";
 import { contextBlock, localReply } from "@/mother/local";
 import { MOTHER_PERSONA } from "@/mother/persona";
 import { parseSlash, SLASH_HELP, type SlashCommand } from "@/mother/slash";
+import { formatWhen, parseReminder, REMINDER_USAGE } from "@/utils/reminders";
+import { useRemindersStore } from "./useRemindersStore";
 import { archiveSession, removeSession, restoreSession, type Session } from "@/mother/sessions";
 import { createSseParser, extractDelta, extractToolCallDeltas, extractUsage } from "@/mother/sse";
 import { searchApps } from "@/utils/appSearch";
@@ -206,6 +208,14 @@ export const useMotherStore = defineStore('mother', () =>
         {
             case 'timer': reply(run({ type: 'timer', minutes: cmd.minutes }).message); break;
             case 'note': reply(run({ type: 'note', text: cmd.text }).message); break;
+            case 'remind':
+            {
+                const draft = parseReminder(cmd.text, new Date());
+                if (!draft) { reply('HORA NO VÁLIDA', `USO: ${REMINDER_USAGE}`); break; }
+                useRemindersStore().add(draft);
+                reply(`RECORDATORIO PROGRAMADO: ${formatWhen(draft.at, new Date())} · ${draft.text.toUpperCase()}`);
+                break;
+            }
             case 'theme': reply(run({ type: 'theme', phosphor: cmd.phosphor }).message); break;
             case 'open': reply(run({ type: 'open_app', name: cmd.query }).message); break;
             case 'organize': useOrganizerStore().show(cmd.request); break;

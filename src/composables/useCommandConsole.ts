@@ -1,11 +1,17 @@
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { useDashboardActions } from './useDashboardActions';
 import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
+import { useAppsStore } from '@/stores/useAppsStore';
+import { useUsageStore } from '@/stores/useUsageStore';
+import { useRemindersStore } from '@/stores/useRemindersStore';
 import { useTubeStore } from '@/stores/useTubeStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { SORT_MODES, searchApps } from '@/utils/appSearch';
 import { COMMAND_HELP, formatNumber, parseCommand } from '@/utils/commands';
+import { formatWhen, parseReminder, REMINDER_USAGE } from '@/utils/reminders';
+import { buildReport, reportLines } from '@/utils/weeklyReport';
+import { formatUsage } from '@/utils/usage';
 import { weatherText } from '@/utils/weather';
 
 /** The prompt as a command console: `> verb args`. Pure parsing lives in utils/commands. */
@@ -27,6 +33,9 @@ export function useCommandConsole(options: {
     const settings = useSettingsStore();
     const tube = useTubeStore();
     const weather = useWeatherStore();
+    const reminders = useRemindersStore();
+    const usage = useUsageStore();
+    const appsStore = useAppsStore();
     const { saveNote } = useDashboardActions();
 
     const command = computed(() => parseCommand(options.query.value));
@@ -61,9 +70,35 @@ export function useCommandConsole(options: {
             case 'marines': return ['MARINES: LV-426, ÚLTIMA DEFENSA'];
             case 'degauss': return ['DESMAGNETIZAR EL TUBO'];
             case 'stasis': return ['CÁPSULA DE HIPERSUEÑO'];
+            case 'remind': return remindLines(c.text);
+            case 'week': return weekLines();
             case 'unknown': return [`ORDEN DESCONOCIDA: ${c.word.toUpperCase()}`, 'ESCRIBE > AYUDA'];
         }
     });
+
+    function remindLines(text: string): string[]
+    {
+        if (!text)
+        {
+            const now = new Date();
+            const next = reminders.pending.slice(0, 5).map(r => `${formatWhen(r.at, now)} ${r.text.toUpperCase()}`);
+            return next.length ? ['RECORDATORIOS:', ...next] : ['SIN RECORDATORIOS', `USO: ${REMINDER_USAGE}`];
+        }
+        const draft = parseReminder(text, new Date());
+        return draft ? [`RECORDAR ${formatWhen(draft.at, new Date())}: ${draft.text.toUpperCase()}`] : ['HORA NO VÁLIDA', `USO: ${REMINDER_USAGE}`];
+    }
+
+    function weekLines(): string[]
+    {
+        if (!usage.supported) return ['NO DISPONIBLE EN ESTE BRIDGE'];
+        if (!usage.canRead) return ['SIN ACCESO AL USO DE APPS', 'AJUSTES › PERMISOS'];
+        if (!usage.history.length) return [usage.loadingHistory ? 'CONSULTANDO…' : 'SIN DATOS'];
+        const label = (pkg: string) => appsStore.apps.get(pkg)?.label ?? pkg;
+        return ['INFORME DE TURNO SEMANAL', ...reportLines(buildReport(usage.history, appsStore.firstSeen, new Date()), label, formatUsage)];
+    }
+
+    // the history is asked for as soon as the command is typed, so the report is there when Enter is pressed
+    watch(() => command.value?.type === 'week', on => { if (on) usage.loadHistory(); });
 
     function weatherLines()
     {
@@ -131,6 +166,17 @@ export function useCommandConsole(options: {
                 options.showStasis();
                 options.query.value = '';
                 break;
+            case 'remind':
+            {
+                const draft = c.text ? parseReminder(c.text, new Date()) : null;
+                if (draft)
+                {
+                    reminders.add(draft);
+                    options.query.value = '';
+                    feedback.value = { lines: [`RECORDATORIO PROGRAMADO: ${formatWhen(draft.at, new Date())}`], forQuery: '' };
+                }
+                break;
+            }
         }
         return true;
     }

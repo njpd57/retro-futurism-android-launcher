@@ -70,6 +70,11 @@ export const useSettingsStore = defineStore('settings', () =>
     const nightShift = useLocalStorage('settings.nightShift', false);
     // at night with an alarm set, the rest screen is a cryo pod counting down to it
     const hypersleep = useLocalStorage('settings.hypersleep', true);
+    // ALERTAS DE A BORDO: each kind on its own, and the klaxon (it only sounds if the UI sound is on)
+    const alertsEvent = useLocalStorage('settings.alertsEvent', true);
+    const alertsBattery = useLocalStorage('settings.alertsBattery', true);
+    const alertsAlarm = useLocalStorage('settings.alertsAlarm', true);
+    const alertsKlaxon = useLocalStorage('settings.alertsKlaxon', false);
     const activeTab = useLocalStorage<Tab>('settings.activeTab', 'panel');
     const imageFilter = useLocalStorage<ImageFilter>('settings.imageFilter', 'phosphor');
 
@@ -97,5 +102,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

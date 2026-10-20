@@ -23,13 +23,17 @@ Tres pestañas en la barra superior:
 
 ### Consola de comandos y gestos
 
-- **Consola:** en el prompt, `>` seguido de una orden: `> abrir <app>`, `> calc 2+2`, `> tema verde`, `> clima`, `> nota <texto>`, `> ayuda`.
+- **Consola:** en el prompt, `>` seguido de una orden: `> abrir <app>`, `> calc 2+2`, `> tema verde`, `> clima`, `> nota <texto>`, `> recordar 18:30 comprar pan`, `> ayuda`.
 - **Gestos:** deslizar a los lados cambia de panel y de pestaña; deslizar hacia abajo desde el borde superior abre las notificaciones. El contador `!N` de la barra superior muestra las notificaciones pendientes.
 - **Reposo:** tras N minutos sin tocar, un reloj grande que se desplaza (anti-quemado). **Arranque:** secuencia de boot saltable con un toque. **Turno nocturno:** de 22:00 a 07:00 pasa a fósforo rojo con menos bloom. **Vibración:** pulso háptico al pulsar. Todo opcional en los ajustes.
 - **Ayuda al escribir:** en la pestaña MOTHER, chips con atajos, el resto de la orden en gris mientras escribes y un botón `[TAB]` (o la tecla Tab) que la rellena. Órdenes locales con `/`: `/temp 5`, `/nota`, `/tema`, `/abrir`, `/sesiones`, `/nueva`, `/borrar`, `/ayuda`. En el prompt de APPS también: `> orden uso`, `> lista larga`.
 - **MOTHER ordena tus apps:** `> mother agrupa por tipo`, el botón `[MOTHER]` de la lista o `/ordenar ...`. Solo se envían a la API los nombres de las apps (numerados), con vista previa, `[APLICAR]` y `[DESHACER]`.
 - **Preguntar a MOTHER:** al escribir en el prompt de APPS, junto a `[BUSCAR EN RED]` aparece `[PREGUNTAR A MOTHER]`, que envía el texto al chat.
 - **Visor de imágenes:** `> imagenes` o el botón `[IMÁGENES]` de la lista. `[IMPORTAR]` abre el selector de Android; las fotos se reducen a 1280 px y se guardan en el teléfono (IndexedDB, fuera del respaldo). Se ven con filtro CRT (sin scanlines propias, las pone la pantalla): `FÓSFORO` (monocromo con la paleta activa, por defecto), `CRT COLOR` u `ORIGINAL` (ciclo con `[FILTRO]` o en los ajustes). Pasa de una a otra con `[«]` `[»]` o deslizando; `[BORRAR]` pide un segundo toque. También hay un widget `IMÁGENES` para el panel (editar › añadir): muestra la imagen con el filtro, `[«]` `[»]` cambian de una a otra y tocarla abre el visor.
+- **Protocolos de turno:** `AJUSTES › PROTOCOLOS DE TURNO`. Reglas «si es de noche y cargas, entonces fósforo rojo y reloj grande»: se basan en la hora, la carga, la batería y el Wi‑Fi, y pueden mostrar un panel, cambiar el fósforo, forzar el turno nocturno u ocultar una carpeta de apps. No cambian tus ajustes: se superponen mientras se cumplen.
+- **Alertas de a bordo:** una franja bajo la barra superior avisa de un evento en 10 minutos, batería crítica, alarma cerca de noche y recordatorios. Un toque la descarta. Cada tipo se activa por separado y el klaxon es opcional. Los recordatorios (`> recordar`, `/recordar`) solo avisan con el launcher abierto.
+- **Cuarentena:** en el menú de una app (pulsación larga) `CUARENTENA`. Abrirla pide un motivo y espera 10 segundos, con un presupuesto diario opcional que se compara con el uso real.
+- **Informe semanal:** widget `INFORME SEMANAL` y `> semana`: uso de los últimos 7 días frente a los 7 anteriores, apps más usadas y apps nuevas. Necesita el acceso al uso de apps.
 - **Permisos:** `AJUSTES › PERMISOS` muestra qué falta (notificaciones, calendario, contactos, uso de apps, voz...) y dónde concederlo.
 - **Respaldo:** `AJUSTES › RESPALDO` exporta e importa ajustes, paneles, notas y favoritos como texto JSON (sin la clave de MOTHER).
 

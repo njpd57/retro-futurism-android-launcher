@@ -18,6 +18,8 @@ export type Command =
     | { type: 'marines' }
     | { type: 'degauss' }
     | { type: 'stasis' }
+    | { type: 'remind'; text: string }
+    | { type: 'week' }
     | { type: 'unknown'; word: string };
 
 export const COMMAND_HELP = [
@@ -34,6 +36,8 @@ export const COMMAND_HELP = [
     'MARINES',
     'DESMAGNETIZAR',
     'ESTASIS',
+    'RECORDAR <HORA> <TEXTO>',
+    'SEMANA',
     'AYUDA',
 ];
 
@@ -86,6 +90,8 @@ const ALIASES: Record<string, string> = {
     aislamiento: 'game', juego: 'game', alien: 'game',
     marines: 'marines', escuadra: 'marines', lv426: 'marines', colonial: 'marines',
     estasis: 'stasis', hipersueno: 'stasis', capsula: 'stasis',
+    recordar: 'remind', recordatorio: 'remind', recordatorios: 'remind', recuerda: 'remind', remind: 'remind',
+    semana: 'week', semanal: 'week', informe: 'week',
     desmagnetizar: 'degauss', desmag: 'degauss', degauss: 'degauss',
     ayuda: 'help', help: 'help', '?': 'help',
 };
@@ -127,6 +133,8 @@ export function parseCommand(input: string): Command | null
         case 'marines': return { type: 'marines' };
         case 'degauss': return { type: 'degauss' };
         case 'stasis': return { type: 'stasis' };
+        case 'remind': return { type: 'remind', text: rest };
+        case 'week': return { type: 'week' };
         default: return { type: 'unknown', word };
     }
 }
