@@ -24,6 +24,14 @@ export function barSegments(fraction: number, count: number, width = 100, height
     return Array.from({ length: count }, (_, i) => ({ x: i * (w + gap), y: 0, w, h: height, on: i < lit }));
 }
 
+/** The value a slider takes at a fraction (0-1) of its bar: rounded to `step` and kept inside [min, max]. */
+export function valueAt(fraction: number, min: number, max: number, step: number)
+{
+    const raw = min + clamp01(fraction) * (max - min);
+    const v = min + Math.round((raw - min) / step) * step;
+    return Math.min(max, Math.max(min, v));
+}
+
 /** Signal bars of rising height in a `width` x `height` box: `level` of `max` are lit, `null` (unknown) lights none. */
 export function signalGeometry(level: number | null, max = 4, width = 20, height = 14, gap = 2): (Rect & { on: boolean })[]
 {

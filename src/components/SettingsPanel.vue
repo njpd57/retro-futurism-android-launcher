@@ -1,30 +1,37 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
+import { useTubeStore } from '@/stores/useTubeStore';
+import { useMotherStore } from '@/stores/useMotherStore';
+import { useProtocolsStore } from '@/stores/useProtocolsStore';
+import { useSettingsViewStore } from '@/stores/useSettingsViewStore';
 import { bridgeHas } from '@/utils/bridgeHas';
+import { canVibrate } from '@/utils/haptics';
+import { defaultLayoutSet } from '@/utils/dashboardLayout';
+import { SETTINGS_SECTIONS, summary, visibleRows, type ActionId, type SettingRow, type SettingSection } from '@/utils/settingsSchema';
 import BackupMenu from './BackupMenu.vue';
 import HiddenAppsMenu from './HiddenAppsMenu.vue';
 import PermissionsMenu from './PermissionsMenu.vue';
 import ProtocolsMenu from './ProtocolsMenu.vue';
 import MotherSettings from './MotherSettings.vue';
 import TermMenu from './TermMenu.vue';
+import TuiWindow from './TuiWindow.vue';
 import MenuItem from './MenuItem.vue';
-import { canVibrate } from '@/utils/haptics';
-import { nextIdleMinutes } from '@/utils/idle';
-import { IMAGE_FILTERS, nextFilter } from '@/utils/crtFilter';
-import { defaultLayoutSet } from '@/utils/dashboardLayout';
-import { useProtocolsStore } from '@/stores/useProtocolsStore';
+import TermSlider from './settings/TermSlider.vue';
+import TermChoice from './settings/TermChoice.vue';
 
-defineEmits<{ (e: 'close'): void }>();
+const emit = defineEmits<{ (e: 'close'): void }>();
 
 const settings = useSettingsStore();
 const toggles = useTogglesStore();
+const tube = useTubeStore();
+const mother = useMotherStore();
 const protocols = useProtocolsStore();
-const protocolsOpen = ref(false);
+const view = useSettingsViewStore();
 
-// the value only changes once Bridge sends the event back
-const bridgeButtonShown = computed(() => toggles.bridgeButtonVisibility === 'shown');
+// the page always opens at the root
+onMounted(view.reset);
 
 // Which fork methods the installed Bridge has, to see what the launcher can use on this device.
 const DIAGNOSTIC_METHODS = [
@@ -32,143 +39,197 @@ const DIAGNOSTIC_METHODS = [
     'getNotificationsURL', 'getMediaSession', 'getCalendarEventsURL', 'getNextAlarm', 'requestOpenUrl',
     'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL', 'getTtsAvailable', 'requestVibrate',
 ] as const;
-const diagnosticOpen = ref(false);
+const diagnostic = computed(() => DIAGNOSTIC_METHODS.map(m => ({ method: m, ok: bridgeHas(m) })));
+
+// The schema reads settings by key; the store is a reactive object, so it serves as the values as it is.
+const store = settings as unknown as Record<string, unknown>;
+const values = computed(() => ({ ...settings.$state, motherKey: mother.hasKey }));
+
+const section = computed<SettingSection | null>(() => SETTINGS_SECTIONS.find(s => s.id === view.section) ?? null);
+const rows = computed(() => section.value ? visibleRows(section.value, values.value) : []);
+const title = computed(() => section.value ? `AJUSTES › ${section.value.title}` : 'AJUSTES');
+
+function openSection(s: SettingSection)
+{
+    if (s.opens) view.submenu = s.opens;
+    else view.section = s.id;
+}
+
+// The footer explains the last row touched; a new section starts with its own description.
+const hint = ref('');
+watch(section, s => { hint.value = s?.hint ?? ''; resetArmed.value = false; });
+const touch = (row: SettingRow) => { hint.value = `${row.label.replace(/[[\]]/g, '')}: ${row.hint}`; };
+
+const onOff = (v: boolean) => v ? '[X]' : '[ ]';
+
+function toggle(row: SettingRow & { kind: 'toggle' })
+{
+    touch(row);
+    store[row.key] = !store[row.key];
+}
+
+const sliderValue = (row: SettingRow & { kind: 'slider' }) => row.fraction ? Math.round(Number(store[row.key]) * 100) : Number(store[row.key]);
+function setSlider(row: SettingRow & { kind: 'slider' }, v: number)
+{
+    store[row.key] = row.fraction ? v / 100 : v;
+}
+
+const bridgeButtonShown = computed(() => toggles.bridgeButtonVisibility === 'shown');
 
 // Two taps to load the starting panels: the first arms it, the second replaces the current ones.
 const resetArmed = ref(false);
-function resetPanels()
-{
-    if (!resetArmed.value) { resetArmed.value = true; return; }
-    settings.layouts = defaultLayoutSet();
-    resetArmed.value = false;
-}
-const motherOpen = ref(false);
-const backupOpen = ref(false);
-const permissionsOpen = ref(false);
-const hiddenOpen = ref(false);
-const diagnostic = computed(() => DIAGNOSTIC_METHODS.map(m => ({ method: m, ok: bridgeHas(m) })));
 
-const volumePct = computed({
-    get: () => Math.round(settings.volume * 100),
-    set: v => { settings.volume = v / 100; },
-});
-
-function nextPhosphor()
+function actionValue(id: ActionId)
 {
-    const i = PHOSPHORS.findIndex(p => p.id === settings.phosphor);
-    settings.phosphor = PHOSPHORS[(i + 1) % PHOSPHORS.length].id;
+    switch (id)
+    {
+        case 'bridgeButton': return onOff(bridgeButtonShown.value);
+        case 'haptics': return canVibrate() ? onOff(settings.haptics) : 'NO DISPONIBLE';
+        case 'clearBurn': return `${Math.round(settings.burnMinutes / 60)} H`;
+        case 'resetPanels': return 'P1-P4';
+        default: return '';
+    }
 }
 
-const onOff = (v: boolean) => v ? '[X]' : '[ ]';
-const CURVE_SLIDERS = [
-    { key: 'curvatureBend', label: 'DOBLEZ' },
-    { key: 'curvatureCorners', label: 'ESQUINAS' },
-    { key: 'curvatureShade', label: 'SOMBRA' },
-] as const;
+function runAction(row: SettingRow & { kind: 'action' })
+{
+    touch(row);
+    switch (row.id)
+    {
+        case 'degauss': tube.degauss(); break;
+        case 'clearBurn': settings.burnMinutes = 0; break;
+        // the value only changes once Bridge sends the event back
+        case 'bridgeButton': toggles.bridgeButtonVisibility = bridgeButtonShown.value ? 'hidden' : 'shown'; break;
+        case 'haptics': if (canVibrate()) settings.haptics = !settings.haptics; break;
+        case 'resetPanels':
+            if (!resetArmed.value) { resetArmed.value = true; hint.value = 'PULSA OTRA VEZ PARA CONFIRMAR'; break; }
+            settings.layouts = defaultLayoutSet();
+            resetArmed.value = false;
+            hint.value = 'PANELES RESTABLECIDOS';
+            break;
+    }
+}
 
-const bloomPct = computed({
-    get: () => Math.round(settings.bloom * 100),
-    set: v => { settings.bloom = v / 100; },
-});
+const linkLabel = (row: SettingRow & { kind: 'link' }) =>
+    row.target === 'protocols' ? `${row.label} (${protocols.active.length}/${protocols.rules.length})`
+    : row.target === 'hidden' ? `${row.label} (${settings.hiddenApps.length})`
+    : row.label;
+
+function openLink(row: SettingRow & { kind: 'link' })
+{
+    touch(row);
+    view.submenu = row.target;
+}
+
+function back()
+{
+    if (!view.back()) emit('close');
+}
+
+// Hold to see the tube: the page fades out (not display:none, so the touchend still reaches the button).
+const peek = ref(false);
 </script>
 
 <template>
-    <TermMenu title="AJUSTES" @close="$emit('close')">
-        <MenuItem @click="nextPhosphor">
-            <span>COLOR</span><span>{{ PHOSPHORS.find(p => p.id === settings.phosphor)?.label }}</span>
-        </MenuItem>
+    <div class="settings-page" :class="{ peek }">
+        <TuiWindow class="window" :title="title" fill :minimizable="false" closable @close="emit('close')">
+            <div class="content">
+                <template v-if="!section">
+                    <div class="dim header">MU-TH-UR 6000 · CONFIGURACIÓN DE SISTEMA</div>
+                    <MenuItem v-for="s in SETTINGS_SECTIONS" :key="s.id" @click="openSection(s)">
+                        <span><span class="dim">{{ s.code }}</span> {{ s.title }}</span>
+                        <span><span class="dim">{{ summary(s.id, values) }}</span> ›</span>
+                    </MenuItem>
+                    <MenuItem @click="emit('close')"><span>CERRAR</span><span>ESC</span></MenuItem>
+                </template>
 
-        <div class="slider">
-            <span>BLOOM</span>
-            <input v-model.number="bloomPct" type="range" min="0" max="100" step="5" />
-            <span>{{ bloomPct }}%</span>
-        </div>
+                <template v-else>
+                    <MenuItem @click="back"><span>« VOLVER</span><span class="dim">{{ section.code }}</span></MenuItem>
+                    <template v-for="row in rows" :key="'key' in row ? row.key : 'id' in row ? row.id : row.target">
+                        <MenuItem v-if="row.kind === 'toggle'" @click="toggle(row)">
+                            <span>{{ row.label }}</span><span>{{ onOff(store[row.key] === true) }}</span>
+                        </MenuItem>
+                        <TermSlider
+                            v-else-if="row.kind === 'slider'" :label="row.label" :min="row.min" :max="row.max" :step="row.step"
+                            :model-value="sliderValue(row)" @update:model-value="setSlider(row, $event)" @touch="touch(row)"
+                        />
+                        <TermChoice
+                            v-else-if="row.kind === 'choice'" :label="row.label" :options="row.options"
+                            :model-value="store[row.key]" @update:model-value="store[row.key] = $event" @touch="touch(row)"
+                        />
+                        <MenuItem v-else-if="row.kind === 'link'" @click="openLink(row)">
+                            <span>{{ linkLabel(row) }}</span><span>›</span>
+                        </MenuItem>
+                        <MenuItem v-else :class="{ armed: row.id === 'resetPanels' && resetArmed }" @click="runAction(row)">
+                            <span>{{ row.id === 'resetPanels' && resetArmed ? '¿CONFIRMAR? PULSA OTRA VEZ' : row.label }}</span>
+                            <span>{{ actionValue(row.id) }}</span>
+                        </MenuItem>
+                    </template>
+                </template>
 
-        <MenuItem @click="settings.scanlines = !settings.scanlines"><span>SCANLINES</span><span>{{ onOff(settings.scanlines) }}</span></MenuItem>
-        <MenuItem @click="settings.flicker = !settings.flicker"><span>PARPADEO</span><span>{{ onOff(settings.flicker) }}</span></MenuItem>
-        <MenuItem @click="settings.vignette = !settings.vignette"><span>VIÑETA</span><span>{{ onOff(settings.vignette) }}</span></MenuItem>
-        <MenuItem @click="settings.sweep = !settings.sweep"><span>BARRIDO</span><span>{{ onOff(settings.sweep) }}</span></MenuItem>
-        <MenuItem @click="settings.curvature = !settings.curvature"><span>CURVATURA</span><span>{{ onOff(settings.curvature) }}</span></MenuItem>
-        <template v-if="settings.curvature">
-            <div v-for="c in CURVE_SLIDERS" :key="c.key" class="slider">
-                <span>{{ c.label }}</span>
-                <input v-model.number="settings[c.key]" type="range" min="0" max="100" step="5" />
-                <span>{{ settings[c.key] }}%</span>
+                <footer class="footer">
+                    <div v-if="section" class="dim hint">» {{ hint }}</div>
+                    <div v-else class="dim hint">» SELECCIONE MÓDULO<span class="cursor">_</span></div>
+                    <div
+                        v-if="section?.preview" class="peek-btn pressable"
+                        @touchstart.prevent="peek = true" @touchend="peek = false" @touchcancel="peek = false"
+                        @mousedown="peek = true" @mouseup="peek = false" @mouseleave="peek = false"
+                    >[MANTÉN: VER TUBO]</div>
+                </footer>
             </div>
-        </template>
-        <MenuItem @click="settings.tubePower = !settings.tubePower"><span>APAGADO DEL TUBO</span><span>{{ onOff(settings.tubePower) }}</span></MenuItem>
-        <MenuItem @click="settings.autoDegauss = !settings.autoDegauss"><span>DESMAGNETIZADO AUTOMÁTICO</span><span>{{ onOff(settings.autoDegauss) }}</span></MenuItem>
-        <MenuItem @click="settings.phosphorBurn = !settings.phosphorBurn"><span>PERSISTENCIA DE FÓSFORO</span><span>{{ onOff(settings.phosphorBurn) }}</span></MenuItem>
-        <MenuItem v-if="settings.phosphorBurn && settings.burnMinutes" @click="settings.burnMinutes = 0"><span>[BORRAR QUEMADURA]</span><span>{{ Math.round(settings.burnMinutes / 60) }} H</span></MenuItem>
-        <MenuItem @click="settings.imageFilter = nextFilter(settings.imageFilter)">
-            <span>FILTRO IMÁGENES</span><span>{{ IMAGE_FILTERS.find(f => f.id === settings.imageFilter)?.label }}</span>
-        </MenuItem>
-        <MenuItem @click="settings.showIcons = !settings.showIcons"><span>ICONOS</span><span>{{ onOff(settings.showIcons) }}</span></MenuItem>
-        <MenuItem @click="settings.labelCase = settings.labelCase === 'upper' ? 'normal' : 'upper'">
-            <span>NOMBRES</span><span>{{ settings.labelCase === 'upper' ? 'MAYÚSCULAS' : 'NORMAL' }}</span>
-        </MenuItem>
-        <MenuItem @click="settings.soundUi = !settings.soundUi"><span>SONIDO UI</span><span>{{ onOff(settings.soundUi) }}</span></MenuItem>
-        <MenuItem @click="settings.soundAmbient = !settings.soundAmbient"><span>AMBIENTE</span><span>{{ onOff(settings.soundAmbient) }}</span></MenuItem>
-        <div class="slider">
-            <span>VOLUMEN</span>
-            <input v-model.number="volumePct" type="range" min="0" max="100" step="5" />
-            <span>{{ volumePct }}%</span>
-        </div>
-        <MenuItem @click="canVibrate() && (settings.haptics = !settings.haptics)">
-            <span>VIBRACIÓN</span><span>{{ canVibrate() ? onOff(settings.haptics) : 'NO DISPONIBLE' }}</span>
-        </MenuItem>
-        <MenuItem @click="settings.bootSequence = !settings.bootSequence"><span>ARRANQUE</span><span>{{ onOff(settings.bootSequence) }}</span></MenuItem>
-        <MenuItem @click="settings.idleMinutes = nextIdleMinutes(settings.idleMinutes)">
-            <span>REPOSO</span><span>{{ settings.idleMinutes ? `${settings.idleMinutes} MIN` : 'OFF' }}</span>
-        </MenuItem>
-        <MenuItem @click="settings.nightShift = !settings.nightShift"><span>TURNO NOCTURNO</span><span>{{ onOff(settings.nightShift) }}</span></MenuItem>
-        <MenuItem @click="settings.hypersleep = !settings.hypersleep"><span>HIPERSUEÑO</span><span>{{ onOff(settings.hypersleep) }}</span></MenuItem>
-        <MenuItem @click="protocolsOpen = true"><span>PROTOCOLOS DE TURNO ({{ protocols.active.length }}/{{ protocols.rules.length }})</span><span>›</span></MenuItem>
-        <MenuItem @click="settings.alertsEvent = !settings.alertsEvent"><span>ALERTA: EVENTO PRÓXIMO</span><span>{{ onOff(settings.alertsEvent) }}</span></MenuItem>
-        <MenuItem @click="settings.alertsBattery = !settings.alertsBattery"><span>ALERTA: BATERÍA CRÍTICA</span><span>{{ onOff(settings.alertsBattery) }}</span></MenuItem>
-        <MenuItem @click="settings.alertsAlarm = !settings.alertsAlarm"><span>ALERTA: ALARMA DE NOCHE</span><span>{{ onOff(settings.alertsAlarm) }}</span></MenuItem>
-        <MenuItem @click="settings.alertsKlaxon = !settings.alertsKlaxon"><span>KLAXON DE ALERTA</span><span>{{ onOff(settings.alertsKlaxon) }}</span></MenuItem>
-        <MenuItem @click="settings.showType = !settings.showType"><span>COLUMNA TIPO</span><span>{{ onOff(settings.showType) }}</span></MenuItem>
-        <MenuItem @click="settings.folderBoxes = !settings.folderBoxes"><span>CARPETAS EN CAJAS</span><span>{{ onOff(settings.folderBoxes) }}</span></MenuItem>
-        <MenuItem v-if="settings.folderBoxes" @click="settings.appsLayout = settings.appsLayout === 'deck' ? 'boxes' : 'deck'"><span>VISTA DE CAJAS</span><span>{{ settings.appsLayout === 'deck' ? 'CUBIERTAS' : 'REJILLA' }}</span></MenuItem>
+        </TuiWindow>
 
-        <MenuItem @click="toggles.bridgeButtonVisibility = bridgeButtonShown ? 'hidden' : 'shown'">
-            <span>BOTÓN BRIDGE</span><span>{{ onOff(bridgeButtonShown) }}</span>
-        </MenuItem>
-
-        <MenuItem @click="settings.ownStatusBar = !settings.ownStatusBar"><span>BARRA PROPIA</span><span>{{ onOff(settings.ownStatusBar) }}</span></MenuItem>
-
-        <MenuItem @click="resetPanels"><span>{{ resetArmed ? '¿CONFIRMAR? PULSA OTRA VEZ' : '[RESTABLECER PANELES]' }}</span><span>P1-P4</span></MenuItem>
-
-        <MenuItem @click="hiddenOpen = true"><span>APPS OCULTAS ({{ settings.hiddenApps.length }})</span><span>›</span></MenuItem>
-
-        <MenuItem @click="motherOpen = true"><span>MOTHER</span><span>›</span></MenuItem>
-        <MenuItem @click="permissionsOpen = true"><span>PERMISOS</span><span>›</span></MenuItem>
-        <MenuItem @click="backupOpen = true"><span>RESPALDO</span><span>›</span></MenuItem>
-        <MenuItem @click="diagnosticOpen = true"><span>DIAGNÓSTICO</span><span>›</span></MenuItem>
-        <MenuItem @click="$emit('close')"><span>CERRAR</span><span>ESC</span></MenuItem>
-
-        <MotherSettings v-if="motherOpen" @close="motherOpen = false" />
-        <BackupMenu v-if="backupOpen" @close="backupOpen = false" />
-        <PermissionsMenu v-if="permissionsOpen" @close="permissionsOpen = false" />
-        <ProtocolsMenu v-if="protocolsOpen" @close="protocolsOpen = false" />
-        <HiddenAppsMenu v-if="hiddenOpen" @close="hiddenOpen = false" />
-
-        <TermMenu v-if="diagnosticOpen" title="DIAGNÓSTICO" @close="diagnosticOpen = false">
+        <MotherSettings v-if="view.submenu === 'mother'" @close="view.submenu = null" />
+        <BackupMenu v-if="view.submenu === 'backup'" @close="view.submenu = null" />
+        <PermissionsMenu v-if="view.submenu === 'permissions'" @close="view.submenu = null" />
+        <ProtocolsMenu v-if="view.submenu === 'protocols'" @close="view.submenu = null" />
+        <HiddenAppsMenu v-if="view.submenu === 'hidden'" @close="view.submenu = null" />
+        <TermMenu v-if="view.submenu === 'diagnostic'" title="DIAGNÓSTICO" @close="view.submenu = null">
             <MenuItem v-for="d in diagnostic" :key="d.method"><span class="method">{{ d.method }}</span><span>{{ d.ok ? 'OK' : '--' }}</span></MenuItem>
         </TermMenu>
-    </TermMenu>
+    </div>
 </template>
 
 <style scoped lang="scss">
-.slider {
+.settings-page {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 10px;
+    flex-direction: column;
+    padding: calc(6px + var(--inset-top, 0px)) 6px calc(6px + var(--inset-bottom, 0px));
+    background: var(--ph-bg);
 
-    > input { flex: 1; min-width: 0; accent-color: var(--ph); }
+    &.peek { opacity: 0; }
+
+    > .window { flex: 1; }
 }
 
+.content {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.dim { color: var(--ph-dim); }
+.header { padding: 4px 10px 8px; border-bottom: 1px solid var(--ph-dim); margin-bottom: 4px; font-size: 0.85em; }
+.armed { @include inverse; }
 .method { font-size: 0.8em; overflow: hidden; text-overflow: ellipsis; }
+
+// kept at the bottom of the page, over the rows when they scroll
+.footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    padding: 6px 10px 2px;
+    border-top: 1px solid var(--ph-dim);
+    background: var(--ph-bg);
+
+    > .hint { min-height: 1.2em; }
+    > .peek-btn { margin-top: 4px; text-align: center; padding: 4px 0; border: 1px solid var(--ph); user-select: none; &:active { @include inverse; } }
+}
+
+.cursor { animation: cursor-blink 1s steps(1) infinite; }
+@keyframes cursor-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
 </style>

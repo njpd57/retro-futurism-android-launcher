@@ -40,6 +40,7 @@ import MarinesGame from '@/components/marines/MarinesGame.vue';
 import { useIsolationStore } from '@/stores/useIsolationStore';
 import { useMarinesStore } from '@/stores/useMarinesStore';
 import { useAppsViewStore } from '@/stores/useAppsViewStore';
+import { useSettingsViewStore } from '@/stores/useSettingsViewStore';
 import { parseSlash } from '@/mother/slash';
 import MotherSessions from '@/components/MotherSessions.vue';
 import AppRename from '@/components/AppRename.vue';
@@ -77,6 +78,7 @@ const imagesStore = useImagesStore();
 const isolation = useIsolationStore();
 const marines = useMarinesStore();
 const appsView = useAppsViewStore();
+const settingsView = useSettingsViewStore();
 
 useOwnStatusBar(computed(() => settings.ownStatusBar));
 
@@ -271,6 +273,12 @@ function onPopState()
     }
     if (overlayPushed)
     {
+        // inside the settings page, back steps out of the submenu or section first; the entry is pushed again
+        if (settingsOpen.value && settingsView.back())
+        {
+            history.pushState({}, '');
+            return;
+        }
         overlayPushed = false;
         closeOverlays();
     }
