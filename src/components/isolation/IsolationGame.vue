@@ -4,6 +4,7 @@ import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
 import { useIsolationStore } from '@/stores/useIsolationStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
+import { RECIPES, canCraft } from '@/games/isolation/crafting';
 import { DECK_C } from '@/games/isolation/decks';
 import { BACK_MS, SAVE_MS, TURN_MS, WALK_MS, alienDistance, newGame, reduce, step, useAction, type GameEvent, type GameState, type Input } from '@/games/isolation/game';
 import { restore, snapshot, type SavedGame } from '@/games/isolation/save';
@@ -11,6 +12,7 @@ import { messageFor, objective } from '@/games/isolation/story';
 import { cellPose, type Pose } from '@/games/isolation/view';
 import { tick } from '@/utils/haptics';
 import { bar, formatDuration } from '@/utils/tui';
+import IsolationBag from './IsolationBag.vue';
 import IsolationControls from './IsolationControls.vue';
 import IsolationView from './IsolationView.vue';
 
@@ -32,6 +34,7 @@ const state = shallowRef<GameState>(newGame(DECK_C, rng));
 const screen = ref<'title' | 'playing' | 'paused'>('title');
 const message = ref<{ text: string; at: number } | null>(null);
 const clock = ref(0);
+const bagOpen = ref(false);
 
 let raf = 0;
 let last = 0;
@@ -101,7 +104,21 @@ function handle(events: GameEvent[], now: number)
                 lastPing = now;
                 sound.playAlways('ping');
                 break;
-            case 'pickup': sound.playAlways('select'); break;
+            case 'pickup': case 'lootScrap': case 'lootWires': case 'lootChems': case 'lootFlamer':
+            case 'craftDecoy': case 'craftFlare': case 'craftFuel':
+                sound.playAlways('select');
+                break;
+            case 'throwDecoy': case 'decoyPing': sound.playAlways('clatter'); break;
+            case 'throwFlare': sound.playAlways('flame'); break;
+            case 'fire':
+                sound.playAlways('flame');
+                if (settings.haptics) tick(120);
+                break;
+            case 'scare':
+                sound.playAlways('hiss');
+                if (settings.haptics) tick(60);
+                break;
+            case 'noParts': case 'noDecoy': case 'noFlare': case 'noFlamer': case 'noFuel': case 'bagFull': sound.play('back'); break;
             case 'saveStart': sound.playAlways('tick'); break;
             case 'saved':
                 isolation.save = snapshot(state.value);
@@ -174,6 +191,7 @@ function begin(s: GameState, on: 'playing' | 'paused')
     animMs = 0;
     held = null;
     message.value = { text: objective(s), at: performance.now() };
+    bagOpen.value = false;
     screen.value = on;
 }
 
@@ -205,6 +223,7 @@ function suspend()
 function pause()
 {
     held = null;
+    bagOpen.value = false;
     if (screen.value === 'playing' && state.value.phase === 'playing') screen.value = 'paused';
 }
 
@@ -213,6 +232,11 @@ function onKey(e: KeyboardEvent)
     if (e.key === 'Escape' || e.key === 'p')
     {
         if (screen.value === 'paused') screen.value = 'playing'; else pause();
+        return;
+    }
+    if (e.key === 'b' && screen.value === 'playing')
+    {
+        bagOpen.value = !bagOpen.value;
         return;
     }
     const input = KEYS[e.key];
@@ -230,7 +254,7 @@ function onKeyUp(e: KeyboardEvent)
 const KEYS: Record<string, Input> = {
     ArrowUp: 'forward', w: 'forward', ArrowDown: 'back', s: 'back',
     ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right',
-    ' ': 'use', e: 'use', Enter: 'use', t: 'tracker',
+    ' ': 'use', e: 'use', Enter: 'use', t: 'tracker', 1: 'throwDecoy', 2: 'throwFlare', f: 'fire',
 };
 
 function onBridgeEvent(ev: { name: string })
@@ -272,6 +296,9 @@ const line = computed(() =>
     return objective(s);
 });
 
+/** something can be made right now: the [OBJETOS] key says so */
+const canMake = computed(() => RECIPES.some(r => canCraft(state.value.bag, r)));
+
 const resumable = computed(() => isolation.suspended ?? isolation.save);
 
 onMounted(() =>
@@ -305,6 +332,10 @@ onBeforeUnmount(() =>
         <div class="stage">
             <IsolationView ref="view" />
 
+            <IsolationBag
+                v-if="bagOpen && screen === 'playing' && state.phase === 'playing'" :bag="state.bag"
+                @craft="apply" @close="bagOpen = false" />
+
             <div v-if="screen === 'title'" class="panel">
                 <div class="big">AISLAMIENTO</div>
                 <div class="dim">USCSS NOSTROMO · {{ state.title }}</div>
@@ -314,7 +345,9 @@ onBeforeUnmount(() =>
                 <div class="dim help">
                     ▲ AVANZA, MANTÉN PARA CAMINAR · ◄ ► GIRA<br />
                     USAR: PUERTAS, TAQUILLAS Y TERMINALES<br />
-                    EL RASTREADOR SOLO VE LO QUE SE MUEVE, Y SE OYE
+                    EL RASTREADOR SOLO VE LO QUE SE MUEVE, Y SE OYE<br />
+                    SEÑUELO: ATRAE AL ORGANISMO · BENGALA: ILUMINA<br />
+                    FUEGO: LO ESPANTA UN RATO, Y APRENDE
                 </div>
                 <div v-if="resumable" class="dim">
                     {{ isolation.suspended ? 'PARTIDA SUSPENDIDA' : 'ÚLTIMO GUARDADO' }} · T+{{ formatDuration(resumable.timeMs).slice(3) }}
@@ -358,11 +391,17 @@ onBeforeUnmount(() =>
         <div class="hud">
             <span>{{ status }}</span>
             <span v-if="state.near && reducedMotion" class="warn">INTERFERENCIA</span>
+            <button
+                v-if="screen === 'playing' && state.phase === 'playing'" class="bag-key pressable"
+                :class="{ on: bagOpen }" @click="bagOpen = !bagOpen">
+                [OBJETOS{{ canMake ? ' ◉' : '' }}]
+            </button>
         </div>
         <div class="msg">» {{ line }}</div>
 
         <IsolationControls
             :use="useLabel" :tracker="state.tracker.raised" :hidden="state.player.hidden"
+            :decoys="state.bag.decoys" :flares="state.bag.flares" :fuel="state.bag.flamer ? state.bag.fuel : null"
             @input="apply" @hold="held = $event" />
     </div>
 </template>
@@ -428,10 +467,23 @@ onBeforeUnmount(() =>
 
 .hud {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 8px;
     padding: 0 10px;
     color: var(--ph-dim);
     .warn { @include inverse; padding: 0 4px; }
+}
+
+.bag-key {
+    margin-left: auto;
+    font: inherit;
+    color: var(--ph);
+    background: none;
+    border: none;
+    padding: 2px 6px;
+    @include glow;
+    &:active, &.on { @include inverse; }
 }
 
 .msg {

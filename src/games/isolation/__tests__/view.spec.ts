@@ -10,7 +10,7 @@ function scene(map: string[], over: Partial<Scene> = {}): Scene
     const m = parseMap(map);
     return {
         grid: m.grid, closed: m.closed, items: m.items, signs: [], pose: cellPose(m.grid, m.start, 0),
-        alien: null, hiddenIn: null, pulse: 0, bob: 0, w: W, h: H, ...over,
+        alien: null, hiddenIn: null, lit: null, decoys: [], flares: [], flame: null, pulse: 0, bob: 0, w: W, h: H, ...over,
     };
 }
 
@@ -89,6 +89,43 @@ describe('buildView', () =>
         expect(tagged(shapes, 'terminal').length).toBeGreaterThan(5);
         expect(tagged(shapes, 'vent').length).toBeGreaterThan(0);
         expect(numbers(shapes).every(Number.isFinite)).toBe(true);
+    });
+
+    it('shows only the next cell where there is no power, besides what glows', () =>
+    {
+        const map = ['############', '#P...L*T...#', '############', '#A##########', '############'];
+        const m = parseMap(map);
+        const off = Array(m.grid.cells.length).fill(false);
+        const dark = buildView(scene(map, { lit: off }));
+        const lit = buildView(scene(map));
+        expect(tagged(lit, 'locker').length).toBeGreaterThan(0);
+        expect(tagged(dark, 'locker')).toEqual([]);
+        expect(dark.length).toBeLessThan(lit.length * 0.7);
+        // the terminal and the power cell glow
+        expect(tagged(dark, 'terminal').length).toBeGreaterThan(5);
+        expect(tagged(dark, 'item').length).toBeGreaterThan(0);
+
+        // a flare brings the cells around it back
+        const flared = off.slice();
+        for (const x of [3, 4, 5, 6]) flared[12 + x] = true;
+        expect(tagged(buildView(scene(map, { lit: flared })), 'locker').length).toBeGreaterThan(0);
+        expect(numbers(dark).every(Number.isFinite)).toBe(true);
+    });
+
+    it('draws decoys, flares and the flame', () =>
+    {
+        const map = ['#####', '#A#.#', '###.#', '###.#', '###P#', '#####'];
+        expect(tagged(buildView(scene(map, { decoys: [8] })), 'decoy').length).toBeGreaterThan(0);
+        expect(tagged(buildView(scene(map, { decoys: [] })), 'decoy')).toEqual([]);
+        expect(tagged(buildView(scene(map, { flares: [13] })), 'flare').length).toBeGreaterThan(4);
+
+        const flame = buildView(scene(map, { flame: { reach: 3, seed: 4 } }));
+        expect(tagged(flame, 'flame').length).toBeGreaterThan(10);
+        expect(numbers(flame).every(Number.isFinite)).toBe(true);
+        // it flickers
+        expect(buildView(scene(map, { flame: { reach: 3, seed: 5 } }))).not.toEqual(flame);
+        // and it is drawn last, over the walls
+        expect(flame[flame.length - 1].tag).toBe('flame');
     });
 
     it('stays finite while moving and turning', () =>

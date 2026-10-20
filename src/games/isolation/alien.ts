@@ -1,7 +1,7 @@
 import { cellAt, cellDistance, distances, lineOfSight, nextStep, soundDistance, type Grid } from './grid';
 import { pick, type Rng } from './rng';
 
-export type AlienMode = 'patrol' | 'investigate' | 'hunt' | 'search';
+export type AlienMode = 'patrol' | 'investigate' | 'hunt' | 'search' | 'flee';
 
 /** A crawl through the ducts, from one vent to another. Meanwhile it is not on the deck. */
 export interface VentTrip
@@ -31,6 +31,8 @@ export interface Alien
     seenMs: number;
     /** it saw the player get into a locker, and will open it */
     sawHide: boolean;
+    /** left before it stops running from the fire */
+    fleeMs: number;
     /** the vent it will come out of, once it reaches the one in `target` */
     ventPlan: number | null;
     vent: VentTrip | null;
@@ -45,18 +47,26 @@ export interface World
     closed: readonly number[];
     player: number;
     hidden: boolean;
+    /** the player stands in the dark: it sees much less far */
+    dark?: boolean;
 }
 
 export const ALIEN = {
     /** cells it sees along a corridor */
     sight: 7,
+    /** ...when the player is in the dark */
+    darkSight: 2,
     /** a closed door muffles a sound as much as this many cells */
     doorCost: 4,
     forceMs: 4000,
     searchMs: 8000,
     /** hiding this soon after being seen doesn't fool it */
     sawHideMs: 1500,
-    stepMs: { patrol: 1100, investigate: 650, search: 900, hunt: 420 } as Record<AlienMode, number>,
+    stepMs: { patrol: 1100, investigate: 650, search: 900, hunt: 420, flee: 380 } as Record<AlienMode, number>,
+    /** it runs from the flamethrower for this long, less each time it has been burnt */
+    fleeMs: 7000,
+    fleeLearnMs: 1500,
+    minFleeMs: 2000,
     /** how often a patrol goes through the vents */
     ventChance: 0.35,
     ventMsPerCell: 450,
@@ -83,7 +93,7 @@ export function newAlien(cell: number): Alien
 {
     return {
         cell, mode: 'patrol', target: cell, stepMs: 3000, forceMs: 0, stillMs: NEVER, searchMs: 0, seenMs: NEVER,
-        sawHide: false, ventPlan: null, vent: null,
+        sawHide: false, fleeMs: 0, ventPlan: null, vent: null,
     };
 }
 
@@ -135,10 +145,40 @@ export function planPatrol(w: World, from: number, rng: Rng): { target: number; 
     return { target: entry, ventPlan: exit };
 }
 
-/** A sound of `loudness` cells at `cell`. Unless it is already hunting, the creature goes to look. */
+/** How long it keeps running after a burn: each earlier one makes it shorter, because it learns. */
+export const fleeMsFor = (burns: number) => Math.max(ALIEN.minFleeMs, ALIEN.fleeMs - ALIEN.fleeLearnMs * burns);
+
+/**
+ * The flamethrower hits it: it runs for the nearest vent it can reach without passing the player, and leaves by
+ * the one farthest from them. With no vents, to the farthest cell.
+ */
+export function scare(a: Alien, w: World, burns: number): Alien
+{
+    const away = (i: number) => walkable(w.grid)(i) && i !== w.player;
+    const fromAlien = distances(w.grid, a.cell, away);
+    const fromPlayer = distances(w.grid, w.player, walkable(w.grid));
+    const vents = ventsOf(w.grid);
+    const entries = vents.filter(v => fromAlien[v] >= 0 && fromPlayer[v] >= 4);
+
+    let target = a.cell;
+    let ventPlan: number | null = null;
+    if (entries.length && vents.length > 1)
+    {
+        target = entries.reduce((p, q) => fromAlien[q] < fromAlien[p] ? q : p);
+        ventPlan = vents.filter(v => v !== target).reduce((p, q) => cellDistance(w.grid, q, w.player) > cellDistance(w.grid, p, w.player) ? q : p);
+    }
+    else fromAlien.forEach((d, i) => { if (d >= 0 && fromPlayer[i] > fromPlayer[target]) target = i; });
+
+    return {
+        ...a, mode: 'flee', target, ventPlan, fleeMs: fleeMsFor(burns), stepMs: Math.min(a.stepMs, ALIEN.stepMs.flee),
+        forceMs: 0, searchMs: 0, sawHide: false,
+    };
+}
+
+/** A sound of `loudness` cells at `cell`. Unless it is already hunting or running, the creature goes to look. */
 export function hear(a: Alien, w: World, cell: number, loudness: number): { alien: Alien; heard: boolean }
 {
-    if (a.mode === 'hunt') return { alien: a, heard: false };
+    if (a.mode === 'hunt' || a.mode === 'flee') return { alien: a, heard: false };
 
     if (a.vent)
     {
@@ -176,6 +216,12 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
         // moving all the time: the tracker follows it through the walls
         if (ms > 0) return { alien: { ...alien, stillMs: 0, vent: { ...alien.vent, ms } }, closed, events };
         const out: Alien = { ...alien, cell: alien.vent.to, vent: null, stillMs: 0, stepMs: ALIEN.stepMs[alien.mode] };
+        if (out.mode === 'flee')
+        {
+            // it got away
+            out.mode = 'patrol';
+            out.fleeMs = 0;
+        }
         if (out.mode === 'patrol') out.target = patrolTarget(w, out.cell, rng);
         events.push('ventOut');
         return { alien: out, closed, events };
@@ -183,7 +229,19 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
 
     const a: Alien = { ...alien, stillMs: alien.stillMs + dtMs, stepMs: alien.stepMs - dtMs };
 
-    if (!w.hidden && lineOfSight(w.grid, closed, a.cell, w.player, ALIEN.sight))
+    if (a.mode === 'flee')
+    {
+        // it ignores the player until the fear passes
+        a.fleeMs -= dtMs;
+        if (a.fleeMs <= 0)
+        {
+            a.mode = 'search';
+            a.searchMs = ALIEN.searchMs;
+            a.ventPlan = null;
+            a.target = searchTarget(w, a.cell, rng);
+        }
+    }
+    else if (!w.hidden && lineOfSight(w.grid, closed, a.cell, w.player, w.dark ? ALIEN.darkSight : ALIEN.sight))
     {
         if (a.mode !== 'hunt') events.push('spotted');
         a.mode = 'hunt';
@@ -217,7 +275,7 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
     {
         if (a.mode === 'patrol') Object.assign(a, planPatrol(w, a.cell, rng));
         else if (a.mode === 'search') a.target = searchTarget(w, a.cell, rng);
-        else
+        else if (a.mode !== 'flee')
         {
             // reached the noise, or the last place it saw the player
             if (a.mode === 'hunt') events.push('lostTrack');
@@ -227,7 +285,15 @@ export function stepAlien(alien: Alien, w: World, dtMs: number, rng: Rng): { ali
         }
     }
 
-    const next = nextStep(w.grid, a.cell, a.target, walkable(w.grid));
+    // running away never goes through the player
+    const passable = a.mode === 'flee' ? (i: number) => walkable(w.grid)(i) && i !== w.player : walkable(w.grid);
+    const next = nextStep(w.grid, a.cell, a.target, passable);
+    if (a.mode === 'flee' && (next < 0 || next === a.cell))
+    {
+        // cornered far away: waits for the fear to pass
+        a.stepMs = ALIEN.stepMs.flee;
+        return { alien: a, closed, events };
+    }
     if (next < 0 || next === a.cell)
     {
         a.target = patrolTarget(w, a.cell, rng);

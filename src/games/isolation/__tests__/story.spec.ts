@@ -15,6 +15,15 @@ describe('story', () =>
         expect(messageFor(['exitLocked'], { ...s, collected: 1 })).toBe('LANZADERA SIN ENERGÍA. FALTAN 2 CÉLULAS.');
     });
 
+    it('tells what was picked up, made and used', () =>
+    {
+        expect(messageFor(['step', 'lootScrap'], s)).toBe('CHATARRA RECUPERADA.');
+        expect(messageFor(['craftFlare'], s)).toBe('BENGALA FABRICADA.');
+        expect(messageFor(['noParts'], s)).toBe('FALTAN MATERIALES.');
+        expect(messageFor(['fire', 'scare', 'heard'], s)).toBe('EL ORGANISMO RETROCEDE.');
+        expect(messageFor(['noFuel'], s)).toBe('SIN COMBUSTIBLE.');
+    });
+
     it('states the goal', () =>
     {
         expect(objective(s)).toBe('RECUPERE CÉLULAS 0/3');

@@ -28,6 +28,13 @@ export interface Scene
     alien: number | null;
     /** locker cell the player is inside: not drawn */
     hiddenIn: number | null;
+    /** per cell, whether it is lit; null when the whole deck has power. Unlit cells show only one step away. */
+    lit: readonly boolean[] | null;
+    /** cells with a decoy or a burning flare lying in them */
+    decoys: readonly number[];
+    flares: readonly number[];
+    /** the flamethrower firing: how many cells the flame reaches, and a number that changes every frame to make it flicker */
+    flame: { reach: number; seed: number } | null;
     /** 0..1, makes the items throb */
     pulse: number;
     /** vertical offset of the eye (walking bob) */
@@ -36,7 +43,7 @@ export interface Scene
     h: number;
 }
 
-export type ShapeTag = 'floor' | 'wall' | 'door' | 'frame' | 'locker' | 'terminal' | 'vent' | 'item' | 'exit' | 'alien' | 'sign';
+export type ShapeTag = 'floor' | 'wall' | 'door' | 'frame' | 'locker' | 'terminal' | 'vent' | 'item' | 'exit' | 'alien' | 'sign' | 'decoy' | 'flare' | 'flame';
 
 export type Shape =
     | { kind: 'poly'; tag: ShapeTag; pts: number[]; fill: boolean; alpha: number }
@@ -47,6 +54,8 @@ export type Shape =
 /** Cells seen in any direction. */
 export const VIEW_DEPTH = 6;
 const NEAR = 0.05;
+/** how bright an unlit cell next to the player is */
+const DARK_DIM = 0.65;
 /** focal length as a fraction of the view width */
 const FOCAL = 0.62;
 
@@ -202,12 +211,17 @@ export function buildView(s: Scene): Shape[]
 
     for (const c of depth.keys())
     {
+        const kind = cellAt(g, c);
+        const unlit = s.lit !== null && !s.lit[c];
+        // without power only the next cell shows, and what glows: terminals, the exit and the power cells
+        if (unlit && depth.get(c)! > 1 && kind !== 'terminal' && kind !== 'exit' && !s.items.includes(c)) continue;
+        const light = unlit ? DARK_DIM : 1;
+
         const x = cellX(g, c);
         const y = cellY(g, c);
         const cx = x + 0.5;
         const cy = y + 0.5;
-        const alpha = depthAlpha(distTo(cx, cy));
-        const kind = cellAt(g, c);
+        const alpha = depthAlpha(distTo(cx, cy)) * light;
         // the wall a locker, terminal or vent is fixed to
         const mount = kind === 'locker' || kind === 'terminal' || kind === 'vent' ? mountWall(g, s.closed, c) : null;
 
@@ -232,7 +246,7 @@ export function buildView(s: Scene): Shape[]
             const n = neighbour(g, c, dir);
             const [a, b] = edge(x, y, dir);
             const key = distTo((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
-            const fa = depthAlpha(key);
+            const fa = depthAlpha(key) * light;
 
             if (blocks(g, s.closed, n))
             {
@@ -290,6 +304,9 @@ export function buildView(s: Scene): Shape[]
                 f.line('item', 0.5, 0.45, 0.5, 0.85, al),
             ]));
         }
+
+        if (s.decoys.includes(c)) add(distTo(cx, cy), decoyShapes(cx, cy, alpha));
+        if (s.flares.includes(c)) add(distTo(cx, cy), flareShapes(cx, cy, depthAlpha(distTo(cx, cy))));
 
         if (s.alien === c) add(distTo(cx, cy) - 0.01, alienShapes(cx, cy, alpha));
     }
@@ -410,6 +427,53 @@ export function buildView(s: Scene): Shape[]
         return [body, ...tail];
     }
 
+    /** A noisemaker on the floor, its aerial blinking. */
+    function decoyShapes(cx: number, cy: number, alpha: number): (Shape | null)[]
+    {
+        const r = 0.07;
+        return [
+            ...box([[cx - r, cy - r], [cx + r, cy - r], [cx + r, cy + r], [cx - r, cy + r]], 0.34, 0.5, 'decoy', alpha),
+            line('decoy', cam(cx, cy, 0.34), cam(cx, cy, 0.14), alpha * (0.4 + 0.6 * s.pulse)),
+        ];
+    }
+
+    /** A burning flare: it shines, so it ignores the distance fade. */
+    function flareShapes(cx: number, cy: number, alpha: number): (Shape | null)[]
+    {
+        const a = Math.max(alpha, 0.85);
+        const r = 0.05;
+        const rays: (Shape | null)[] = [];
+        for (let k = 0; k < 8; k++)
+        {
+            const t = k * Math.PI / 4;
+            rays.push(line('flare', cam(cx + Math.cos(t) * 0.07, cy + Math.sin(t) * 0.07, 0.38), cam(cx + Math.cos(t) * 0.22, cy + Math.sin(t) * 0.22, 0.38 - 0.12 * s.pulse), a));
+        }
+        rays.push(line('flare', cam(cx, cy, 0.4), cam(cx, cy, 0.04 - 0.1 * s.pulse), a));
+        return [...box([[cx - r, cy - r], [cx + r, cy - r], [cx + r, cy + r], [cx - r, cy + r]], 0.42, 0.5, 'flare', a), ...rays];
+    }
+
+    /** The flame in front of the player, in camera space: tongues spreading and flickering. */
+    function flameShapes(reach: number, seed: number): Shape[]
+    {
+        const shapes: Shape[] = [];
+        const far = Math.max(1, reach) + 0.4;
+        const jitter = (i: number, k: number) => hash(seed * 131 + i * 17 + k * 5) / 997 - 0.5;
+        for (let i = 0; i < 7; i++)
+        {
+            const spread = (i - 3) / 3;
+            let prev: V3 = [0, 0.3 + s.bob, 0.3];
+            for (let k = 1; k <= 4; k++)
+            {
+                const u = k / 4;
+                // a plume: it widens and rises as it goes, so it doesn't just converge on the vanishing point
+                const next: V3 = [spread * 1.1 * u + jitter(i, k) * 0.4 * u, 0.32 - 0.5 * u * (1 - 0.4 * Math.abs(spread)) + jitter(i, k + 9) * 0.3 * u + s.bob, 0.3 + (far - 0.3) * u];
+                push(shapes, line('flame', prev, next, 1 - u * 0.35));
+                prev = next;
+            }
+        }
+        return shapes;
+    }
+
     groups.sort((p, q) => q.key - p.key);
-    return [...ground, ...groups.flatMap(gr => gr.shapes)];
+    return [...ground, ...groups.flatMap(gr => gr.shapes), ...(s.flame ? flameShapes(s.flame.reach, s.flame.seed) : [])];
 }

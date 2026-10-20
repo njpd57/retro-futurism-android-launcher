@@ -1,6 +1,6 @@
 import { getAudio, noiseBuffer } from './context';
 
-export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 'step' | 'door' | 'hiss' | 'screech' | 'vent';
+export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 'step' | 'door' | 'hiss' | 'screech' | 'vent' | 'flame' | 'clatter';
 
 function beep(freq: number, ms: number, type: OscillatorType, gain: number, delayMs = 0, endFreq = freq)
 {
@@ -83,6 +83,10 @@ const SOUNDS: Record<SfxName, () => void> = {
     hiss: () => noise('highpass', 2600, 5200, 380, 1100, 0.18),
     // something heavy moving in the ducts
     vent: () => { for (let i = 0; i < 4; i++) beep(55 + Math.random() * 30, 110, 'square', 0.07, i * 170 + Math.random() * 60); },
+    // the flamethrower: a roar that opens up, with a low thump under it
+    flame: () => { noise('lowpass', 500, 2400, 60, 700, 0.42); beep(70, 300, 'square', 0.08); },
+    // a decoy rattling on the plating
+    clatter: () => { for (let i = 0; i < 3; i++) beep(900 + Math.random() * 900, 25, 'square', 0.07, i * 55 + Math.random() * 30); },
     screech: () =>
     {
         beep(700, 900, 'sawtooth', 0.14, 0, 2600);

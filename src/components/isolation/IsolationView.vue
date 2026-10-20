@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { TRACKER, type GameState } from '@/games/isolation/game';
+import { TRACKER, flameCells, litMask, type GameState } from '@/games/isolation/game';
 import { ALIEN_OUTLINE, buildView, type Pose, type Shape } from '@/games/isolation/view';
 
 /** Everything one frame needs; the game loop calls `draw` with it. */
@@ -61,6 +61,8 @@ function draw(f: Frame)
     const shapes = buildView({
         grid: s.grid, closed: s.closed, items: s.items, signs: s.signs, pose: f.pose,
         alien: s.alien.vent ? null : s.alien.cell, hiddenIn: s.player.hidden ? s.player.cell : null,
+        lit: litMask(s), decoys: s.decoys.map(d => d.cell), flares: s.flares.map(fl => fl.cell),
+        flame: s.flameMs > 0 ? { reach: flameCells(s).length, seed: Math.floor(f.now / 60) } : null,
         pulse: (Math.sin(f.now / 260) + 1) / 2, bob: f.bob, w, h,
     });
 
@@ -111,12 +113,12 @@ function drawShapes(ctx: CanvasRenderingContext2D, shapes: Shape[], ph: string, 
         // glow: a wide faint stroke under the thin one (cheaper than shadowBlur on every line)
         if (glow > 0)
         {
-            ctx.globalAlpha = sh.alpha * dim * glow;
-            ctx.lineWidth = 4;
+            ctx.globalAlpha = sh.alpha * dim * glow * (sh.tag === 'flame' || sh.tag === 'flare' ? 2 : 1);
+            ctx.lineWidth = sh.tag === 'flame' ? 5 : 4;
             ctx.stroke();
         }
         ctx.globalAlpha = sh.alpha * dim;
-        ctx.lineWidth = sh.tag === 'alien' ? 1.6 : 1.2;
+        ctx.lineWidth = sh.tag === 'alien' || sh.tag === 'flare' ? 1.6 : sh.tag === 'flame' ? 1.8 : 1.2;
         ctx.stroke();
     }
     ctx.globalAlpha = 1;

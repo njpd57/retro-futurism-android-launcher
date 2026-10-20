@@ -1,5 +1,6 @@
-import { ALIEN, alienPosition, hear, newAlien, patrolTarget, stepAlien, type Alien, type World } from './alien';
-import { blocks, cellAt, cellX, cellY, mountWall, neighbour, parseMap, turn, type Dir, type Grid, type Sign } from './grid';
+import { ALIEN, alienPosition, hear, newAlien, patrolTarget, scare, stepAlien, type Alien, type World } from './alien';
+import { BAG_MAX, FUEL_FOUND, craft, canCraft, emptyBag, recipeOf, type Bag, type RecipeId } from './crafting';
+import { blocks, cellAt, cellX, cellY, distances, mountWall, neighbour, parseMap, rectMask, turn, type Dir, type Grid, type Loot, type Sign } from './grid';
 import type { DeckDef } from './decks';
 import type { Rng } from './rng';
 
@@ -11,7 +12,24 @@ export const USE_MS = 300;
 export const SAVE_MS = 3000;
 
 /** How far each sound carries, in cells. */
-export const NOISE = { step: 2, door: 5, locker: 1, ping: 2, pickup: 1, terminal: 1 };
+export const NOISE = { step: 2, door: 5, locker: 1, ping: 2, pickup: 1, terminal: 1, throw: 2, craft: 1, fire: 7, decoy: 7 };
+
+export const TOOLS = {
+    craftMs: 1500,
+    throwMs: 400,
+    fireMs: 700,
+    /** cells a thrown decoy or flare flies along the facing line */
+    throwRange: 5,
+    decoyMs: 10000,
+    decoyEveryMs: 1200,
+    flareMs: 30000,
+    /** cells (steps through open space) a flare lights */
+    flareRadius: 4,
+    /** cells the flame reaches */
+    flameRange: 3,
+    /** how long the flame is drawn */
+    flameShowMs: 500,
+};
 
 export const TRACKER = {
     /** cells */
@@ -31,13 +49,22 @@ export function lockerCheckChance(timesHiddenThere: number)
     return Math.min(0.6, 0.2 * Math.max(0, timesHiddenThere - 1));
 }
 
-export type Input = 'forward' | 'back' | 'left' | 'right' | 'use' | 'tracker';
+export type CraftInput = 'craftDecoy' | 'craftFlare' | 'craftFuel';
+
+export type Input = 'forward' | 'back' | 'left' | 'right' | 'use' | 'tracker' | 'throwDecoy' | 'throwFlare' | 'fire' | CraftInput;
+
+const CRAFT: Record<CraftInput, RecipeId> = { craftDecoy: 'decoy', craftFlare: 'flare', craftFuel: 'fuel' };
 
 export type GameEvent =
     | 'step' | 'turn' | 'bump' | 'doorOpen' | 'doorClose' | 'doorForced' | 'pickup' | 'allCells' | 'exitLocked'
+    | 'lootScrap' | 'lootWires' | 'lootChems' | 'lootFlamer' | 'bagFull'
     | 'hide' | 'unhide' | 'saveStart' | 'saved' | 'trackerUp' | 'trackerDown' | 'ping'
+    | CraftInput | 'noParts' | 'throwDecoy' | 'throwFlare' | 'noDecoy' | 'noFlare' | 'noFlamer' | 'noFuel'
+    | 'fire' | 'scare' | 'decoyPing' | 'flareOut'
     | 'heard' | 'spotted' | 'lostTrack' | 'ventIn' | 'ventOut' | 'ventNear' | 'near' | 'far' | 'found'
     | 'dead' | 'won';
+
+const LOOT_EVENT = { scrap: 'lootScrap', wires: 'lootWires', chems: 'lootChems' } as const;
 
 export interface Player
 {
@@ -48,6 +75,12 @@ export interface Player
     busyMs: number;
 }
 
+/** A noisemaker lying where it was thrown: it keeps calling the creature until it runs out. */
+export interface Decoy { cell: number; ms: number; pulseMs: number }
+
+/** A burning flare: lights the cells around it for a while. */
+export interface Flare { cell: number; ms: number; lit: number[] }
+
 export interface GameState
 {
     phase: 'playing' | 'dead' | 'won';
@@ -57,6 +90,17 @@ export interface GameState
     signs: readonly Sign[];
     closed: readonly number[];
     items: readonly number[];
+    /** materials and the flamethrower still on the floor */
+    loot: readonly Loot[];
+    bag: Bag;
+    decoys: readonly Decoy[];
+    flares: readonly Flare[];
+    /** per cell: no power, so unlit unless a flare reaches it (empty when the deck has no dark zone) */
+    dark: readonly boolean[];
+    /** left of the flame being drawn */
+    flameMs: number;
+    /** times the creature has been burnt: it flees for less each time */
+    burns: number;
     needed: number;
     collected: number;
     player: Player;
@@ -86,6 +130,13 @@ export function newGame(deck: DeckDef, rng: Rng): GameState
         signs: deck.signs,
         closed: map.closed,
         items: map.items,
+        loot: map.loot,
+        bag: emptyBag(),
+        decoys: [],
+        flares: [],
+        dark: rectMask(map.grid, deck.dark ?? []),
+        flameMs: 0,
+        burns: 0,
         needed: map.items.length,
         collected: 0,
         player: { cell: map.start, dir: deck.startDir, hidden: false, busyMs: 0 },
@@ -99,7 +150,57 @@ export function newGame(deck: DeckDef, rng: Rng): GameState
     return { ...s, alien: { ...s.alien, target: patrolTarget(world(s), s.alien.cell, rng) } };
 }
 
-export const world = (s: GameState): World => ({ grid: s.grid, closed: s.closed, player: s.player.cell, hidden: s.player.hidden });
+export const isLit = (s: GameState, cell: number) => !s.dark[cell] || s.flares.some(f => f.lit.includes(cell));
+
+export const world = (s: GameState): World => ({
+    grid: s.grid, closed: s.closed, player: s.player.cell, hidden: s.player.hidden, dark: !isLit(s, s.player.cell),
+});
+
+/** Which cells can be seen, or null when the whole deck has power. */
+export function litMask(s: GameState): boolean[] | null
+{
+    if (!s.dark.some(Boolean)) return null;
+    const lit = s.dark.map(d => !d);
+    for (const f of s.flares) for (const c of f.lit) lit[c] = true;
+    return lit;
+}
+
+/** The cells a flare lights: those within `flareRadius` steps through open space. */
+export function flareCells(g: Grid, closed: readonly number[], cell: number): number[]
+{
+    const dist = distances(g, cell, i => !blocks(g, closed, i));
+    const lit: number[] = [];
+    dist.forEach((d, i) => { if (d >= 0 && d <= TOOLS.flareRadius) lit.push(i); });
+    return lit;
+}
+
+/** Where something thrown lands: the last open cell along the facing line, up to `throwRange`. */
+export function landing(s: GameState): number
+{
+    let cell = s.player.cell;
+    for (let k = 0; k < TOOLS.throwRange; k++)
+    {
+        const n = neighbour(s.grid, cell, s.player.dir);
+        if (blocks(s.grid, s.closed, n)) break;
+        cell = n;
+    }
+    return cell;
+}
+
+/** The cells in front of the player that the flamethrower reaches. */
+export function flameCells(s: GameState): number[]
+{
+    const cells: number[] = [];
+    let cell = s.player.cell;
+    for (let k = 0; k < TOOLS.flameRange; k++)
+    {
+        const n = neighbour(s.grid, cell, s.player.dir);
+        if (blocks(s.grid, s.closed, n)) break;
+        cells.push(n);
+        cell = n;
+    }
+    return cells;
+}
 
 /** Straight-line distance from the player to the creature, in cells (it may be inside the vents). */
 export function alienDistance(s: GameState)
@@ -178,7 +279,67 @@ export function reduce(s: GameState, input: Input): { state: GameState; events: 
         return { state: makeNoise(next, door, NOISE.door, events), events };
     }
 
+    if (input === 'craftDecoy' || input === 'craftFlare' || input === 'craftFuel')
+    {
+        const recipe = recipeOf(CRAFT[input]);
+        if (!canCraft(s.bag, recipe))
+        {
+            events.push('noParts');
+            return { state: s, events };
+        }
+        events.push(input);
+        const next = { ...s, bag: craft(s.bag, recipe), player: { ...p, busyMs: TOOLS.craftMs } };
+        return { state: makeNoise(next, p.cell, NOISE.craft, events), events };
+    }
+
     if (p.hidden) return { state: s, events };
+
+    if (input === 'throwDecoy' || input === 'throwFlare')
+    {
+        const decoy = input === 'throwDecoy';
+        if ((decoy ? s.bag.decoys : s.bag.flares) <= 0)
+        {
+            events.push(decoy ? 'noDecoy' : 'noFlare');
+            return { state: s, events };
+        }
+        events.push(input);
+        const cell = landing(s);
+        const bag = decoy ? { ...s.bag, decoys: s.bag.decoys - 1 } : { ...s.bag, flares: s.bag.flares - 1 };
+        const next: GameState = {
+            ...s, bag, player: { ...p, busyMs: TOOLS.throwMs },
+            decoys: decoy ? [...s.decoys, { cell, ms: TOOLS.decoyMs, pulseMs: TOOLS.decoyEveryMs }] : s.decoys,
+            flares: decoy ? s.flares : [...s.flares, { cell, ms: TOOLS.flareMs, lit: flareCells(s.grid, s.closed, cell) }],
+        };
+        // the clatter of a decoy carries; a flare only makes the throw itself
+        return { state: makeNoise(next, decoy ? cell : p.cell, decoy ? NOISE.decoy : NOISE.throw, events), events };
+    }
+
+    if (input === 'fire')
+    {
+        if (!s.bag.flamer)
+        {
+            events.push('noFlamer');
+            return { state: s, events };
+        }
+        if (s.bag.fuel <= 0)
+        {
+            events.push('noFuel');
+            return { state: s, events };
+        }
+        events.push('fire');
+        const hit = !s.alien.vent && flameCells(s).includes(s.alien.cell);
+        let next: GameState = {
+            ...s, bag: { ...s.bag, fuel: s.bag.fuel - 1 }, flameMs: TOOLS.flameShowMs, burns: hit ? s.burns + 1 : s.burns,
+            player: { ...p, busyMs: TOOLS.fireMs },
+        };
+        if (hit)
+        {
+            events.push('scare');
+            next = { ...next, alien: scare(s.alien, world(next), s.burns) };
+        }
+        // a miss is heard all over the deck
+        return { state: makeNoise(next, p.cell, NOISE.fire, events), events };
+    }
 
     if (input === 'left' || input === 'right')
     {
@@ -209,6 +370,8 @@ export function reduce(s: GameState, input: Input): { state: GameState; events: 
         if (next.collected >= next.needed) events.push('allCells');
         next = makeNoise(next, to, NOISE.pickup, events);
     }
+    const loot = next.loot.find(l => l.cell === to);
+    if (loot) next = collect(next, loot, events);
     if (cellAt(s.grid, to) === 'exit')
     {
         if (next.collected >= next.needed)
@@ -221,6 +384,28 @@ export function reduce(s: GameState, input: Input): { state: GameState; events: 
     return { state: next, events };
 }
 
+/** Picks `loot` up unless the bag is full for it. */
+function collect(s: GameState, loot: Loot, events: GameEvent[]): GameState
+{
+    let bag = s.bag;
+    if (loot.kind === 'flamer')
+    {
+        events.push('lootFlamer');
+        bag = { ...bag, flamer: true, fuel: Math.max(bag.fuel, FUEL_FOUND) };
+    }
+    else
+    {
+        if (bag[loot.kind] >= BAG_MAX)
+        {
+            events.push('bagFull');
+            return s;
+        }
+        events.push(LOOT_EVENT[loot.kind]);
+        bag = { ...bag, [loot.kind]: bag[loot.kind] + 1 };
+    }
+    return makeNoise({ ...s, bag, loot: s.loot.filter(l => l !== loot) }, loot.cell, NOISE.pickup, events);
+}
+
 /** Time passing: the creature moves, the tracker pings, a save completes. */
 export function step(s: GameState, dtMs: number, rng: Rng): { state: GameState; events: GameEvent[] }
 {
@@ -230,7 +415,34 @@ export function step(s: GameState, dtMs: number, rng: Rng): { state: GameState; 
         ...s,
         timeMs: s.timeMs + dtMs,
         player: { ...s.player, busyMs: Math.max(0, s.player.busyMs - dtMs) },
+        flameMs: Math.max(0, s.flameMs - dtMs),
     };
+
+    if (next.decoys.length)
+    {
+        const alive: Decoy[] = [];
+        for (const d of next.decoys)
+        {
+            const ms = d.ms - dtMs;
+            if (ms <= 0) continue;
+            let pulseMs = d.pulseMs - dtMs;
+            if (pulseMs <= 0)
+            {
+                pulseMs += TOOLS.decoyEveryMs;
+                events.push('decoyPing');
+                next = makeNoise(next, d.cell, NOISE.decoy, events);
+            }
+            alive.push({ ...d, ms, pulseMs });
+        }
+        next = { ...next, decoys: alive };
+    }
+
+    if (next.flares.length)
+    {
+        const alive = next.flares.map(f => ({ ...f, ms: f.ms - dtMs })).filter(f => f.ms > 0);
+        if (alive.length < next.flares.length) events.push('flareOut');
+        next = { ...next, flares: alive };
+    }
 
     if (next.saveMs > 0)
     {

@@ -21,24 +21,33 @@ export interface Grid
 /** Text painted on the wall on the `dir` side of a cell. */
 export interface Sign { x: number; y: number; dir: Dir; text: string }
 
+/** What lies on the floor to pick up besides the power cells. */
+export type LootKind = 'scrap' | 'wires' | 'chems' | 'flamer';
+
+export interface Loot { cell: number; kind: LootKind }
+
 export interface ParsedMap
 {
     grid: Grid;
     start: number;
     alien: number;
     items: number[];
+    loot: Loot[];
     /** doors that start closed */
     closed: number[];
 }
 
 const CELLS: Record<string, Cell> = {
     '#': 'wall', '.': 'floor', 'D': 'door', 'd': 'door', 'L': 'locker', 'E': 'exit', '*': 'floor', 'P': 'floor', 'A': 'floor',
-    'T': 'terminal', 'V': 'vent',
+    'T': 'terminal', 'V': 'vent', 's': 'floor', 'w': 'floor', 'c': 'floor', 'f': 'floor',
 };
 
+const LOOT: Record<string, LootKind> = { s: 'scrap', w: 'wires', c: 'chems', f: 'flamer' };
+
 /**
- * Map drawn as text: `#` wall, `.` floor, `D` closed door, `d` open door, `L` locker, `E` exit, `*` item,
- * `T` terminal, `V` vent, `P` player start, `A` alien start. Throws on a malformed map (they are written by hand, the tests catch it).
+ * Map drawn as text: `#` wall, `.` floor, `D` closed door, `d` open door, `L` locker, `E` exit, `*` power cell,
+ * `T` terminal, `V` vent, `P` player start, `A` alien start, and on the floor `s` scrap, `w` wires, `c` chemicals,
+ * `f` flamethrower. Throws on a malformed map (they are written by hand, the tests catch it).
  */
 export function parseMap(rows: readonly string[]): ParsedMap
 {
@@ -46,6 +55,7 @@ export function parseMap(rows: readonly string[]): ParsedMap
     const w = rows[0]?.length ?? 0;
     const cells: Cell[] = [];
     const items: number[] = [];
+    const loot: Loot[] = [];
     const closed: number[] = [];
     let start = -1;
     let alien = -1;
@@ -60,13 +70,25 @@ export function parseMap(rows: readonly string[]): ParsedMap
             const i = y * w + x;
             cells.push(cell);
             if (ch === '*') items.push(i);
+            if (ch in LOOT) loot.push({ cell: i, kind: LOOT[ch] });
             if (ch === 'D') closed.push(i);
             if (ch === 'P') start = i;
             if (ch === 'A') alien = i;
         });
     });
     if (start < 0 || alien < 0) throw new Error('map needs a P and an A');
-    return { grid: { w, h, cells }, start, alien, items, closed };
+    return { grid: { w, h, cells }, start, alien, items, loot, closed };
+}
+
+/** Per cell, whether it lies in any of the rectangles `[x0, y0, x1, y1]` (inclusive). */
+export function rectMask(g: Grid, rects: readonly (readonly [number, number, number, number])[]): boolean[]
+{
+    return g.cells.map((_, i) =>
+    {
+        const x = i % g.w;
+        const y = Math.floor(i / g.w);
+        return rects.some(([x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1);
+    });
 }
 
 export const cellX = (g: Grid, i: number) => i % g.w;

@@ -7,11 +7,13 @@ export interface DeckDef
     map: readonly string[];
     startDir: Dir;
     signs: readonly Sign[];
+    /** rectangles `[x0, y0, x1, y1]` without power: unlit, seen only a cell away */
+    dark?: readonly (readonly [number, number, number, number])[];
     /** what MOTHER says when the deck starts */
     briefing: readonly string[];
 }
 
-/** First deck: three power cells and the shuttle, one creature, vents and save terminals. */
+/** First deck: three power cells and the shuttle, one creature, vents, save terminals, loot, a flamethrower and a dark wing. */
 export const DECK_C: DeckDef = {
     id: 'c',
     title: 'CUBIERTA C',
@@ -19,20 +21,22 @@ export const DECK_C: DeckDef = {
         '###################',
         '#P..d.....#V..*..L#',
         '#.###.###.#.#####.#',
-        '#.#L.T#*#...#...#V#',
+        '#.#LsT#*#...#..s#V#',
         '#.#####.#####.#.#.#',
         '#...D.......D.#...#',
         '###.#.#####.#.###.#',
-        '#L..#.#..V#.#..T#.#',
+        '#L..#.#w.V#.#..T#.#',
         '#.###.#.A.#.###.#.#',
         '#.....d...d.....#.#',
         '#.###.#####.#####.#',
-        '#V..#...L...#*....#',
+        '#V..#.f.L...#*..c.#',
         '###.#########.###.#',
-        '#E..D....T....D...#',
+        '#E..D..c.T.w..D...#',
         '###################',
     ],
     startDir: 1,
+    // the east wing has lost its power: only the terminals and the cells glow there
+    dark: [[13, 5, 17, 11]],
     signs: [
         { x: 2, y: 1, dir: 0, text: 'C-01' },
         { x: 15, y: 1, dir: 0, text: 'C-02' },
@@ -48,6 +52,8 @@ export const DECK_C: DeckDef = {
         'Y LLEGUE A LA LANZADERA.',
         'EL RUIDO LA ATRAE. LAS TAQUILLAS OCULTAN.',
         'LOS TERMINALES GUARDAN SU PROGRESO.',
+        'RECOJA MATERIAL Y FABRIQUE SEÑUELOS Y BENGALAS.',
+        'EL ALA ESTE ESTÁ SIN ENERGÍA.',
     ],
 };
 

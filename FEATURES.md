@@ -34,8 +34,9 @@ Supervivencia en la Nostromo con vista subjetiva de alambre (`> aislamiento`).
 - **Fase 1, prototipo** (probado en el teléfono): una cubierta (CUBIERTA C) con 3 células y la lanzadera, la criatura (oído, vista, caza, fuerza puertas), taquillas, rastreador de movimiento, caminar manteniendo pulsado, interferencia al acercarse, muerte y reintento.
 - **Fase 2, supervivencia** (sin probar en el teléfono): conductos (la criatura viaja entre rejillas, el rastreador la sigue a través de las paredes, oye por los conductos y sale por la rejilla más cercana al ruido), terminales de guardado (3 s quieto mirando la pantalla), guardado automático al empezar, suspensión al salir (Atrás, Home, segundo plano) con `[CONTINUAR]`, `[CARGAR]` al morir, la criatura aprende a mirar en las taquillas que más usas, latido por vibración con la criatura al lado.
 
+- **Fase 3, herramientas** (sin probar en el teléfono): materiales por la cubierta (chatarra, cables, químicos; 3 de cada), `[OBJETOS]` con fabricación en tiempo real (señuelo, bengala, combustible), señuelo (10 s llamando a la criatura donde cae), bengala (ilumina 4 celdas 30 s), ala este sin energía (solo se ve la celda de al lado, brillan terminales y células; la criatura te ve de lejos solo si estás iluminado), lanzallamas (alcance 3, ahuyenta a la criatura hacia los conductos y cada quemadura acorta su huida). Por ahora el lanzallamas y el material están en la CUBIERTA C para poder probarlos; pasan a la cubierta 2 cuando exista.
+
 Fases siguientes:
 
-3. **Herramientas:** inventario, fabricación (chatarra, cables, químicos), lanzallamas, señuelo, bengalas, zonas a oscuras.
 4. **Campaña:** 5 cubiertas (JONES, CONDUCTOS, ASH, FALLOS, AUTODESTRUCCIÓN), el androide, fallos de la nave, cuenta atrás, registros de la tripulación, finales, pantallas de título e informe, dificultad.
 5. **Infinito y extras:** cubiertas generadas con semilla, logros, estadísticas, archivo, widget en el panel, `/jugar` `/partida` `/pista` en MOTHER.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DECK_C } from '../decks';
-import { blocks, cellAt, distances, lineOfSight, neighbour, nextStep, parseMap, soundDistance, turn, type Dir } from '../grid';
+import { blocks, cellAt, distances, lineOfSight, neighbour, nextStep, parseMap, rectMask, soundDistance, turn, type Dir } from '../grid';
 import { seeded } from '../rng';
 
 const corridor = parseMap([
@@ -22,6 +22,23 @@ describe('parseMap', () =>
         expect(cellAt(m.grid, 11)).toBe('locker');
         expect(cellAt(m.grid, 13)).toBe('exit');
         expect(corridor.closed).toEqual([11]);
+    });
+
+    it('reads the loot on the floor, which stays walkable', () =>
+    {
+        const m = parseMap(['######', '#Pswc#', '#fA.##', '######']);
+        expect(m.loot).toEqual([
+            { cell: 8, kind: 'scrap' }, { cell: 9, kind: 'wires' }, { cell: 10, kind: 'chems' }, { cell: 13, kind: 'flamer' },
+        ]);
+        expect(m.loot.every(l => cellAt(m.grid, l.cell) === 'floor')).toBe(true);
+    });
+
+    it('marks the cells in rectangles', () =>
+    {
+        const g = parseMap(['#####', '#P.A#', '#####']).grid;
+        const mask = rectMask(g, [[1, 1, 2, 1], [4, 2, 4, 2]]);
+        expect(mask.map(Number).join('')).toBe('000000110000001');
+        expect(rectMask(g, []).some(Boolean)).toBe(false);
     });
 
     it('rejects ragged rows, unknown cells and maps without P or A', () =>

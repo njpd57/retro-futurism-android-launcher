@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue';
+import { FUEL_MAX } from '@/games/isolation/crafting';
 import type { Input } from '@/games/isolation/game';
+import { bar } from '@/utils/tui';
 
 defineProps<{
     /** label of the [USAR] key, null when there is nothing to use */
     use: string | null;
     tracker: boolean;
     hidden: boolean;
+    decoys: number;
+    flares: number;
+    /** flamethrower shots left; null without the flamethrower */
+    fuel: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -73,6 +79,12 @@ onBeforeUnmount(release);
             ▼ ATRÁS
         </button>
         <button class="key pressable" :class="{ on: tracker }" @click="tap('tracker')">RASTREADOR</button>
+
+        <button class="key pressable" :class="{ off: hidden || !decoys }" @click="tap('throwDecoy')">SEÑUELO ×{{ decoys }}</button>
+        <button class="key pressable" :class="{ off: hidden || !flares }" @click="tap('throwFlare')">BENGALA ×{{ flares }}</button>
+        <button class="key pressable" :class="{ off: hidden || !fuel }" @click="tap('fire')">
+            FUEGO {{ fuel === null ? '---' : bar(fuel / FUEL_MAX, FUEL_MAX) }}
+        </button>
     </div>
 </template>
 
