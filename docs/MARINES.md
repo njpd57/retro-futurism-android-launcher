@@ -2,7 +2,7 @@
 
 Documento para retomar el trabajo en otra sesión. Resume lo decidido, lo hecho, lo que falta y cómo verificarlo. La arquitectura corta está en `CLAUDE.md` (párrafo MARINES) y las fases en `FEATURES.md`; aquí está el detalle. El plan original aprobado está en `~/.claude/plans/haz-un-plan-para-flickering-eclipse.md` (fuera del repo; este documento lo sustituye).
 
-Último estado: **fases 0 a 5 hechas, con pruebas (579 en el repo); la 3 está desplegada, lo posterior no, ninguna probada en el teléfono ni en Chrome sin pantalla.** Quedan sin hacer los finales alternativos y las misiones con huevos.
+Último estado: **fases 0 a 5 hechas, commiteadas y desplegadas en el teléfono (la última build, con el motor compartido `wire/` incluido); el usuario da el juego por listo.** Quedan sin hacer, como ideas, los finales alternativos y las misiones con huevos.
 
 ## Qué es
 
