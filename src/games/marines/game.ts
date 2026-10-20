@@ -1,8 +1,13 @@
-import type { Grid, Sign } from '../isolation/grid';
+import { rectMask, type Grid, type Sign } from '../isolation/grid';
 import type { Rng } from '../isolation/rng';
 import { dirYaw } from '../wire/camera';
+import { DIFFICULTY, missionById, missionDone, type DifficultyId, type Rules } from './campaign';
 import { castRay } from '../wire/occlusion';
-import { ENEMIES, buildField, spawnEnemy, stepEnemies, type Enemy, type Field } from './enemies';
+import {
+    SPIT, TURRET, WELD, landedSpits, placeTurret, stepTurrets, weldTarget,
+    type Spit, type Turret, type Weld, type WeldTarget,
+} from './defenses';
+import { ENEMIES, buildField, spawnEnemy, stepEnemies, weldKey, type Enemy, type EnemyKind, type Field } from './enemies';
 import { parseArena, type ArenaDef, type PickupKind } from './map';
 import { angleDiff, angleTo, forward, lineClear, moveCircle, rayCircle, right } from './physics';
 import { MARINE, newSquad, spotNear, stepSquad, type Marine, type Order } from './squad';
@@ -96,6 +101,9 @@ export interface Player
     firedMs: number;
     /** ms since the last grenade, for the launcher's kick and to space them */
     launchMs: number;
+    /** sentry turrets and blowtorch charges carried */
+    turrets: number;
+    welds: number;
     /** time standing in acid and with a facehugger on the face since the last tick of damage */
     acidMs: number;
     grabMs: number;
@@ -143,8 +151,15 @@ export interface Wave
 
 export interface MarinesState
 {
-    phase: 'playing' | 'dead';
+    phase: 'playing' | 'dead' | 'won';
     arena: string;
+    /** the campaign mission being played, if any, and the multipliers of its difficulty */
+    mission: string | null;
+    rules: Rules;
+    /** per cell: without light, so only what the shoulder lamp reaches shows (all false in a lit arena) */
+    dark: readonly boolean[];
+    /** the mission's queen has come out of a grille */
+    queenOut: boolean;
     title: string;
     grid: Grid;
     closed: readonly number[];
@@ -158,10 +173,17 @@ export interface MarinesState
     enemies: readonly Enemy[];
     projectiles: readonly Projectile[];
     acid: readonly Acid[];
+    /** the sentry turrets standing, the doors welded shut and the acid in the air */
+    turrets: readonly Turret[];
+    welds: readonly Weld[];
+    spits: readonly Spit[];
     nextId: number;
     wave: Wave;
     score: number;
     kills: number;
+    /** kills of each kind, and what was set up: for the report */
+    killsBy: Record<EnemyKind, number>;
+    built: { turrets: number; welds: number };
     shots: number;
     hits: number;
     tracker: { pingMs: number; blips: readonly Blip[]; nearest: number | null };
@@ -185,15 +207,16 @@ export interface Controls
 export const NO_CONTROLS: Controls = { forward: 0, strafe: 0, turn: 0, fire: false };
 
 /** `switch`: the next weapon carried; `select:<weapon>`: that one; `order`: the squad's order, follow or hold. */
-export type Action = 'reload' | 'grenade' | 'switch' | 'order' | `select:${WeaponId}`;
+export type Action = 'reload' | 'grenade' | 'switch' | 'order' | 'turret' | 'weld' | `select:${WeaponId}`;
 
 export type GameEvent =
     | 'shot' | 'dry' | 'reloadStart' | 'reloadDone' | 'hit' | 'kill' | 'hurt' | 'lowHealth'
     | 'pickupAmmo' | 'pickupMed' | 'pickupGrenade' | 'waveStart' | 'waveClear' | 'reinforce' | 'spawn' | 'ping' | 'dead'
-    | 'launch' | 'blast' | 'noGrenades' | 'switch' | 'orderFollow' | 'orderHold' | 'squadShot' | 'grab' | 'acid' | 'splash'
+    | 'turretPlaced' | 'noTurrets' | 'turretShot' | 'turretDown' | 'weldDone' | 'weldCut' | 'noWelds' | 'noDoor' | 'weldBroken' | 'spit'
+    | 'launch' | 'blast' | 'won' | 'queen' | 'noGrenades' | 'switch' | 'orderFollow' | 'orderHold' | 'squadShot' | 'grab' | 'acid' | 'splash'
     | `pickupWeapon:${WeaponId}` | `marineDown:${number}`;
 
-export function newGame(arena: ArenaDef): MarinesState
+export function newGame(arena: ArenaDef, opts: { difficulty?: DifficultyId; mission?: string } = {}): MarinesState
 {
     const map = parseArena(arena.map);
     const g = map.grid;
@@ -204,6 +227,10 @@ export function newGame(arena: ArenaDef): MarinesState
     return {
         phase: 'playing',
         arena: arena.id,
+        mission: opts.mission ?? null,
+        dark: rectMask(g, arena.dark ?? []),
+        queenOut: false,
+        rules: { ...DIFFICULTY[opts.difficulty ?? 'veterano'].rules },
         title: arena.title,
         grid: g,
         closed: map.closed,
@@ -213,6 +240,7 @@ export function newGame(arena: ArenaDef): MarinesState
         player: {
             x: px, y: py, yaw, health: PLAYER.health, armor: PLAYER.armor,
             weapon: 'rifle', mag: def.mag, reserve: def.mag * 3, stash: {}, grenades: GRENADE.start,
+            turrets: TURRET.start, welds: WELD.max,
             cooldownMs: 0, reloadMs: 0, heat: 0, hurtMs: 0, firedMs: 1e6, launchMs: 1e6, acidMs: 0, grabMs: 0, moveAmt: 0,
         },
         marines: newSquad(g, map.closed, px, py, yaw),
@@ -220,10 +248,15 @@ export function newGame(arena: ArenaDef): MarinesState
         enemies: [],
         projectiles: [],
         acid: [],
+        turrets: [],
+        welds: [],
+        spits: [],
         nextId: 1,
         wave: { n: 1, phase: 'rest', restMs: WAVES.firstRestMs, toSpawn: 0, spawnMs: 0 },
         score: 0,
         kills: 0,
+        killsBy: { drone: 0, runner: 0, hugger: 0, spitter: 0, queen: 0 },
+        built: { turrets: 0, welds: 0 },
         shots: 0,
         hits: 0,
         tracker: { pingMs: 800, blips: [], nearest: null },
@@ -256,6 +289,19 @@ export function lockTarget(s: MarinesState): number | null
     return assistTarget(s.grid, s.closed, p.x, p.y, p.yaw, targetsOf(s.enemies.filter(e => !e.clung)), def)?.id ?? null;
 }
 
+/** The door the blowtorch would work on from where the player stands, or null. */
+export function weldAim(s: MarinesState): WeldTarget | null
+{
+    const p = s.player;
+    const bodies = [
+        { x: p.x, y: p.y },
+        ...s.enemies.filter(e => !e.clung),
+        ...s.marines.filter(m => m.hp > 0),
+        ...s.turrets,
+    ];
+    return weldTarget(s.grid, s.closed, s.welds, p.x, p.y, p.yaw, bodies);
+}
+
 const targetsOf = (enemies: readonly Enemy[]): Target[] => enemies.map(e => ({ id: e.id, x: e.x, y: e.y, radius: ENEMIES[e.kind].radius }));
 
 /** The player's discrete actions. */
@@ -274,6 +320,40 @@ export function act(s: MarinesState, action: Action): { state: MarinesState; eve
     {
         const order: Order = s.order === 'follow' ? 'hold' : 'follow';
         return { state: { ...s, order }, events: [order === 'follow' ? 'orderFollow' : 'orderHold'] };
+    }
+    else if (action === 'turret')
+    {
+        if (p.turrets <= 0 || s.turrets.length >= TURRET.max) return { state: s, events: ['noTurrets'] };
+        const id = TURRET.idBase + s.nextId;
+        const turret = placeTurret(s.grid, s.closed, p.x, p.y, p.yaw, id, s.turrets);
+        if (!turret) return { state: s, events: ['noTurrets'] };
+        p.turrets--;
+        return {
+            state: { ...s, player: p, turrets: [...s.turrets, turret], nextId: s.nextId + 1, built: { ...s.built, turrets: s.built.turrets + 1 } },
+            events: ['turretPlaced'],
+        };
+    }
+    else if (action === 'weld')
+    {
+        const target = weldAim(s);
+        if (!target) return { state: s, events: ['noDoor'] };
+        if (target.action === 'cut')
+        {
+            p.welds = Math.min(WELD.max, p.welds + 1);
+            return {
+                state: { ...s, player: p, welds: s.welds.filter(w => w.cell !== target.cell), closed: s.closed.filter(c => c !== target.cell), field: { ...s.field, key: '?' } },
+                events: ['weldCut'],
+            };
+        }
+        if (p.welds <= 0) return { state: s, events: ['noWelds'] };
+        p.welds--;
+        return {
+            state: {
+                ...s, player: p, welds: [...s.welds, { cell: target.cell, hp: WELD.hp }], closed: [...s.closed, target.cell],
+                field: { ...s.field, key: '?' }, built: { ...s.built, welds: s.built.welds + 1 },
+            },
+            events: ['weldDone'],
+        };
     }
     else if (action === 'grenade')
     {
@@ -356,8 +436,14 @@ export function step(s: MarinesState, dtMs: number, controls: Controls, rng: Rng
 }
 
 /** The copy `stepOnce` works on and mutates: the same shape as the state, with its lists open. */
-interface Work extends Omit<MarinesState, 'enemies' | 'pickups' | 'fx' | 'tracker' | 'marines' | 'projectiles' | 'acid'>
+interface Work extends Omit<MarinesState, 'enemies' | 'pickups' | 'fx' | 'tracker' | 'marines' | 'projectiles' | 'acid' | 'turrets' | 'welds' | 'spits' | 'closed' | 'killsBy' | 'built'>
 {
+    closed: number[];
+    turrets: Turret[];
+    welds: Weld[];
+    spits: Spit[];
+    killsBy: Record<EnemyKind, number>;
+    built: { turrets: number; welds: number };
     enemies: Enemy[];
     pickups: Pickup[];
     fx: Fx[];
@@ -376,6 +462,12 @@ function clone(s: MarinesState): Work
         enemies: s.enemies.map(e => ({ ...e })),
         projectiles: s.projectiles.map(p => ({ ...p })),
         acid: s.acid.map(a => ({ ...a })),
+        closed: [...s.closed],
+        turrets: s.turrets.map(t => ({ ...t })),
+        welds: s.welds.map(w => ({ ...w })),
+        spits: s.spits.map(sp => ({ ...sp })),
+        killsBy: { ...s.killsBy },
+        built: { ...s.built },
         pickups: s.pickups.map(p => ({ ...p })),
         wave: { ...s.wave },
         tracker: { ...s.tracker, blips: s.tracker.blips.map(b => ({ ...b })) },
@@ -409,7 +501,8 @@ function stepOnce(s0: MarinesState, dt: number, controls: Controls, rng: Rng): {
 
     // the creatures flow towards the player's cell; the marines use the same field
     const here = cellOf(g, p.x, p.y);
-    if (s.field.cell !== here) s.field = buildField(g, s.closed, here);
+    const weldMap = new Map(s.welds.map((w): [number, number] => [w.cell, w.hp]));
+    if (s.field.cell !== here || s.field.key !== weldKey(weldMap)) s.field = buildField(g, s.closed, here, weldMap);
 
     // pickups
     for (const pk of s.pickups)
@@ -462,6 +555,13 @@ function stepOnce(s0: MarinesState, dt: number, controls: Controls, rng: Rng): {
         events.push('squadShot');
     }
 
+    // the turrets turn and shoot
+    for (const shot of stepTurrets(s.turrets, { grid: g, closed: s.closed, enemies }, dt, rng))
+    {
+        s.fx.push({ kind: 'beam', x: shot.x, y: shot.y, x2: shot.x2, y2: shot.y2, ageMs: 0, lifeMs: 110 });
+        events.push('turretShot');
+    }
+
     // creatures that fell
     for (let i = enemies.length - 1; i >= 0; i--)
     {
@@ -469,12 +569,13 @@ function stepOnce(s0: MarinesState, dt: number, controls: Controls, rng: Rng): {
         if (e.hp > 0) continue;
         enemies.splice(i, 1);
         s.kills++;
+        s.killsBy[e.kind]++;
         s.score += ENEMIES[e.kind].score;
         s.fx.push({ kind: 'splat', x: e.x, y: e.y, x2: e.x, y2: e.y, ageMs: 0, lifeMs: 450 });
         events.push('kill');
         // the blood is acid: it pools, and it spits at whoever is close. (One that fell off the player's face leaves none.)
         if (e.clung) continue;
-        s.acid.push({ x: e.x, y: e.y, ms: ACID.lifeMs, r: ACID.radius * (e.kind === 'hugger' ? 0.7 : 1) });
+        s.acid.push({ x: e.x, y: e.y, ms: ACID.lifeMs, r: ACID.radius * (e.kind === 'hugger' ? 0.7 : e.kind === 'queen' ? 1.7 : 1) });
         while (s.acid.length > ACID.max) s.acid.shift();
         if (Math.hypot(e.x - p.x, e.y - p.y) <= ACID.splashRange)
         {
@@ -485,10 +586,26 @@ function stepOnce(s0: MarinesState, dt: number, controls: Controls, rng: Rng): {
 
     stepWave(s, dt, rng, events);
 
-    const victims = s.marines.filter(m => m.hp > 0).map(m => ({ id: m.id, x: m.x, y: m.y }));
-    const strikes = stepEnemies(enemies, { grid: g, closed: s.closed, field: s.field, px: p.x, py: p.y, marines: victims }, dt);
+    const victims = [...s.marines.filter(m => m.hp > 0), ...s.turrets].map(m => ({ id: m.id, x: m.x, y: m.y }));
+    const strikes = stepEnemies(enemies, { grid: g, closed: s.closed, field: s.field, px: p.x, py: p.y, marines: victims, welds: weldMap }, dt);
     for (const st of strikes)
     {
+        if (st.spit)
+        {
+            const from = enemies.find(en => en.id === st.enemy);
+            if (!from) continue;
+            s.spits.push({ id: s.nextId++, x: from.x, y: from.y, tx: st.spit.x, ty: st.spit.y, ms: SPIT.flightMs, totalMs: SPIT.flightMs });
+            events.push('spit');
+            continue;
+        }
+        if (st.target !== null && st.target >= TURRET.idBase)
+        {
+            const t = s.turrets.find(o => o.id === st.target);
+            if (!t) continue;
+            t.hp -= st.damage;
+            t.hitMs = 250;
+            continue;
+        }
         if (st.target === null)
         {
             if (st.grab && !enemies.some(e => e.clung))
@@ -502,19 +619,57 @@ function stepOnce(s0: MarinesState, dt: number, controls: Controls, rng: Rng): {
                 }
                 continue;
             }
-            hurt(p, st.damage);
+            hurt(p, st.damage * s.rules.hurt);
             events.push('hurt');
             continue;
         }
         const m = s.marines.find(o => o.id === st.target);
         if (!m || m.hp <= 0) continue;
-        m.hp -= st.damage;
+        m.hp -= st.damage * s.rules.hurt;
         m.hitMs = 250;
         if (m.hp <= 0)
         {
             m.hp = 0;
             events.push(`marineDown:${s.marines.indexOf(m)}`);
         }
+    }
+
+    // the welds that were gnawed through give way, and the turrets that were wrecked or have run dry go
+    s.welds = s.welds.map(w => ({ cell: w.cell, hp: weldMap.get(w.cell) ?? w.hp }));
+    const broken = s.welds.filter(w => w.hp <= 0).map(w => w.cell);
+    if (broken.length)
+    {
+        s.welds = s.welds.filter(w => w.hp > 0);
+        s.closed = s.closed.filter(c => !broken.includes(c));
+        events.push('weldBroken');
+    }
+    const wrecked = s.turrets.length;
+    s.turrets = s.turrets.filter(t => t.hp > 0);
+    if (s.turrets.length < wrecked) events.push('turretDown');
+
+    // gobs of acid come down
+    for (const sp of landedSpits(s.spits, dt))
+    {
+        s.acid.push({ x: sp.tx, y: sp.ty, ms: ACID.lifeMs, r: SPIT.pool });
+        while (s.acid.length > ACID.max) s.acid.shift();
+        s.fx.push({ kind: 'splat', x: sp.tx, y: sp.ty, x2: sp.tx, y2: sp.ty, ageMs: 0, lifeMs: 450 });
+        if (Math.hypot(p.x - sp.tx, p.y - sp.ty) < SPIT.radius)
+        {
+            hurt(p, SPIT.damage * s.rules.hurt);
+            events.push('splash');
+        }
+        for (const m of s.marines)
+        {
+            if (m.hp <= 0 || Math.hypot(m.x - sp.tx, m.y - sp.ty) >= SPIT.radius) continue;
+            m.hp -= SPIT.damage;
+            m.hitMs = 250;
+            if (m.hp <= 0)
+            {
+                m.hp = 0;
+                events.push(`marineDown:${s.marines.indexOf(m)}`);
+            }
+        }
+        for (const t of s.turrets) if (Math.hypot(t.x - sp.tx, t.y - sp.ty) < SPIT.radius) t.hp -= SPIT.damage;
     }
 
     // a facehugger on the face, and standing in acid
@@ -547,6 +702,11 @@ function stepOnce(s0: MarinesState, dt: number, controls: Controls, rng: Rng): {
     stepFx(s, dt);
     stepTracker(s, dt, events);
 
+    if (s.phase === 'playing' && p.health > 0 && missionDone(s))
+    {
+        s.phase = 'won';
+        events.push('won');
+    }
     if (healthBefore >= LOW_HEALTH && p.health < LOW_HEALTH && p.health > 0) events.push('lowHealth');
     if (p.health <= 0)
     {
@@ -802,9 +962,19 @@ function stepWave(s: Work, dt: number, rng: Rng, events: GameEvent[])
         if (w.restMs <= 0)
         {
             w.phase = 'fight';
-            w.toSpawn = waveSize(w.n);
+            w.toSpawn = Math.max(1, Math.round(waveSize(w.n) * s.rules.count));
             w.spawnMs = 600;
             events.push('waveStart');
+            // the mission's queen comes out with the wave she is due in
+            const due = s.mission ? missionById(s.mission)?.goals.queen : undefined;
+            if (due !== undefined && !s.queenOut && w.n >= due)
+            {
+                const queen = spawnEnemy(s.nextId++, 'queen', s.grid, pickSpawn(s.grid, s.spawns, enemies, s.player.x, s.player.y, rng));
+                queen.hp *= s.rules.hp;
+                enemies.push(queen);
+                s.queenOut = true;
+                events.push('queen');
+            }
         }
         return;
     }
@@ -815,7 +985,9 @@ function stepWave(s: Work, dt: number, rng: Rng, events: GameEvent[])
         if (w.spawnMs <= 0 && enemies.length < aliveCap(w.n))
         {
             const cell = pickSpawn(s.grid, s.spawns, enemies, s.player.x, s.player.y, rng);
-            enemies.push(spawnEnemy(s.nextId++, pickKind(w.n, rng), s.grid, cell));
+            const e = spawnEnemy(s.nextId++, pickKind(w.n, rng), s.grid, cell);
+            e.hp *= s.rules.hp;
+            enemies.push(e);
             w.toSpawn--;
             w.spawnMs = spawnIntervalMs(w.n);
             events.push('spawn');
@@ -826,6 +998,14 @@ function stepWave(s: Work, dt: number, rng: Rng, events: GameEvent[])
         s.score += waveBonus(w.n);
         events.push('waveClear');
         for (const pk of s.pickups) pk.taken = false;
+        // the turrets are rearmed and patched, and a charge of each kind is given back
+        for (const t of s.turrets)
+        {
+            t.ammo = TURRET.ammo;
+            t.hp = Math.min(TURRET.hp, t.hp + TURRET.mend);
+        }
+        s.player.turrets = Math.min(TURRET.cap, s.player.turrets + 1);
+        s.player.welds = WELD.max;
         reinforce(s, events);
         w.n++;
         w.phase = 'rest';

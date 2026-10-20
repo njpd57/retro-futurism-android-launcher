@@ -71,7 +71,6 @@ describe.each(Object.values(ARENAS))('arena $id', arena =>
 
     it('has every extra weapon to find, away from the start, and grenades to restock', () =>
     {
-        if (arena.id !== ARENA_OPERATIONS.id) return;
         const kinds = m.pickups.map(p => p.kind);
         for (const k of ['shotgun', 'smartgun', 'flamer', 'grenade'] as const) expect(kinds, k).toContain(k);
         for (const p of m.pickups.filter(k => k.kind === 'shotgun' || k.kind === 'smartgun' || k.kind === 'flamer'))

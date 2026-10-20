@@ -21,12 +21,13 @@ export const aliveCap = (n: number) => Math.min(14, 8 + n);
 
 export const waveBonus = (n: number) => 250 * n;
 
-/** Share of each kind in wave `n`: the rest are drones. Runners join at wave 3 and huggers at wave 4. */
-export function mix(n: number): { runner: number; hugger: number }
+/** Share of each kind in wave `n`: the rest are drones. Runners join at wave 3, huggers at 4 and spitters at 5. */
+export function mix(n: number): { runner: number; hugger: number; spitter: number }
 {
     return {
         runner: n >= 3 ? Math.min(0.4, 0.15 + 0.05 * (n - 3)) : 0,
         hugger: n >= 4 ? Math.min(0.2, 0.08 + 0.02 * (n - 4)) : 0,
+        spitter: n >= 5 ? Math.min(0.12, 0.06 + 0.015 * (n - 5)) : 0,
     };
 }
 
@@ -35,8 +36,9 @@ export function pickKind(n: number, rng: Rng): EnemyKind
 {
     const m = mix(n);
     const r = rng();
-    if (r < m.hugger) return 'hugger';
-    if (r < m.hugger + m.runner) return 'runner';
+    if (r < m.spitter) return 'spitter';
+    if (r < m.spitter + m.hugger) return 'hugger';
+    if (r < m.spitter + m.hugger + m.runner) return 'runner';
     return 'drone';
 }
 

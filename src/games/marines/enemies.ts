@@ -1,7 +1,7 @@
 import { blocks, distances, neighbour, type Dir, type Grid } from '../isolation/grid';
 import { lineClear, moveCircle } from './physics';
 
-export type EnemyKind = 'drone' | 'runner' | 'hugger';
+export type EnemyKind = 'drone' | 'runner' | 'hugger' | 'spitter' | 'queen';
 
 export interface EnemyDef
 {
@@ -19,6 +19,8 @@ export interface EnemyDef
     score: number;
     /** its strike on the player is a leap that clings to the face; against anyone else it is a plain blow */
     grab?: boolean;
+    /** it strikes from afar: it lobs a gob of acid at where the target stands when the warning runs out */
+    range?: number;
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
@@ -27,6 +29,10 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     runner: { name: 'CORREDOR', hp: 5, speed: 5.2, radius: 0.26, reach: 0.78, windupMs: 220, cooldownMs: 650, damage: 9, score: 150 },
     // small and quick, and it leaps from a couple of cells: its warning is the crouch before the jump
     hugger: { name: 'ABRAZACARAS', hp: 3, speed: 4.4, radius: 0.2, reach: 1.7, windupMs: 500, cooldownMs: 1600, damage: 6, score: 125, grab: true },
+    // keeps its distance and lobs acid: the gob takes a moment to land, so it can be dodged
+    // the queen of the nest: slow, huge, and a single blow takes a third of a marine's health
+    queen: { name: 'REINA', hp: 90, speed: 1.7, radius: 0.45, reach: 1.3, windupMs: 650, cooldownMs: 1500, damage: 28, score: 1500 },
+    spitter: { name: 'ESCUPIDOR', hp: 6, speed: 2.4, radius: 0.28, reach: 0.8, range: 6.5, windupMs: 700, cooldownMs: 2800, damage: 0, score: 175 },
 };
 
 export interface Enemy
@@ -63,11 +69,39 @@ export function spawnEnemy(id: number, kind: EnemyKind, g: Grid, cell: number): 
 }
 
 /** Steps from every cell to `cell` through open space: the creatures flow down it towards the player. */
-export interface Field { cell: number; dist: Int32Array }
+export interface Field { cell: number; dist: Int32Array; /** which welded doors it was built with */ key: string }
 
-export function buildField(g: Grid, closed: readonly number[], cell: number): Field
+/** What a welded door adds to the way through it, in steps: creatures prefer another route, but will gnaw through if there is none. */
+export const WELD_COST = 12;
+
+/** Identifies a set of welded doors, to know when a field has gone stale. */
+export const weldKey = (welds?: ReadonlyMap<number, number>) => welds && welds.size ? [...welds.keys()].sort((a, b) => a - b).join(',') : '';
+
+export function buildField(g: Grid, closed: readonly number[], cell: number, welds?: ReadonlyMap<number, number>): Field
 {
-    return { cell, dist: distances(g, cell, i => !blocks(g, closed, i)) };
+    const key = weldKey(welds);
+    if (!welds || !welds.size) return { cell, dist: distances(g, cell, i => !blocks(g, closed, i)), key };
+
+    // a welded door is passable at a cost: a label-correcting search (the grid is small and the costs are tiny)
+    const dist = new Int32Array(g.w * g.h).fill(-1);
+    dist[cell] = 0;
+    const queue = [cell];
+    for (let head = 0; head < queue.length; head++)
+    {
+        const c = queue[head];
+        for (let d = 0; d < 4; d++)
+        {
+            const n = neighbour(g, c, d as Dir);
+            if (n < 0) continue;
+            const weld = welds.has(n);
+            if (!weld && blocks(g, closed, n)) continue;
+            const cost = dist[c] + 1 + (weld ? WELD_COST : 0);
+            if (dist[n] >= 0 && dist[n] <= cost) continue;
+            dist[n] = cost;
+            queue.push(n);
+        }
+    }
+    return { cell, dist, key };
 }
 
 /** The neighbouring cell with the smallest distance, or -1 when there is no way. */
@@ -94,8 +128,10 @@ export interface EnemyWorld
     /** the player */
     px: number;
     py: number;
-    /** the squad members still standing */
+    /** the squad members still standing, and the turrets */
     marines?: readonly Victim[];
+    /** welded doors and what is left of each weld: creatures that find one in their way gnaw at it (this is mutated) */
+    welds?: Map<number, number>;
 }
 
 /** A blow (or a leap) that landed. */
@@ -107,6 +143,8 @@ export interface Strike
     damage: number;
     /** it is a leap onto the player's face, not a blow */
     grab: boolean;
+    /** a gob of acid to land at this point */
+    spit?: { x: number; y: number };
 }
 
 /** Two bodies closer than this are pushed apart. */
@@ -158,7 +196,9 @@ export function stepEnemies(enemies: Enemy[], w: EnemyWorld, dtMs: number): Stri
         const dx = goalX - e.x;
         const dy = goalY - e.y;
 
-        if (d <= def.reach)
+        // a creature that strikes from afar needs a clear line to its target; the others need only to be close
+        const ranged = def.range !== undefined && d <= def.range && lineClear(g, w.closed, e.x, e.y, tx, ty);
+        if (d <= def.reach || ranged)
         {
             // close enough: stop and strike once the warning has run out
             e.moving = false;
@@ -173,7 +213,10 @@ export function stepEnemies(enemies: Enemy[], w: EnemyWorld, dtMs: number): Stri
                 e.windMs -= dtMs;
                 if (e.windMs <= 0)
                 {
-                    strikes.push({ enemy: e.id, target: victim, damage: def.damage, grab: !!def.grab && victim === null });
+                    strikes.push({
+                        enemy: e.id, target: victim, damage: def.damage, grab: !!def.grab && victim === null,
+                        ...(ranged ? { spit: { x: tx, y: ty } } : {}),
+                    });
                     e.coolMs = def.cooldownMs;
                     e.windMs = -1;
                 }
@@ -189,6 +232,26 @@ export function stepEnemies(enemies: Enemy[], w: EnemyWorld, dtMs: number): Stri
         {
             const here = Math.floor(e.y) * g.w + Math.floor(e.x);
             const next = w.field.dist[here] > 0 ? downhill(g, w.field, here) : -1;
+            // a welded door in the way: gnaw at it until it gives
+            if (next >= 0 && w.welds?.has(next))
+            {
+                const wx = (next % g.w) + 0.5;
+                const wy = Math.floor(next / g.w) + 0.5;
+                if (Math.hypot(wx - e.x, wy - e.y) <= 1.15)
+                {
+                    const gx = wx - e.x;
+                    const gy = wy - e.y;
+                    const gl = Math.hypot(gx, gy);
+                    if (gl > 0.001)
+                    {
+                        e.dirX = gx / gl;
+                        e.dirY = gy / gl;
+                    }
+                    e.moving = false;
+                    w.welds.set(next, (w.welds.get(next) ?? 0) - gnawRate(def) * dtMs / 1000);
+                    continue;
+                }
+            }
             if (next >= 0)
             {
                 tx = (next % g.w) + 0.5;
@@ -226,6 +289,9 @@ export function stepEnemies(enemies: Enemy[], w: EnemyWorld, dtMs: number): Stri
     separate(enemies.filter(e => !e.clung), g, w.closed);
     return strikes;
 }
+
+/** Hit points of weld a creature gnaws away each second: about what its blows would do. */
+export const gnawRate = (def: EnemyDef) => Math.max(5, (def.damage || 8) / (def.cooldownMs / 1000));
 
 /** Pushes overlapping creatures apart so they don't pile into one point. */
 export function separate(enemies: Enemy[], g: Grid, closed: readonly number[])

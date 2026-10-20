@@ -10,6 +10,9 @@ defineProps<{
     weapons: number;
     /** the squad's order, which the last key names */
     order: 'follow' | 'hold';
+    /** sentry turrets left to set down, and what the blowtorch would do to the door in front (null: no door) */
+    turrets: number;
+    weld: 'weld' | 'cut' | null;
 }>();
 
 const emit = defineEmits<{
@@ -17,10 +20,14 @@ const emit = defineEmits<{
     (e: 'move', strafe: number, forward: number): void;
     /** FUEGO went down or up */
     (e: 'fire', down: boolean): void;
+    /** the thumb on FUEGO was dragged sideways by this many pixels: it turns the view like a drag on it */
+    (e: 'aim', dx: number): void;
     (e: 'reload'): void;
     /** the next weapon */
     (e: 'switch'): void;
     (e: 'grenade'): void;
+    /** the key that sets a turret down, or seals or cuts the door in front when there is one */
+    (e: 'deploy'): void;
     /** toggles the squad between following and holding */
     (e: 'order'): void;
 }>();
@@ -106,16 +113,37 @@ onMounted(() =>
 // ---- FUEGO
 const firing = ref(false);
 
+// the thumb on FUEGO also aims: it follows its own finger and reports how far it moved sideways
+let fireTouch: number | null = null;
+let fireX = 0;
+
 function fireDown(e: Event)
 {
     if (e.cancelable) e.preventDefault();
     if (firing.value) return;
     firing.value = true;
+    if (e instanceof TouchEvent)
+    {
+        fireTouch = e.changedTouches[0].identifier;
+        fireX = e.changedTouches[0].clientX;
+    }
     emit('fire', true);
+}
+
+function fireMove(e: TouchEvent)
+{
+    if (fireTouch === null) return;
+    for (const t of Array.from(e.changedTouches))
+    {
+        if (t.identifier !== fireTouch) continue;
+        emit('aim', t.clientX - fireX);
+        fireX = t.clientX;
+    }
 }
 
 function fireUp()
 {
+    fireTouch = null;
     if (!firing.value) return;
     firing.value = false;
     emit('fire', false);
@@ -136,6 +164,7 @@ onBeforeUnmount(() =>
             <button class="key small pressable" :class="{ off: reloading }" @click="emit('reload')">RECARGA</button>
             <button class="key small pressable" :class="{ off: weapons < 2 }" @click="emit('switch')">ARMA</button>
             <button class="key small pressable" :class="{ off: grenades < 1 }" @click="emit('grenade')">GRANADA {{ grenades }}</button>
+            <button class="key small pressable" :class="{ held: weld !== null, off: weld === null && turrets < 1 }" @click="emit('deploy')">{{ weld === 'weld' ? 'SOLDAR' : weld === 'cut' ? 'CORTAR' : `TORRETA ${turrets}` }}</button>
             <button class="key small pressable" :class="{ held: order === 'hold' }" @click="emit('order')">{{ order === 'hold' ? 'QUIETOS' : 'SEGUIR' }}</button>
         </div>
         <div class="pad">
@@ -151,7 +180,7 @@ onBeforeUnmount(() =>
             </div>
             <button
                 class="key fire" :class="{ on: firing }"
-                @touchstart="fireDown" @touchend="fireUp" @touchcancel="fireUp"
+                @touchstart="fireDown" @touchmove="fireMove" @touchend="fireUp" @touchcancel="fireUp"
                 @mousedown="fireDown" @mouseup="fireUp" @mouseleave="fireUp">FUEGO</button>
         </div>
     </div>
@@ -173,10 +202,10 @@ $half: 18px;
     touch-action: none;
 }
 
-// the keys that are not held down: reload, next weapon, grenade, and the squad's order
+// the keys that are not held down: reload, next weapon, grenade, turret or blowtorch, and the squad's order
 .strip {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 6px;
 }
 
@@ -237,7 +266,7 @@ $half: 18px;
     &:active, &.on, &.held { @include inverse; }
     &.off { color: var(--ph-dim); border-color: var(--ph-dim); box-shadow: none; }
     &.fire { font-size: 1.5em; }
-    // the row of small keys: terse, so that four fit across a narrow phone
-    &.small { padding: 7px 0; font-size: 0.8em; white-space: nowrap; overflow: hidden; }
+    // the row of small keys: terse, so that five fit across a narrow phone
+    &.small { padding: 7px 0; font-size: 0.68em; white-space: nowrap; overflow: hidden; }
 }
 </style>

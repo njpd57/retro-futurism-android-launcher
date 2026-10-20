@@ -24,6 +24,7 @@ import CountdownWidget from '@/components/widgets/CountdownWidget.vue';
 import MoonWidget from '@/components/widgets/MoonWidget.vue';
 import ProtocolWidget from '@/components/widgets/ProtocolWidget.vue';
 import WorldClockWidget from '@/components/widgets/WorldClockWidget.vue';
+import MarinesWidget from '@/components/widgets/MarinesWidget.vue';
 import ImageWidget from '@/components/widgets/ImageWidget.vue';
 import TimerWidget from '@/components/widgets/TimerWidget.vue';
 import TrackerWidget from '@/components/widgets/TrackerWidget.vue';
@@ -71,5 +72,6 @@ export const WIDGETS: Record<string, WidgetDef> = {
     tracker: { title: 'DETECTOR', component: TrackerWidget, span: 2, category: 'juegos', description: 'MINIJUEGO: DETECTOR DE MOVIMIENTO', preview: ['· ◉ ·  ·', '   ·   ▒  3.2M'] },
     reroute: { title: 'REENRUTAR', component: RerouteWidget, span: 2, category: 'juegos', description: 'MINIJUEGO: REENRUTAR LA ENERGÍA', preview: ['═╦═╗ ░░', ' ╚═╩═▓'] },
     images: { title: 'IMÁGENES', component: ImageWidget, span: 2, category: 'personal', description: 'TUS IMÁGENES CON FILTRO CRT', preview: ['░▒▓█▓▒░', '▒▓███▓▒'] },
+    marines: { title: 'MARINES', component: MarinesWidget, span: 1, category: 'juegos', description: 'ACCESO A MARINES, RÉCORDS Y LOGROS', preview: ['OLEADA 7 · 4200', 'CAMPAÑA ▓▓░ 2/3'] },
     nostromo: { title: 'NOSTROMO', component: NostromoWidget, span: 2, category: 'juegos', description: 'AVENTANA DE TEXTO A BORDO', preview: ['> ABRIR PUERTA', 'LA ESCOTILLA CEDE.'] },
 };

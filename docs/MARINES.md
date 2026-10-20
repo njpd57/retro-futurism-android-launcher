@@ -2,7 +2,7 @@
 
 Documento para retomar el trabajo en otra sesión. Resume lo decidido, lo hecho, lo que falta y cómo verificarlo. La arquitectura corta está en `CLAUDE.md` (párrafo MARINES) y las fases en `FEATURES.md`; aquí está el detalle. El plan original aprobado está en `~/.claude/plans/haz-un-plan-para-flickering-eclipse.md` (fuera del repo; este documento lo sustituye).
 
-Último estado: **fases 0, 1 y 2 hechas, con pruebas (517 en el repo) y desplegadas al teléfono; la fase 2 no se verificó en Chrome sin pantalla ni se ha probado aún en el teléfono.** Quedan las fases 3 a 5.
+Último estado: **fases 0 a 5 hechas, con pruebas (579 en el repo); la 3 está desplegada, lo posterior no, ninguna probada en el teléfono ni en Chrome sin pantalla.** Quedan sin hacer los finales alternativos y las misiones con huevos.
 
 ## Qué es
 
@@ -78,11 +78,32 @@ Simulación de equilibrio (bot mediocre: apunta al más cercano, dispara sin par
 - UI: fila de 4 teclas (RECARGA, ARMA, GRANADA n, SEGUIR/QUIETOS), FUEGO ocupa la columna derecha. Teclado: q arma, 1-4, g, e. Eventos con detalle: `pickupWeapon:<arma>`, `marineDown:<n>`.
 - Pendiente del teléfono: ver «Pendiente» más abajo, más el encaje de las 4 teclas en 360 px, el dibujo de las armas y del abrazacaras, el equilibrio (corredores, ácido, ayuda de la escuadra) y el rendimiento con escuadra y explosiones.
 
-### Fase 3, ÚLTIMA DEFENSA completa
-Torretas centinela, soldador (campo con coste de puertas: `buildField` hoy usa solo `blocks`), escupidores, récords con informe, **suspensión al salir** con `[CONTINUAR]` (hoy salir pierde la partida; `beforePause` solo pausa), `save.ts` versionado, 2 mapas más, prueba de equilibrio con bot (la simulación de la fase 1 fue desechable).
+### Fase 3, ÚLTIMA DEFENSA completa (hecha, sin probar en el teléfono)
+- **Escupidor** (`enemies.ts`, `ENEMIES.spitter`, `range`): desde la oleada 5 (`waves.mix`, tope 12 %). Se detiene a ≤ 6,5 casillas con línea limpia y, tras el aviso, lanza un `Spit` (`defenses.ts`, `SPIT`): cae a los 700 ms donde estaba el objetivo, deja un charco y hiere a quien siga ahí. `Strike.spit` lo lleva al juego.
+- **Soldador** (`WELD`, `weldTarget`, `act 'weld'`): sella (o corta, y devuelve la carga) la puerta `d` que se mira a ≤ 1,9 casillas; 3 cargas por oleada. La puerta soldada entra en `closed` y en `state.welds`. `buildField(..., welds)` las cuenta como paso con coste `WELD_COST` y las criaturas, si es su camino, las roen (`gnawRate`) hasta romperlas (`weldBroken`). `Field.key` detecta que el campo quedó viejo.
+- **Torretas** (`TURRET`, `placeTurret`, `stepTurrets`, `act 'turret'`): máximo 2, 180 balas, giran y disparan a la criatura más cercana a la vista; las criaturas cercanas las atacan como a un marine (ids ≥ `TURRET.idBase`). Al limpiar la oleada se rearman, se curan y se da una carga.
+- **UI:** una tecla contextual (`TORRETA n` / `SOLDAR` / `CORTAR`, teclado `t` y `f`), selector `[MAPA]` en el título, `[CONTINUAR]` si hay partida suspendida.
+- **Mapas:** OPERACIONES, HANGAR (abierto, armerías tras puerta) y CONDUCTOS (rejillas tras puertas, para soldar). `ARENAS` y `ARENA_ORDER` en `map.ts`.
+- **Informe y récords** (`report.ts`): récords por mapa (`widget.marines.records.v2`; el antiguo `widget.marines.records` se lee una vez como el de OPERACIONES) con oleada, puntos, bajas, tiempo y partidas; el panel de muerte muestra bajas por tipo, lo construido y qué récord se batió.
+- **Suspensión** (`save.ts`, `widget.marines.suspend`, versión 1, validada al leer): se guarda al pausar y al salir; no guarda granadas en vuelo ni efectos. Al morir se borra.
+- **Equilibrio** (`balance.spec.ts`): un bot mediocre (no recoge nada, no suelda) llega a la oleada ≈ 9-11 con escuadra y torretas; sin torretas mata la mitad en HANGAR.
+- Pendiente del teléfono: que las 5 teclas quepan en 360 px (fuente 0,68 em), el dibujo del escupidor, las torretas y el escupitajo, si soldar es útil o estorba, el aviso del anillo en el suelo, y que `[CONTINUAR]` restaure bien.
 
-### Fase 4, campaña y fase 5, extras
-Como en el plan (misiones con objetivos y radio, zonas oscuras con lámparas de hombro, dificultad, finales; widget en el panel con `description` y `preview` o `registry.spec.ts` falla; logros; README).
+### Fase 4, campaña (hecha, sin probar en el teléfono)
+- `campaign.ts` (puro): `MISSIONS` (AGUANTEN en OPERACIONES: 4 oleadas; LIMPIEZA en HANGAR: 60 bajas y 2 torretas; SELLEN LAS PUERTAS en CONDUCTOS: 5 oleadas y 2 soldaduras), con `briefing` y `debrief` por radio; `Goals` (todas a la vez), `missionDone`, `missionProgress` (línea del HUD, vía `radio.status`), `unlocked` (secuencial) y `DIFFICULTY` (RECLUTA / VETERANO / PESADILLA: multiplican vida, número y daño; VETERANO es el equilibrio de antes).
+- `game.ts`: `newGame(arena, { difficulty, mission })`, `state.mission` y `state.rules`; fase `'won'` y evento `won` cuando se cumple la misión.
+- UI: en el título `[OLEADAS|CAMPAÑA]`, `[MISIÓN]`, dificultad; panel `MISIÓN CUMPLIDA` con el parte de MANDO y `[SIGUIENTE]`; `FIN DE LA CAMPAÑA` tras la última. Las misiones no entran en los récords de oleadas. Se recuerdan en `widget.marines.campaign` (mejor dificultad, luego tiempo).
+- La suspensión (`save.ts`) pasó a la versión 2 (lleva misión y reglas); una partida suspendida de la versión 1 se descarta.
+- **Cuarta misión, LA REINA** (mapa NIDO): `Goals.queen` es la oleada en que sale la reina (`EnemyKind 'queen'`: 90 de vida, 1,7 casillas/s, golpe de 28; `state.queenOut`, evento `queen`); se gana al abatirla.
+- **Zonas oscuras** (`ArenaDef.dark`, `state.dark`, `view.LAMP`): en NIDO las dos cavernas no tienen luz; solo se ve lo que alcanza la lámpara de hombro (3,4 casillas, con caída de brillo). Criaturas, marines y charcos fuera de ese alcance no se dibujan; el rastreador sigue marcando.
+- **Sin hacer:** finales alternativos y misiones con huevos.
+
+### Fase 5, extras (hecha, sin probar en el teléfono)
+- `achievements.ts` (puro): 14 logros que se ganan con el `Report` de una partida y un `RunContext` (misión ganada, dificultad, misiones cumplidas). Se guardan en `widget.marines.achievements` (`useMarinesStore.unlock` devuelve los nuevos) y salen como `LOGRO: NOMBRE` en los paneles de baja y de misión cumplida; el título cuenta `LOGROS n/13`.
+- `Report` ganó `shots` y `squadAlive`.
+- `MarinesWidget` (categoría juegos, 1 columna, registrado en `widgets/registry.ts`): mejor récord entre mapas, campaña y logros con barras; un toque abre el juego.
+- Estadísticas acumuladas (`report.addStats`, `widget.marines.stats`): partidas, bajas, tiempo, disparos, torretas, soldaduras y misiones; salen en el título y en el widget.
+- README y `FEATURES.md` al día.
 
 ### Pendiente del lado del usuario (solo se ve en el teléfono)
 - **Multitoque**: mover el joystick con un pulgar y arrastrar la vista con el otro, **y mantener FUEGO a la vez**: eso son tres dedos, o el pulgar de apuntar tiene que cubrir también FUEGO. En CDP funcionan los tres a la vez (ver «Cómo verificar»), pero la ergonomía solo se ve en el teléfono; si estorba, plantear disparo automático mientras se arrastra o un FUEGO que se pueda alcanzar con el mismo pulgar.

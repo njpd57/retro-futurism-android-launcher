@@ -3,7 +3,7 @@ import { seeded } from '../../isolation/rng';
 import type { Shape } from '../../wire/camera';
 import { ENEMIES, spawnEnemy, type Enemy } from '../enemies';
 import { newGame, type Acid, type Fx, type Projectile } from '../game';
-import { ARENA_OPERATIONS, parseArena, type ArenaDef } from '../map';
+import { ARENAS, ARENA_OPERATIONS, parseArena, type ArenaDef } from '../map';
 import { MARINE, newSquad, type Marine } from '../squad';
 import { buildMarinesView, type MarinesScene } from '../view';
 
@@ -370,5 +370,36 @@ describe('buildMarinesView', () =>
         const per = (performance.now() - t0) / n;
         console.log(`buildMarinesView (full): ${per.toFixed(2)} ms/frame, ${shapes} shapes`);
         expect(per).toBeLessThan(10);
+    });
+});
+
+describe('the dark', () =>
+{
+    // the west cavern of the nest is dark: the lamp reaches only a few cells
+    const nest = () => newGame(ARENAS.nido);
+    const scene = (enemyX: number) =>
+    {
+        const s = nest();
+        const e = { ...spawnEnemy(1, 'drone', s.grid, 2 * s.grid.w + 2), x: enemyX, y: 2.5 };
+        return buildMarinesView({
+            grid: s.grid, closed: s.closed, signs: [], pickups: [], enemies: [e], fx: [], dark: s.dark,
+            pose: { x: 2.5, y: 2.5, yaw: Math.PI / 2 }, bob: 0, time: 0, pulse: 0, w: 400, h: 500,
+        });
+    };
+
+    it('hides a creature beyond the lamp and shows it inside', () =>
+    {
+        expect(scene(7.5).some(sh => sh.tag === 'enemy')).toBe(false);
+        expect(scene(4.5).some(sh => sh.tag === 'enemy')).toBe(true);
+    });
+
+    it('draws less of a dark arena than of the same one lit', () =>
+    {
+        const s = nest();
+        const draw = (dark?: readonly boolean[]) => buildMarinesView({
+            grid: s.grid, closed: s.closed, signs: [], pickups: [], enemies: [], fx: [], dark,
+            pose: { x: 2.5, y: 2.5, yaw: Math.PI / 2 }, bob: 0, time: 0, pulse: 0, w: 400, h: 500,
+        }).length;
+        expect(draw(s.dark)).toBeLessThan(draw(undefined));
     });
 });

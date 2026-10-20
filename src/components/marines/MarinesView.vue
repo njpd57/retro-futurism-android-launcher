@@ -63,7 +63,7 @@ function draw(f: Frame)
 
     const shapes = buildMarinesView({
         grid: s.grid, closed: s.closed, signs: s.signs, pickups: s.pickups, enemies: s.enemies, fx: s.fx,
-        marines: s.marines, acid: s.acid, projectiles: s.projectiles, lockId: lockTarget(s),
+        marines: s.marines, acid: s.acid, projectiles: s.projectiles, turrets: s.turrets, spits: s.spits, dark: s.dark, lockId: lockTarget(s),
         pose: f.pose, bob: f.bob, time: s.timeMs, pulse: (Math.sin(f.now / 260) + 1) / 2, w, h,
     });
     drawShapes(ctx, shapes, { ph, bg, font, dim: s.phase === 'dead' ? 0.45 : 1, interference: faint * 0.6, bloom: settings.bloom, h });
@@ -188,16 +188,18 @@ function drawWeapon(ctx: CanvasRenderingContext2D, w: number, h: number, ph: str
     const launch = Math.max(0, 1 - p.launchMs / 180);
     // recoil kicks it back and down; walking sways it
     const sway = f.reduced ? 0 : p.moveAmt;
-    const s = h * 0.0017;
-    const a = 0.85;
+    // foreshortened (the barrel is squeezed along its length) and only slightly tilted, so that it points into the screen
+    const s = h * 0.0013;
+    const sx = s * 0.7;
+    const a = 0.5;
     const cos = Math.cos(a);
     const sin = Math.sin(a);
-    const ox = w * 0.78 + k * 5 + launch * 4 + Math.sin(f.now / 180) * sway * 4;
-    const oy = h * 0.86 + k * 8 + launch * 9 + Math.abs(Math.cos(f.now / 180)) * sway * 3;
-    const toScreen = (x: number, y: number): [number, number] => [ox + (-cos * x - sin * y) * s, oy + (-sin * x + cos * y) * s];
+    const ox = w * 0.82 + k * 5 + launch * 4 + Math.sin(f.now / 180) * sway * 4;
+    const oy = h * 0.95 + k * 8 + launch * 9 + Math.abs(Math.cos(f.now / 180)) * sway * 3;
+    const toScreen = (x: number, y: number): [number, number] => [ox + (-cos * sx * x - sin * s * y), oy + (-sin * sx * x + cos * s * y)];
 
     ctx.save();
-    ctx.transform(-cos * s, -sin * s, -sin * s, cos * s, ox, oy);
+    ctx.transform(-cos * sx, -sin * sx, -sin * s, cos * s, ox, oy);
     const trace = (pts: Pt[], close = true) =>
     {
         ctx.beginPath();

@@ -68,6 +68,8 @@ export interface ArenaDef
     signs: readonly Sign[];
     /** what the radio says when the arena is entered */
     briefing: readonly string[];
+    /** rectangles `[x0, y0, x1, y1]` without light: only what the shoulder lamp reaches shows */
+    dark?: readonly (readonly [number, number, number, number])[];
 }
 
 /** First arena: the operations block of the colony. Four rooms with grilles, two halls, two lobbies and a central hall. */
@@ -110,4 +112,128 @@ export const ARENA_OPERATIONS: ArenaDef = {
     ],
 };
 
-export const ARENAS: Record<string, ArenaDef> = { [ARENA_OPERATIONS.id]: ARENA_OPERATIONS };
+/**
+ * Second arena: the vehicle hangar. One big hall with pillars and two closets behind doors, four grilles in the corners:
+ * nothing to hold, so the turrets earn their keep.
+ */
+export const ARENA_HANGAR: ArenaDef = {
+    id: 'hangar',
+    title: 'HANGAR',
+    map: [
+        '##############################',
+        '#V..........................V#',
+        '#..##....##........##....##..#',
+        '#..##..a.##...g....##....##..#',
+        '#............................#',
+        '#.....#####..........#####...#',
+        '#.....#.S.d..........d.M.#...#',
+        '#.....#####....P.....#####...#',
+        '#............................#',
+        '#..##....##........##....##..#',
+        '#..##.+..##..a.....##..+.##..#',
+        '#............................#',
+        '#V..F..................g....V#',
+        '##############################',
+    ],
+    startDir: 0,
+    signs: [
+        { x: 14, y: 1, dir: 0, text: 'HANGAR 2' },
+        { x: 1, y: 4, dir: 3, text: 'ALA OESTE' },
+        { x: 28, y: 8, dir: 1, text: 'ALA ESTE' },
+        { x: 15, y: 12, dir: 2, text: 'ESCLUSA' },
+        { x: 8, y: 6, dir: 2, text: 'ARMERÍA' },
+    ],
+    briefing: [
+        'AQUÍ MANDO.',
+        'EL HANGAR ESTÁ ABIERTO POR TODOS LADOS.',
+        'LAS TORRETAS LES DARÁN TIEMPO.',
+        'LAS ARMAS ESTÁN EN LAS ARMERÍAS.',
+    ],
+};
+
+/**
+ * Third arena: the service conduits. A hub with two sealed wings and a deposit to the south, each with its grille
+ * behind a door: weld them and the creatures have to gnaw through.
+ */
+export const ARENA_CONDUITS: ArenaDef = {
+    id: 'conductos',
+    title: 'CONDUCTOS',
+    map: [
+        '##########################',
+        '#V...#..............#...V#',
+        '#.S..#...a....g.....#.M..#',
+        '#....d......P.......d....#',
+        '#.+..#..............#..+.#',
+        '######..............######',
+        '#........................#',
+        '#.+...##........##...a...#',
+        '#.F.....................g#',
+        '############d#############',
+        '##########..V...##########',
+        '##########......##########',
+        '##########################',
+    ],
+    startDir: 0,
+    signs: [
+        { x: 12, y: 1, dir: 0, text: 'CONDUCTOS' },
+        { x: 1, y: 6, dir: 3, text: 'GALERÍA' },
+        { x: 12, y: 11, dir: 2, text: 'DEPÓSITO' },
+        { x: 1, y: 3, dir: 3, text: 'ALA OESTE' },
+        { x: 24, y: 3, dir: 1, text: 'ALA ESTE' },
+    ],
+    briefing: [
+        'AQUÍ MANDO.',
+        'LAS REJILLAS ESTÁN TRAS LAS PUERTAS.',
+        'SUELDEN Y TENDRÁN TIEMPO.',
+        'NO SE ENCIERREN CON ELLOS.',
+    ],
+};
+
+/**
+ * Fourth arena: the nest. A lit hub with a cavern on each side, both dark; the grilles are in the caverns' corners.
+ * The shoulder lamp lights only a few cells around the player.
+ */
+export const ARENA_NEST: ArenaDef = {
+    id: 'nido',
+    title: 'NIDO',
+    map: [
+        '############################',
+        '#V.......############.....V#',
+        '#........#..........#.+....#',
+        '#........#....g.....#......#',
+        '#...#.......a.....+....#...#',
+        '#........#..........#......#',
+        '#........#..........#...M..#',
+        '#.#...#..#..#.P..#..##...#.#',
+        '#..S.....#..........#......#',
+        '#........#..........#......#',
+        '#...#......+....a......#...#',
+        '#........#..........#......#',
+        '#.F....a.#..........#......#',
+        '#V.......############.....V#',
+        '############################',
+    ],
+    startDir: 0,
+    dark: [[1, 1, 8, 13], [21, 1, 26, 13]],
+    signs: [
+        { x: 14, y: 2, dir: 0, text: 'NIDO' },
+        { x: 1, y: 6, dir: 3, text: 'CAVERNA O' },
+        { x: 26, y: 8, dir: 1, text: 'CAVERNA E' },
+    ],
+    briefing: [
+        'AQUÍ MANDO.',
+        'LAS CAVERNAS ESTÁN A OSCURAS.',
+        'LA LÁMPARA ALCANZA POCO: NO SE ADENTREN SOLOS.',
+        'LA REINA ESTÁ ABAJO.',
+    ],
+};
+
+export const ARENAS: Record<string, ArenaDef> = {
+    [ARENA_OPERATIONS.id]: ARENA_OPERATIONS,
+    [ARENA_HANGAR.id]: ARENA_HANGAR,
+    [ARENA_CONDUITS.id]: ARENA_CONDUITS,
+    [ARENA_NEST.id]: ARENA_NEST,
+};
+
+/** The order the title screen cycles through them. */
+export const ARENA_ORDER: readonly string[] = [ARENA_OPERATIONS.id, ARENA_HANGAR.id, ARENA_CONDUITS.id, ARENA_NEST.id];

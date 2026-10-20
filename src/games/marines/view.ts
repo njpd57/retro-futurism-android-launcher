@@ -4,8 +4,10 @@ import { ALIEN_OUTLINE, ALIEN_TAIL } from '../wire/creature';
 import { buildLevel, ventDetail } from '../wire/level';
 import { depthBuffer, openSpans } from '../wire/occlusion';
 import { ENEMIES, type Enemy } from './enemies';
+import type { Spit, Turret } from './defenses';
 import type { Acid, Fx, Pickup, Projectile } from './game';
 import { HUGGER_BODY, HUGGER_LEGS, HUGGER_TAIL, MARINE_OUTLINE, MARINE_VISOR } from './sprites';
+import { forward } from './physics';
 import type { Marine } from './squad';
 
 /**
@@ -26,6 +28,10 @@ export interface MarinesScene
     marines?: readonly Marine[];
     acid?: readonly Acid[];
     projectiles?: readonly Projectile[];
+    /** per cell, no light: only what the shoulder lamp reaches shows; none when the arena is lit */
+    dark?: readonly boolean[];
+    turrets?: readonly Turret[];
+    spits?: readonly Spit[];
     /** the creature the sights mark (smartgun), which gets brackets round it */
     lockId?: number | null;
     pose: Pose;
@@ -42,12 +48,15 @@ export interface MarinesScene
 /** Cells seen in any direction. The arenas are open, so this is longer than AISLAMIENTO's corridors. */
 export const VIEW_CELLS = 9;
 
+/** Cells the shoulder lamp lights around the player in the dark. */
+export const LAMP = 3.4;
+
 /** The least a creature fades with distance: it has to stay readable. */
 const MIN_ENEMY_ALPHA = 0.5;
 /** Where the rounds leave the rifle, in camera space (right, down, forward). */
 const MUZZLE: V3 = [0.14, 0.2, 0.3];
 /** Size of each creature relative to its sprite box. */
-const SCALE = { drone: 0.85, runner: 0.72, hugger: 1, marine: 0.9 };
+const SCALE = { drone: 0.85, runner: 0.72, hugger: 1, marine: 0.9, spitter: 0.95, queen: 1.55 };
 
 const lerp3 = (a: V3, b: V3, t: number): V3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -125,6 +134,22 @@ export function buildMarinesView(s: MarinesScene): Shape[]
             const t = line('enemy', at(ALIEN_TAIL[i - 1]), at(ALIEN_TAIL[i]), alpha);
             if (t) out.push(t);
         }
+        // the spitter carries its acid in a sac on the chest, which glows brighter as it winds up
+        if (e.kind === 'spitter')
+        {
+            const heat = e.windMs >= 0 ? 0.6 + 0.4 * (1 - e.windMs / def.windupMs) : 0.6;
+            const sac = poly('acid', ([[0, -0.08], [0.07, 0.03], [0, 0.14], [-0.07, 0.03]] as [number, number][]).map(at), true, alpha * heat);
+            if (sac) out.push(sac);
+        }
+        // the queen's crest: a fan of spines swept back from her head
+        if (e.kind === 'queen')
+        {
+            for (const [u, v] of [[0.12, -0.5], [0.2, -0.46], [0.28, -0.4]] as [number, number][])
+            {
+                const l = line('enemy', at([u * 0.4, -0.3]), at([u, v]), alpha);
+                if (l) out.push(l);
+            }
+        }
         if (e.burnMs > 0) out.push(...flames(e, at, alpha));
         return out;
     }
@@ -164,6 +189,35 @@ export function buildMarinesView(s: MarinesScene): Shape[]
         const ring = (r: number) => Array.from({ length: 10 }, (_, k): V3 =>
             cam(a.x + Math.cos(k * Math.PI / 5) * r * wobble, a.y + Math.sin(k * Math.PI / 5) * r * wobble, 0.5));
         return keep([poly('acid', ring(a.r), false, 0.75 * fade), poly('acid', ring(a.r * 0.45), false, 0.55 * fade)]);
+    }
+
+    /** A sentry turret: a squat block with its gun pointing the way it aims; it flashes when it fires. */
+    function turretShapes(t: Turret, alpha: number): Shape[]
+    {
+        const r = 0.12;
+        const out = box([[t.x - r, t.y - r], [t.x + r, t.y - r], [t.x + r, t.y + r], [t.x - r, t.y + r]], 0.3, 0.5, 'marine', alpha);
+        const [dx, dy] = forward(t.yaw);
+        const spent = t.ammo <= 0 ? 0.45 : 1;
+        const gun = line('marine', cam(t.x, t.y, 0.26), cam(t.x + dx * 0.34, t.y + dy * 0.34, 0.26), alpha * spent);
+        const flash = t.flashMs < 60 ? line('muzzle', cam(t.x + dx * 0.34, t.y + dy * 0.34, 0.26), cam(t.x + dx * 0.5, t.y + dy * 0.5, 0.26), alpha * (1 - t.flashMs / 60)) : null;
+        return keep([...out, gun, flash]);
+    }
+
+    /** Acid in the air: a bright dot on an arc, and a ring on the floor that closes in on where it will land. */
+    function spitShapes(sp: Spit): { air: Shape[]; mark: Shape[] }
+    {
+        const k = 1 - sp.ms / sp.totalMs;
+        const x = sp.x + (sp.tx - sp.x) * k;
+        const y = sp.y + (sp.ty - sp.y) * k;
+        const z = 0.5 - (0.14 + 0.5 * 4 * k * (1 - k));
+        const r = 0.05;
+        const c = cam(x, y, z);
+        const air = keep([
+            line('acid', [c[0] - r, c[1], c[2]], [c[0] + r, c[1], c[2]], 1),
+            line('acid', [c[0], c[1] - r, c[2]], [c[0], c[1] + r, c[2]], 1),
+        ]);
+        const ring = (rad: number) => Array.from({ length: 10 }, (_, i): V3 => cam(sp.tx + Math.cos(i * Math.PI / 5) * rad, sp.ty + Math.sin(i * Math.PI / 5) * rad, 0.5));
+        return { air, mark: keep([poly('acid', ring(0.8 - 0.3 * k), false, 0.35 + 0.5 * k)]) };
     }
 
     function projectileShapes(pr: Projectile): Shape[]
@@ -280,6 +334,13 @@ export function buildMarinesView(s: MarinesScene): Shape[]
 
     const level = buildLevel({
         grid: g, closed: s.closed, signs: s.signs, camera, cells, viewDepth: VIEW_CELLS,
+        // in the dark only the lamp's pool shows, fading towards its edge
+        light: (c) =>
+        {
+            if (!s.dark?.[c]) return 1;
+            const d = distTo((c % g.w) + 0.5, Math.floor(c / g.w) + 0.5);
+            return d > LAMP ? null : 1 - 0.65 * d / LAMP;
+        },
         wall: (c, dir, f, fa) => cellAt(g, c) === 'vent' && dir === mountWall(g, s.closed, c) ? ventDetail(f, fa) : null,
         stand: (c, alpha, add) =>
         {
@@ -300,18 +361,32 @@ export function buildMarinesView(s: MarinesScene): Shape[]
     const pools = s.acid ?? [];
     const sprites: Sprite[] = [];
     // the pools lie on the floor: they go first, under whatever stands on them
-    for (const a of pools) sprites.push({ d: 1e9, z: cam(a.x, a.y, 0)[2], shapes: acidShapes(a) });
+    /** In the dark a thing is seen only inside the lamp's reach. */
+    const seen = (x: number, y: number) => !s.dark?.[Math.floor(y) * g.w + Math.floor(x)] || distTo(x, y) <= LAMP;
+    for (const a of pools) if (seen(a.x, a.y)) sprites.push({ d: 1e9, z: cam(a.x, a.y, 0)[2], shapes: acidShapes(a) });
     for (const e of s.enemies)
     {
         // one on the player's face is drawn by the screen, not here
-        if (e.clung) continue;
+        if (e.clung || !seen(e.x, e.y)) continue;
         const d = distTo(e.x, e.y);
         sprites.push({ d, z: cam(e.x, e.y, 0)[2], shapes: enemyShapes(e, Math.max(MIN_ENEMY_ALPHA, depthAlpha(d, VIEW_CELLS))), lock: e.id === s.lockId });
     }
     for (const m of marines)
     {
+        if (!seen(m.x, m.y)) continue;
         const d = distTo(m.x, m.y);
         sprites.push({ d, z: cam(m.x, m.y, 0)[2], shapes: marineShapes(m, Math.max(MIN_ENEMY_ALPHA, depthAlpha(d, VIEW_CELLS))) });
+    }
+    for (const t of s.turrets ?? [])
+    {
+        const d = distTo(t.x, t.y);
+        sprites.push({ d, z: cam(t.x, t.y, 0)[2], shapes: turretShapes(t, Math.max(MIN_ENEMY_ALPHA, depthAlpha(d, VIEW_CELLS))) });
+    }
+    for (const sp of s.spits ?? [])
+    {
+        const shapes = spitShapes(sp);
+        sprites.push({ d: 1e9, z: cam(sp.tx, sp.ty, 0)[2], shapes: shapes.mark });
+        sprites.push({ d: distTo(sp.x + (sp.tx - sp.x) * (1 - sp.ms / sp.totalMs), sp.y + (sp.ty - sp.y) * (1 - sp.ms / sp.totalMs)), z: cam(sp.x, sp.y, 0)[2], shapes: shapes.air });
     }
     for (const pr of s.projectiles ?? []) sprites.push({ d: distTo(pr.x, pr.y), z: cam(pr.x, pr.y, 0)[2], shapes: projectileShapes(pr) });
     sprites.sort((p, q) => q.d - p.d);

@@ -1021,13 +1021,16 @@ describe('the mix of creatures', () =>
 {
     it('is drones only at first, runners from wave 3 and huggers from wave 4, within limits', () =>
     {
-        expect(mix(1)).toEqual({ runner: 0, hugger: 0 });
-        expect(mix(2)).toEqual({ runner: 0, hugger: 0 });
+        expect(mix(1)).toEqual({ runner: 0, hugger: 0, spitter: 0 });
+        expect(mix(2)).toEqual({ runner: 0, hugger: 0, spitter: 0 });
         expect(mix(3).runner).toBeGreaterThan(0);
         expect(mix(3).hugger).toBe(0);
         expect(mix(4).hugger).toBeGreaterThan(0);
         expect(mix(99).runner).toBeLessThanOrEqual(0.4);
         expect(mix(99).hugger).toBeLessThanOrEqual(0.2);
+        expect(mix(4).spitter).toBe(0);
+        expect(mix(5).spitter).toBeGreaterThan(0);
+        expect(mix(99).spitter).toBeLessThanOrEqual(0.12);
     });
 
     it('picks kinds in those shares', () =>
@@ -1035,16 +1038,18 @@ describe('the mix of creatures', () =>
         const r = seeded(9);
         const count = (n: number) =>
         {
-            const c = { drone: 0, runner: 0, hugger: 0 };
+            const c = { drone: 0, runner: 0, hugger: 0, spitter: 0, queen: 0 };
             for (let i = 0; i < 4000; i++) c[pickKind(n, r)]++;
             return c;
         };
-        expect(count(2)).toEqual({ drone: 4000, runner: 0, hugger: 0 });
+        expect(count(2)).toEqual({ drone: 4000, runner: 0, hugger: 0, spitter: 0, queen: 0 });
         const late = count(10);
         expect(late.runner / 4000).toBeGreaterThan(0.3);
         expect(late.runner / 4000).toBeLessThan(0.5);
         expect(late.hugger / 4000).toBeGreaterThan(0.1);
         expect(late.hugger / 4000).toBeLessThan(0.3);
+        expect(late.spitter / 4000).toBeGreaterThan(0.08);
+        expect(late.spitter / 4000).toBeLessThan(0.16);
         expect(late.drone).toBeGreaterThan(1000);
     });
 
