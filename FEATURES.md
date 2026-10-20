@@ -29,7 +29,7 @@ Compilado el fork de Bridge e instalado, y probado en un teléfono real:
 
 ## AISLAMIENTO (juego en pantalla propia)
 
-Supervivencia en la Nostromo con vista subjetiva de alambre (`> aislamiento`).
+Supervivencia en la Nostromo con vista subjetiva de alambre (`> aislamiento`). Plan detallado, estado y cómo retomarlo: `docs/AISLAMIENTO.md`.
 
 - **Fase 1, prototipo** (probado en el teléfono): una cubierta (CUBIERTA C) con 3 células y la lanzadera, la criatura (oído, vista, caza, fuerza puertas), taquillas, rastreador de movimiento, caminar manteniendo pulsado, interferencia al acercarse, muerte y reintento.
 - **Fase 2, supervivencia** (sin probar en el teléfono): conductos (la criatura viaja entre rejillas, el rastreador la sigue a través de las paredes, oye por los conductos y sale por la rejilla más cercana al ruido), terminales de guardado (3 s quieto mirando la pantalla), guardado automático al empezar, suspensión al salir (Atrás, Home, segundo plano) con `[CONTINUAR]`, `[CARGAR]` al morir, la criatura aprende a mirar en las taquillas que más usas, latido por vibración con la criatura al lado.
