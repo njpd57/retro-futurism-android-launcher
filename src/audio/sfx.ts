@@ -1,6 +1,6 @@
 import { getAudio, noiseBuffer } from './context';
 
-export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 'step' | 'door' | 'hiss' | 'screech';
+export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 'step' | 'door' | 'hiss' | 'screech' | 'vent';
 
 function beep(freq: number, ms: number, type: OscillatorType, gain: number, delayMs = 0, endFreq = freq)
 {
@@ -77,10 +77,12 @@ const SOUNDS: Record<SfxName, () => void> = {
     ping: () => beep(1900, 160, 'sine', 0.2, 0, 1400),
     // teletype chirp while MOTHER's answer streams in
     tick: () => beep(2200 + Math.random() * 600, 14, 'square', 0.06),
-    // AISLAMIENTO: a boot on the deck plating, a pressure door, the creature breathing, the end
+    // AISLAMIENTO: a boot on the deck plating, a pressure door, the creature breathing, the end, the ducts
     step: () => noise('lowpass', 260, 120, 5, 90, 0.5),
     door: () => { noise('bandpass', 1400, 260, 20, 520, 0.35); beep(90, 260, 'square', 0.05, 380); },
     hiss: () => noise('highpass', 2600, 5200, 380, 1100, 0.18),
+    // something heavy moving in the ducts
+    vent: () => { for (let i = 0; i < 4; i++) beep(55 + Math.random() * 30, 110, 'square', 0.07, i * 170 + Math.random() * 60); },
     screech: () =>
     {
         beep(700, 900, 'sawtooth', 0.14, 0, 2600);

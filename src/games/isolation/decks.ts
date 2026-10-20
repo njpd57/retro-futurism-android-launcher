@@ -11,25 +11,25 @@ export interface DeckDef
     briefing: readonly string[];
 }
 
-/** Prototype deck: three power cells and the shuttle, one creature. */
+/** First deck: three power cells and the shuttle, one creature, vents and save terminals. */
 export const DECK_C: DeckDef = {
     id: 'c',
     title: 'CUBIERTA C',
     map: [
         '###################',
-        '#P..d.....#...*..L#',
+        '#P..d.....#V..*..L#',
         '#.###.###.#.#####.#',
-        '#.#L..#*#...#...#.#',
+        '#.#L.T#*#...#...#V#',
         '#.#####.#####.#.#.#',
         '#...D.......D.#...#',
         '###.#.#####.#.###.#',
-        '#L..#.#...#.#...#.#',
+        '#L..#.#..V#.#..T#.#',
         '#.###.#.A.#.###.#.#',
         '#.....d...d.....#.#',
         '#.###.#####.#####.#',
-        '#...#...L...#*....#',
+        '#V..#...L...#*....#',
         '###.#########.###.#',
-        '#E..D.........D...#',
+        '#E..D....T....D...#',
         '###################',
     ],
     startDir: 1,
@@ -47,5 +47,8 @@ export const DECK_C: DeckDef = {
         'RECUPERE 3 CÉLULAS DE ENERGÍA',
         'Y LLEGUE A LA LANZADERA.',
         'EL RUIDO LA ATRAE. LAS TAQUILLAS OCULTAN.',
+        'LOS TERMINALES GUARDAN SU PROGRESO.',
     ],
 };
+
+export const DECKS: Record<string, DeckDef> = { [DECK_C.id]: DECK_C };

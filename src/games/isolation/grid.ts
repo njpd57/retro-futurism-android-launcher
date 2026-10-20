@@ -1,5 +1,8 @@
-/** A deck is a grid of cells. A closed door blocks like a wall until it is opened; a locker is a walkable alcove. */
-export type Cell = 'wall' | 'floor' | 'door' | 'locker' | 'exit';
+/**
+ * A deck is a grid of cells. A closed door blocks like a wall until it is opened. Lockers, terminals and vents are
+ * walkable cells with something against one of their walls.
+ */
+export type Cell = 'wall' | 'floor' | 'door' | 'locker' | 'exit' | 'terminal' | 'vent';
 
 /** 0 north (up the map), 1 east, 2 south, 3 west. */
 export type Dir = 0 | 1 | 2 | 3;
@@ -30,11 +33,12 @@ export interface ParsedMap
 
 const CELLS: Record<string, Cell> = {
     '#': 'wall', '.': 'floor', 'D': 'door', 'd': 'door', 'L': 'locker', 'E': 'exit', '*': 'floor', 'P': 'floor', 'A': 'floor',
+    'T': 'terminal', 'V': 'vent',
 };
 
 /**
  * Map drawn as text: `#` wall, `.` floor, `D` closed door, `d` open door, `L` locker, `E` exit, `*` item,
- * `P` player start, `A` alien start. Throws on a malformed map (they are written by hand, the tests catch it).
+ * `T` terminal, `V` vent, `P` player start, `A` alien start. Throws on a malformed map (they are written by hand, the tests catch it).
  */
 export function parseMap(rows: readonly string[]): ParsedMap
 {
@@ -83,6 +87,13 @@ export function blocks(g: Grid, closed: readonly number[], i: number)
 {
     const c = cellAt(g, i);
     return c === 'wall' || (c === 'door' && closed.includes(i));
+}
+
+/** The wall a locker, terminal or vent stands against: the first solid side, north first. */
+export function mountWall(g: Grid, closed: readonly number[], i: number): Dir | null
+{
+    for (let d = 0; d < 4; d++) if (blocks(g, closed, neighbour(g, i, d as Dir))) return d as Dir;
+    return null;
 }
 
 export function turn(dir: Dir, by: number): Dir

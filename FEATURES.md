@@ -29,11 +29,13 @@ Compilado el fork de Bridge e instalado, y probado en un teléfono real:
 
 ## AISLAMIENTO (juego en pantalla propia)
 
-Supervivencia en la Nostromo con vista subjetiva de alambre (`> aislamiento`). Hecha la **fase 1, prototipo**: una cubierta (CUBIERTA C) con 3 células y la lanzadera, la criatura (oído, vista, caza, fuerza puertas), taquillas, rastreador de movimiento, caminar manteniendo pulsado, interferencia al acercarse, muerte y reintento. **Pendiente de probar en el teléfono antes de seguir** (fluidez, controles, tensión).
+Supervivencia en la Nostromo con vista subjetiva de alambre (`> aislamiento`).
 
-Fases siguientes, si el prototipo engancha:
+- **Fase 1, prototipo** (probado en el teléfono): una cubierta (CUBIERTA C) con 3 células y la lanzadera, la criatura (oído, vista, caza, fuerza puertas), taquillas, rastreador de movimiento, caminar manteniendo pulsado, interferencia al acercarse, muerte y reintento.
+- **Fase 2, supervivencia** (sin probar en el teléfono): conductos (la criatura viaja entre rejillas, el rastreador la sigue a través de las paredes, oye por los conductos y sale por la rejilla más cercana al ruido), terminales de guardado (3 s quieto mirando la pantalla), guardado automático al empezar, suspensión al salir (Atrás, Home, segundo plano) con `[CONTINUAR]`, `[CARGAR]` al morir, la criatura aprende a mirar en las taquillas que más usas, latido por vibración con la criatura al lado.
 
-2. **Supervivencia:** la criatura aprende (fuego, taquillas repetidas), conductos, terminales de guardado, suspensión al salir (Atrás, Home), vibración, resto de sonidos.
+Fases siguientes:
+
 3. **Herramientas:** inventario, fabricación (chatarra, cables, químicos), lanzallamas, señuelo, bengalas, zonas a oscuras.
 4. **Campaña:** 5 cubiertas (JONES, CONDUCTOS, ASH, FALLOS, AUTODESTRUCCIÓN), el androide, fallos de la nave, cuenta atrás, registros de la tripulación, finales, pantallas de título e informe, dificultad.
 5. **Infinito y extras:** cubiertas generadas con semilla, logros, estadísticas, archivo, widget en el panel, `/jugar` `/partida` `/pista` en MOTHER.

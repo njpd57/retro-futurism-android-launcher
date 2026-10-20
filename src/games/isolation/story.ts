@@ -17,6 +17,9 @@ export function messageFor(events: readonly GameEvent[], s: GameState): string |
             case 'spotted': line = 'ALERTA: CONTACTO HOSTIL.'; break;
             case 'lostTrack': line = 'EL ORGANISMO HA PERDIDO SU RASTRO.'; break;
             case 'hide': line = 'OCULTO. NO SE MUEVA.'; break;
+            case 'saveStart': line = 'GUARDANDO EN TERMINAL…'; break;
+            case 'saved': line = 'PROGRESO GUARDADO.'; break;
+            case 'ventNear': line = 'RUIDO EN LOS CONDUCTOS.'; break;
             case 'won': line = 'LANZADERA LISTA. DESPEGUE AUTORIZADO.'; break;
             case 'dead': line = 'TRIPULANTE PERDIDO.'; break;
         }

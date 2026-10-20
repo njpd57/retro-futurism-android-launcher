@@ -5,8 +5,8 @@ import { useIsolationStore } from '@/stores/useIsolationStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import { DECK_C } from '@/games/isolation/decks';
-import { BACK_MS, TURN_MS, WALK_MS, newGame, reduce, step, useAction, type GameEvent, type GameState, type Input } from '@/games/isolation/game';
-import { cellDistance } from '@/games/isolation/grid';
+import { BACK_MS, SAVE_MS, TURN_MS, WALK_MS, alienDistance, newGame, reduce, step, useAction, type GameEvent, type GameState, type Input } from '@/games/isolation/game';
+import { restore, snapshot, type SavedGame } from '@/games/isolation/save';
 import { messageFor, objective } from '@/games/isolation/story';
 import { cellPose, type Pose } from '@/games/isolation/view';
 import { tick } from '@/utils/haptics';
@@ -22,6 +22,8 @@ const bridgeEvents = useBridgeEventStore();
 const FRAME_MS = 1000 / 30;
 const MESSAGE_MS = 4000;
 const FLASH_MS = 700;
+/** a heartbeat on the vibrator while the creature is next to the player */
+const HEARTBEAT_MS = 850;
 const rng = Math.random;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -37,6 +39,7 @@ let backgrounded = false;
 let held: Input | null = null;
 let lastPing = -1e9;
 let deadAt = 0;
+let lastBeat = 0;
 
 // the camera glides between cells: from `fromPose` to the player's pose over `animMs`
 let fromPose: Pose = poseOf(state.value);
@@ -99,8 +102,19 @@ function handle(events: GameEvent[], now: number)
                 sound.playAlways('ping');
                 break;
             case 'pickup': sound.playAlways('select'); break;
+            case 'saveStart': sound.playAlways('tick'); break;
+            case 'saved':
+                isolation.save = snapshot(state.value);
+                sound.playAlways('select');
+                break;
+            case 'ventNear': sound.playAlways('vent'); break;
             case 'bump': sound.play('back'); break;
-            case 'won': sound.playAlways('alert'); break;
+            case 'won':
+                sound.playAlways('alert');
+                // nothing left to continue
+                isolation.save = null;
+                isolation.suspended = null;
+                break;
             case 'dead':
                 deadAt = now;
                 held = null;
@@ -131,7 +145,12 @@ function frame(now: number)
 
     const s = state.value;
     const { pose, bob } = currentPose(now);
-    const dist = cellDistance(s.grid, s.player.cell, s.alien.cell);
+    const dist = alienDistance(s);
+    if (screen.value === 'playing' && s.phase === 'playing' && dist <= 1.5 && now - lastBeat > HEARTBEAT_MS)
+    {
+        lastBeat = now;
+        if (settings.haptics) tick(35);
+    }
     view.value?.draw({
         state: s, pose, bob, now,
         interference: reducedMotion || s.phase !== 'playing' ? 0 : Math.min(1, Math.max(0, (3.5 - dist) / 3)),
@@ -140,14 +159,47 @@ function frame(now: number)
     });
 }
 
+/** A new game, saved straight away: dying before the first terminal starts the deck again. */
 function start()
 {
-    state.value = newGame(DECK_C, rng);
-    fromPose = poseOf(state.value);
+    begin(newGame(DECK_C, rng), 'playing');
+    isolation.save = snapshot(state.value);
+    isolation.suspended = null;
+}
+
+function begin(s: GameState, on: 'playing' | 'paused')
+{
+    state.value = s;
+    fromPose = poseOf(s);
     animMs = 0;
     held = null;
-    message.value = { text: objective(state.value), at: performance.now() };
-    screen.value = 'playing';
+    message.value = { text: objective(s), at: performance.now() };
+    screen.value = on;
+}
+
+/** From the title: the game left halfway (paused, to get your bearings), or else the last save. */
+function resume()
+{
+    const suspended = isolation.suspended;
+    if (suspended)
+    {
+        isolation.suspended = null;
+        begin(restore(suspended, rng), 'paused');
+    }
+    else if (isolation.save) load(isolation.save);
+}
+
+function load(saved: SavedGame)
+{
+    begin(restore(saved, rng), 'playing');
+    message.value = { text: 'PROGRESO RECUPERADO.', at: performance.now() };
+}
+
+/** Leaving keeps the game exactly as it was, to pick it up later; a finished one leaves nothing. */
+function suspend()
+{
+    if (screen.value === 'title') return;
+    isolation.suspended = state.value.phase === 'playing' ? snapshot(state.value) : null;
 }
 
 function pause()
@@ -187,6 +239,8 @@ function onBridgeEvent(ev: { name: string })
     {
         backgrounded = true;
         pause();
+        // Android may close the app while it is in the background
+        suspend();
     }
     else if (ev.name === 'afterResume')
     {
@@ -195,7 +249,7 @@ function onBridgeEvent(ev: { name: string })
     }
 }
 
-const USE_LABELS = { hide: 'ESCONDERSE', unhide: 'SALIR', open: 'ABRIR', close: 'CERRAR' } as const;
+const USE_LABELS = { hide: 'ESCONDERSE', unhide: 'SALIR', save: 'GUARDAR', open: 'ABRIR', close: 'CERRAR' } as const;
 const useLabel = computed(() =>
 {
     const a = useAction(state.value);
@@ -211,10 +265,14 @@ const status = computed(() =>
 const line = computed(() =>
 {
     const m = message.value;
+    const s = state.value;
+    if (s.saveMs > 0) return `GUARDANDO ${bar(1 - s.saveMs / SAVE_MS, 10)}`;
     if (m && clock.value - m.at < MESSAGE_MS) return m.text;
-    if (state.value.player.hidden) return 'OCULTO EN LA TAQUILLA';
-    return objective(state.value);
+    if (s.player.hidden) return 'OCULTO EN LA TAQUILLA';
+    return objective(s);
 });
+
+const resumable = computed(() => isolation.suspended ?? isolation.save);
 
 onMounted(() =>
 {
@@ -227,6 +285,7 @@ onMounted(() =>
 
 onBeforeUnmount(() =>
 {
+    suspend();
     cancelAnimationFrame(raf);
     bridgeEvents.removeEventListener(onBridgeEvent);
     window.removeEventListener('keydown', onKey);
@@ -254,11 +313,15 @@ onBeforeUnmount(() =>
                 </div>
                 <div class="dim help">
                     ▲ AVANZA, MANTÉN PARA CAMINAR · ◄ ► GIRA<br />
-                    USAR: PUERTAS Y TAQUILLAS<br />
+                    USAR: PUERTAS, TAQUILLAS Y TERMINALES<br />
                     EL RASTREADOR SOLO VE LO QUE SE MUEVE, Y SE OYE
                 </div>
+                <div v-if="resumable" class="dim">
+                    {{ isolation.suspended ? 'PARTIDA SUSPENDIDA' : 'ÚLTIMO GUARDADO' }} · T+{{ formatDuration(resumable.timeMs).slice(3) }}
+                </div>
                 <div class="actions">
-                    <button class="act pressable" @click="start">[INICIAR]</button>
+                    <button v-if="resumable" class="act pressable" @click="resume">[CONTINUAR]</button>
+                    <button class="act pressable" @click="start">{{ resumable ? '[NUEVA PARTIDA]' : '[INICIAR]' }}</button>
                     <button class="act pressable" @click="isolation.close()">[SALIR]</button>
                 </div>
             </div>
@@ -276,7 +339,8 @@ onBeforeUnmount(() =>
                 <div class="big">TRIPULANTE PERDIDO</div>
                 <div class="dim">{{ status }} · T+{{ formatDuration(state.timeMs).slice(3) }}</div>
                 <div class="actions">
-                    <button class="act pressable" @click="start">[REINTENTAR]</button>
+                    <button v-if="isolation.save" class="act pressable" @click="load(isolation.save)">[CARGAR]</button>
+                    <button class="act pressable" @click="start">[REINICIAR]</button>
                     <button class="act pressable" @click="isolation.close()">[SALIR]</button>
                 </div>
             </div>

@@ -82,6 +82,15 @@ describe('buildView', () =>
         expect(tagged(buildView(scene(map, { hiddenIn: 13 })), 'locker')).toEqual([]);
     });
 
+    it('draws terminals with their screen and vent grilles', () =>
+    {
+        const map = ['#####', '#A#V#', '###T#', '###.#', '###P#', '#####'];
+        const shapes = buildView(scene(map));
+        expect(tagged(shapes, 'terminal').length).toBeGreaterThan(5);
+        expect(tagged(shapes, 'vent').length).toBeGreaterThan(0);
+        expect(numbers(shapes).every(Number.isFinite)).toBe(true);
+    });
+
     it('stays finite while moving and turning', () =>
     {
         for (const pose of [{ x: 3.5, y: 4.0, yaw: 0 }, { x: 3.5, y: 4.5, yaw: Math.PI / 4 }, { x: 3.5, y: 4.5, yaw: Math.PI / 2 }])

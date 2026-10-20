@@ -2,7 +2,6 @@
 import { ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { TRACKER, type GameState } from '@/games/isolation/game';
-import { cellX, cellY } from '@/games/isolation/grid';
 import { ALIEN_OUTLINE, buildView, type Pose, type Shape } from '@/games/isolation/view';
 
 /** Everything one frame needs; the game loop calls `draw` with it. */
@@ -61,7 +60,7 @@ function draw(f: Frame)
 
     const shapes = buildView({
         grid: s.grid, closed: s.closed, items: s.items, signs: s.signs, pose: f.pose,
-        alien: s.alien.cell, hiddenIn: s.player.hidden ? s.player.cell : null,
+        alien: s.alien.vent ? null : s.alien.cell, hiddenIn: s.player.hidden ? s.player.cell : null,
         pulse: (Math.sin(f.now / 260) + 1) / 2, bob: f.bob, w, h,
     });
 
@@ -205,8 +204,8 @@ function drawTracker(ctx: CanvasRenderingContext2D, w: number, h: number, ph: st
     let label = 'SIN MOVIMIENTO';
     if (blip && fade > 0)
     {
-        const dx = cellX(s.grid, blip.cell) + 0.5 - f.pose.x;
-        const dy = cellY(s.grid, blip.cell) + 0.5 - f.pose.y;
+        const dx = blip.x - f.pose.x;
+        const dy = blip.y - f.pose.y;
         const right = dx * Math.cos(f.pose.yaw) + dy * Math.sin(f.pose.yaw);
         const ahead = dx * Math.sin(f.pose.yaw) - dy * Math.cos(f.pose.yaw);
         const k = r / TRACKER.range;

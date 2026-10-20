@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ALIEN } from '../alien';
+import { ALIEN, planPatrol } from '../alien';
 import { DECK_C, type DeckDef } from '../decks';
-import { BACK_MS, WALK_MS, newGame, pingInterval, reduce, step, useAction, type GameEvent, type GameState, type Input } from '../game';
+import { BACK_MS, SAVE_MS, WALK_MS, lockerCheckChance, newGame, pingInterval, reduce, step, useAction, world, type GameEvent, type GameState, type Input } from '../game';
 import { cellAt, type Dir } from '../grid';
 import { seeded } from '../rng';
 
@@ -224,8 +224,112 @@ describe('tracker', () =>
 
         s = { ...r.state, alien: { ...r.state.alien, stillMs: 0 }, tracker: { ...r.state.tracker, pingMs: 0 } };
         r = step(s, 50, rng0);
-        expect(r.state.tracker.blip).toMatchObject({ cell: s.alien.cell, ageMs: 0 });
+        // the blip is where the creature is, in map units (cell centre)
+        expect(r.state.tracker.blip).toEqual({ x: 1.5, y: 3.5, ageMs: 0 });
 
         expect(reduce(r.state, 'tracker').events).toEqual(['trackerDown']);
+    });
+});
+
+// two rooms joined by a long corridor below, and by a duct between the vents (12 and 14)
+const DUCTS = deck([
+    '#########',
+    '#A.V#V.P#',
+    '##.###.##',
+    '##.....##',
+    '#########',
+]);
+
+describe('vents', () =>
+{
+    it('takes the ducts when they are a real shortcut', () =>
+    {
+        const s = newGame(DUCTS, rng0);
+        expect(planPatrol(world(s), 10, rng0)).toEqual({ target: 12, ventPlan: 14 });
+    });
+
+    it('crawls from vent to vent, tracked through the walls, and is heard coming out nearby', () =>
+    {
+        let s = newGame(DUCTS, rng0);
+        s = { ...s, alien: { ...s.alien, cell: 12, target: 12, ventPlan: 14, stepMs: 0 } };
+        const r = step(s, 50, rng0);
+        expect(r.events).toContain('ventIn');
+        expect(r.state.alien.vent).toMatchObject({ from: 12, to: 14 });
+
+        s = reduce(r.state, 'tracker').state;
+        const tracked = wait(s, 700).s;
+        expect(tracked.tracker.blip?.x).toBeGreaterThan(3.5);
+        expect(tracked.tracker.blip?.x).toBeLessThan(5.5);
+
+        const out = wait(tracked, ALIEN.minVentMs + 500, (_, e) => e.includes('ventOut'));
+        expect(out.events).toEqual(expect.arrayContaining(['ventOut', 'ventNear']));
+        expect(out.s.alien).toMatchObject({ cell: 14, vent: null });
+    });
+
+    it('hears through the ducts and comes out of the grille nearest the noise', () =>
+    {
+        let s = newGame(DUCTS, rng0);
+        s = { ...s, alien: { ...s.alien, cell: 14, mode: 'patrol', vent: { from: 14, to: 12, ms: 9000, totalMs: 9000 } } };
+        s = { ...s, player: { ...s.player, cell: 15 } };
+        const r = reduce(s, 'back');
+        expect(r.events).toContain('heard');
+        expect(r.state.alien.vent).toMatchObject({ to: 14 });
+        expect(r.state.alien.vent!.ms).toBeLessThanOrEqual(1500);
+        expect(r.state.alien.mode).toBe('investigate');
+    });
+
+    it('cannot catch anyone from inside a duct', () =>
+    {
+        let s = newGame(DUCTS, rng0);
+        s = { ...s, player: { ...s.player, cell: 12 }, alien: { ...s.alien, cell: 12, vent: { from: 12, to: 14, ms: 5000, totalMs: 5000 } } };
+        expect(step(s, 100, rng0).state.phase).toBe('playing');
+    });
+});
+
+describe('terminals', () =>
+{
+    const TERMINAL = deck(['#######', '#PT...#', '#######', '#A#####', '#######']);
+
+    it('saves after standing at the terminal for a while', () =>
+    {
+        let s = act(newGame(TERMINAL, rng0), 'forward').s;
+        expect(useAction(s)).toBe('save');
+        const r = reduce(s, 'use');
+        expect(r.events).toEqual(['saveStart']);
+        expect(r.state.saveMs).toBe(SAVE_MS);
+        // turned to the screen, on the north wall
+        expect(r.state.player.dir).toBe(0);
+        expect(useAction(r.state)).toBeNull();
+        expect(reduce(r.state, 'forward').events).toEqual([]);
+
+        s = r.state;
+        const done = wait(s, SAVE_MS + 200, (_, e) => e.includes('saved'));
+        expect(done.events).toContain('saved');
+        expect(done.s.saveMs).toBe(0);
+    });
+});
+
+describe('lockers', () =>
+{
+    it('are checked more often the more they are used', () =>
+    {
+        expect(lockerCheckChance(1)).toBe(0);
+        expect(lockerCheckChance(2)).toBeCloseTo(0.2);
+        expect(lockerCheckChance(9)).toBe(0.6);
+    });
+
+    it('a locker used too often gets opened', () =>
+    {
+        let s: GameState = { ...newGame(LOCKER, rng0), player: { cell: 8, dir: 1 as Dir, hidden: false, busyMs: 0 }, hides: { 8: 2 } };
+        s = reduce(s, 'use').state;
+        expect(s.hides[8]).toBe(3);
+        s = { ...s, alien: { ...s.alien, mode: 'investigate', target: 8, stepMs: 0 } };
+
+        const caught = wait(s, 8000, x => x.phase !== 'playing');
+        expect(caught.events).toEqual(expect.arrayContaining(['found', 'dead']));
+
+        const lucky = wait(s, 8000, x => x.phase !== 'playing' || x.alien.cell === 8, () => 0.99);
+        expect(lucky.s.alien.cell).toBe(8);
+        expect(lucky.s.phase).toBe('playing');
     });
 });

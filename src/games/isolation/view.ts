@@ -1,4 +1,4 @@
-import { blocks, cellAt, cellX, cellY, neighbour, type Dir, type Grid, type Sign } from './grid';
+import { blocks, cellAt, cellX, cellY, mountWall, neighbour, type Dir, type Grid, type Sign } from './grid';
 
 /**
  * First-person wireframe view of a deck, as flat shapes for a canvas. Pure: no DOM.
@@ -36,7 +36,7 @@ export interface Scene
     h: number;
 }
 
-export type ShapeTag = 'floor' | 'wall' | 'door' | 'frame' | 'locker' | 'item' | 'exit' | 'alien' | 'sign';
+export type ShapeTag = 'floor' | 'wall' | 'door' | 'frame' | 'locker' | 'terminal' | 'vent' | 'item' | 'exit' | 'alien' | 'sign';
 
 export type Shape =
     | { kind: 'poly'; tag: ShapeTag; pts: number[]; fill: boolean; alpha: number }
@@ -208,6 +208,8 @@ export function buildView(s: Scene): Shape[]
         const cy = y + 0.5;
         const alpha = depthAlpha(distTo(cx, cy));
         const kind = cellAt(g, c);
+        // the wall a locker, terminal or vent is fixed to
+        const mount = kind === 'locker' || kind === 'terminal' || kind === 'vent' ? mountWall(g, s.closed, c) : null;
 
         // floor grid: the north and west edges of every cell, and the others where the map ends
         const floorEdges: [P2, P2][] = [[[x, y], [x + 1, y]], [[x, y], [x, y + 1]]];
@@ -239,6 +241,8 @@ export function buildView(s: Scene): Shape[]
                 const isDoor = cellAt(g, n) === 'door';
                 const shapes: (Shape | null)[] = [f.poly(isDoor ? 'door' : 'wall', [[0, 0], [1, 0], [1, 1], [0, 1]], true, fa)];
                 if (isDoor) shapes.push(...doorDetail(f, fa));
+                else if (dir === mount && kind === 'terminal') shapes.push(...screenDetail(f, fa));
+                else if (dir === mount && kind === 'vent') shapes.push(...ventDetail(f, fa));
                 else shapes.push(...wallDetail(f, hash(c * 4 + k), fa));
                 const sign = s.signs.find(sg => sg.x === x && sg.y === y && sg.dir === dir);
                 if (sign) shapes.push(text(f, sign.text, fa));
@@ -256,11 +260,25 @@ export function buildView(s: Scene): Shape[]
             }
         }
 
-        if (kind === 'locker' && c !== s.hiddenIn)
+        if (kind === 'locker' && mount !== null && c !== s.hiddenIn)
+            add(distTo(cx, cy), box(against(x, y, mount, 0.18, 0.32), -0.46, 0.5, 'locker', alpha, (f, al) => [
+                f.line('locker', 0.5, 0.02, 0.5, 1, al),
+                ...[0.12, 0.17, 0.22].flatMap(v => [f.line('locker', 0.12, v, 0.4, v, al * 0.7), f.line('locker', 0.6, v, 0.88, v, al * 0.7)]),
+            ]));
+
+        if (kind === 'terminal' && mount !== null)
         {
-            // against the first wall it has
-            const wall = ([0, 1, 2, 3] as Dir[]).find(d => blocks(g, s.closed, neighbour(g, c, d)));
-            if (wall !== undefined) add(distTo(cx, cy), locker(edge(x, y, wall), INWARD[wall], alpha));
+            // a console desk under the screen; the eye is above it, so its top shows
+            const base = against(x, y, mount, 0.2, 0.38);
+            const top = 0.12;
+            const [p2, p3, p0, p1] = base;
+            const at = (p: P2, t: number, q: P2) => cam(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, top);
+            add(distTo(cx, cy), [
+                ...box(base, top, 0.5, 'terminal', alpha),
+                poly('terminal', base.map(p => cam(p[0], p[1], top)), true, alpha),
+                // keys
+                ...[0.3, 0.55].map(t => line('terminal', at(p3, t, p0), at(p2, t, p1), alpha * 0.6)),
+            ]);
         }
 
         if (s.items.includes(c))
@@ -345,18 +363,42 @@ export function buildView(s: Scene): Shape[]
         return shapes;
     }
 
-    function locker([a, b]: [P2, P2], inward: P2, alpha: number): (Shape | null)[]
+    /**
+     * Outline of something standing against the `wall` side of cell (x, y): `margin` free at each end, `depth`
+     * into the cell. Clockwise for `box`, starting at the front right corner; p3 → p2 is the front.
+     */
+    function against(x: number, y: number, wall: Dir, margin: number, depth: number): P2[]
     {
+        const [a, b] = edge(x, y, wall);
+        const inward = INWARD[wall];
         const lerp = (t: number): P2 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-        const p0 = lerp(0.18);
-        const p1 = lerp(0.82);
-        const p2: P2 = [p1[0] + inward[0] * 0.32, p1[1] + inward[1] * 0.32];
-        const p3: P2 = [p0[0] + inward[0] * 0.32, p0[1] + inward[1] * 0.32];
-        // outline p3 → p2 is the front, seen from inside the cell
-        return box([p2, p3, p0, p1], -0.46, 0.5, 'locker', alpha, (f, al) => [
-            f.line('locker', 0.5, 0.02, 0.5, 1, al),
-            ...[0.12, 0.17, 0.22].flatMap(v => [f.line('locker', 0.12, v, 0.4, v, al * 0.7), f.line('locker', 0.6, v, 0.88, v, al * 0.7)]),
-        ]);
+        const p0 = lerp(margin);
+        const p1 = lerp(1 - margin);
+        const p2: P2 = [p1[0] + inward[0] * depth, p1[1] + inward[1] * depth];
+        const p3: P2 = [p0[0] + inward[0] * depth, p0[1] + inward[1] * depth];
+        return [p2, p3, p0, p1];
+    }
+
+    /** MOTHER's screen above a terminal desk: it glows, so it stays bright at a distance. */
+    function screenDetail(f: Face, alpha: number): (Shape | null)[]
+    {
+        const a = Math.max(alpha, 0.8);
+        return [
+            f.rect('terminal', 0.22, 0.16, 0.78, 0.46, a),
+            f.line('terminal', 0.28, 0.24, 0.62, 0.24, a * 0.8),
+            f.line('terminal', 0.28, 0.3, 0.7, 0.3, a * 0.8),
+            f.line('terminal', 0.28, 0.36, 0.5, 0.36, a * 0.8),
+            f.poly('terminal', [[0.53, 0.34], [0.57, 0.34], [0.57, 0.39], [0.53, 0.39]], false, a),
+        ];
+    }
+
+    /** A duct grille low on the wall. */
+    function ventDetail(f: Face, alpha: number): (Shape | null)[]
+    {
+        return [
+            f.rect('vent', 0.26, 0.68, 0.74, 0.96, alpha),
+            ...[0.34, 0.42, 0.5, 0.58, 0.66].map(u => f.line('vent', u, 0.7, u, 0.94, alpha * 0.7)),
+        ];
     }
 
     function alienShapes(cx: number, cy: number, alpha: number): (Shape | null)[]
