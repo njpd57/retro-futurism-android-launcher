@@ -1,7 +1,8 @@
 import { getAudio, noiseBuffer } from './context';
 
 export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 'step' | 'door' | 'hiss' | 'screech' | 'vent' | 'flame' | 'clatter'
-    | 'pulse' | 'reload' | 'hurt' | 'kill' | 'dry' | 'shotgun' | 'smart' | 'burn' | 'launch' | 'blast' | 'acid' | 'rattle';
+    | 'pulse' | 'reload' | 'hurt' | 'kill' | 'dry' | 'shotgun' | 'smart' | 'burn' | 'launch' | 'blast' | 'acid' | 'rattle'
+    | 'thunk' | 'klaxon' | 'chirp';
 
 function beep(freq: number, ms: number, type: OscillatorType, gain: number, delayMs = 0, endFreq = freq)
 {
@@ -104,6 +105,14 @@ const SOUNDS: Record<SfxName, () => void> = {
     acid: () => { noise('highpass', 4200, 6500, 20, 170, 0.15); beep(1700, 60, 'sawtooth', 0.04, 0, 900); },
     // a marine's rifle, heard a little way off
     rattle: () => noise('bandpass', 1800, 700, 2, 35, 0.11),
+    // the tube: a low thump when it is degaussed, the ship's klaxon for alerts, a burst of data
+    thunk: () => { beep(60, 380, 'sine', 0.5, 0, 32); noise('lowpass', 300, 70, 4, 260, 0.45); },
+    klaxon: () => { for (let i = 0; i < 4; i++) beep(i % 2 ? 330 : 440, 200, 'square', 0.12, i * 230); },
+    chirp: () =>
+    {
+        const count = 2 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < count; i++) beep(900 + Math.floor(Math.random() * 8) * 220, 50, 'square', 0.04, i * 70);
+    },
     screech: () =>
     {
         beep(700, 900, 'sawtooth', 0.14, 0, 2600);

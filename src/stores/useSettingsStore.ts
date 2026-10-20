@@ -25,6 +25,13 @@ export const useSettingsStore = defineStore('settings', () =>
     const flicker = useLocalStorage('settings.flicker', true);
     const vignette = useLocalStorage('settings.vignette', true);
     const sweep = useLocalStorage('settings.sweep', true);
+    // the picture collapses to a dot when the launcher is paused and flashes back on
+    const tubePower = useLocalStorage('settings.tubePower', true);
+    // now and then the tube degausses on its own
+    const autoDegauss = useLocalStorage('settings.autoDegauss', true);
+    // phosphor persistence: a barely visible ghost of the fixed frame lines that grows with the hours of use
+    const phosphorBurn = useLocalStorage('settings.phosphorBurn', false);
+    const burnMinutes = useLocalStorage('settings.burnMinutes', 0);
     const curvature = useLocalStorage('settings.curvature', false);
     // curvature tuning, all 0..100: SVG bend, corner radius and edge darkness
     const curvatureBend = useLocalStorage('settings.curvatureBend', 50);
@@ -54,11 +61,15 @@ export const useSettingsStore = defineStore('settings', () =>
     const aliases = useLocalStorage<Record<string, string>>('settings.aliases', {});
     const folders = useLocalStorage<Folders>('settings.folders', {});
     /** Folders of the APPS tab as boxes (true) or as an inline accordion (false). */
+    // how the folder boxes are drawn: a grid of boxes, or the compartments of a deck plan
+    const appsLayout = useLocalStorage<'boxes' | 'deck'>('settings.appsLayout', 'boxes');
     const folderBoxes = useLocalStorage('settings.folderBoxes', true);
     const idleMinutes = useLocalStorage('settings.idleMinutes', 0);
     const bootSequence = useLocalStorage('settings.bootSequence', true);
     const haptics = useLocalStorage('settings.haptics', false);
     const nightShift = useLocalStorage('settings.nightShift', false);
+    // at night with an alarm set, the rest screen is a cryo pod counting down to it
+    const hypersleep = useLocalStorage('settings.hypersleep', true);
     const activeTab = useLocalStorage<Tab>('settings.activeTab', 'panel');
     const imageFilter = useLocalStorage<ImageFilter>('settings.imageFilter', 'phosphor');
 
@@ -86,5 +97,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { imageFilter, sortMode, listMode, aliases, folders, folderBoxes, layouts, idleMinutes, bootSequence, haptics, nightShift, soundUi, soundAmbient, volume, sweep, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

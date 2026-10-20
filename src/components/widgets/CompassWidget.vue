@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
-import { compassPoint, compassStrip, headingFromAlpha } from '@/utils/compass';
+import { compassPoint, compassRose, headingFromAlpha } from '@/utils/compass';
 
 const bridgeEvents = useBridgeEventStore();
 
 const supported = typeof window !== 'undefined' && 'DeviceOrientationEvent' in window;
 const heading = ref<number | null>(null);
 const noSensor = ref(false);
-const strip = computed(() => heading.value === null ? '' : compassStrip(heading.value, 23));
+const rose = compassRose();
 
 const EVENT = supported && 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
 type OrientationEvent = DeviceOrientationEvent & { webkitCompassHeading?: number };
@@ -55,8 +55,14 @@ onBeforeUnmount(() => { unlisten(); bridgeEvents.removeEventListener(onBridgeEve
     <div class="compass">
         <div v-if="!supported || noSensor" class="dim">NO DISPONIBLE: SIN SENSOR DE ORIENTACIÓN</div>
         <template v-else-if="heading !== null">
-            <div class="strip">{{ strip }}</div>
-            <div class="mark">▲</div>
+            <svg viewBox="-1.05 -1.12 2.1 2.2" preserveAspectRatio="xMidYMid meet">
+                <g :transform="`rotate(${-heading})`">
+                    <circle class="ring" r="1" />
+                    <path v-for="m in rose.marks" :key="m.deg" :d="m.d" :class="{ north: m.deg === 0 }" />
+                    <text v-for="l in rose.labels" :key="l.text" :x="l.x" :y="l.y" :class="{ cardinal: l.text.length === 1 }" :transform="`rotate(${heading} ${l.x} ${l.y})`">{{ l.text }}</text>
+                </g>
+                <path class="index" d="M0 -1.12 L-0.07 -1.02 L0.07 -1.02 Z" />
+            </svg>
             <div class="big">{{ String(Math.round(heading) % 360).padStart(3, '0') }}° {{ compassPoint(heading) }}</div>
         </template>
         <div v-else class="dim">CALIBRANDO…</div>
@@ -64,9 +70,20 @@ onBeforeUnmount(() => { unlisten(); bridgeEvents.removeEventListener(onBridgeEve
 </template>
 
 <style scoped lang="scss">
-.compass { text-align: center; }
+.compass { display: flex; flex-direction: column; align-items: center; height: 100%; min-height: 0; text-align: center; }
 .dim { color: var(--ph-dim); text-align: left; }
-.strip { white-space: pre; letter-spacing: 1px; overflow: hidden; }
-.mark { line-height: 1; }
-.big { font-size: 1.3em; }
+svg {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    filter: drop-shadow(0 0 calc(3px * var(--bloom)) var(--ph-glow));
+
+    .ring { fill: none; stroke: var(--ph); stroke-opacity: 0.6; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+    path:not(.index) { fill: none; stroke: var(--ph); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+    .north { stroke-width: 2.4px; }
+    .index { fill: var(--ph); }
+    text { fill: var(--ph-dim); font-size: 0.17px; text-anchor: middle; dominant-baseline: central; }
+    text.cardinal { fill: var(--ph); font-size: 0.26px; }
+}
+.big { flex: none; font-size: 1.3em; }
 </style>

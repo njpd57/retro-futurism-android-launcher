@@ -43,4 +43,19 @@ describe('rerouteMessages', () =>
         expect(msg).toContain('SENSORES');
         expect(msg.endsWith('ORDEN ESPECIAL 937.')).toBe(true);
     });
+
+    it('announces each incident', () =>
+    {
+        const s = base();
+        expect(rerouteMessages(s, s, ['doorFault'], rng)[0]).toContain('PUERTA');
+        expect(rerouteMessages(s, s, ['sensorAlarm'], rng)[0]).toContain('SENSORES');
+        expect(rerouteMessages(s, s, ['ventLeak'], rng)[0]).toMatch(/AIRE|PRESIÓN/);
+    });
+
+    it('warns about the shortfall a sensor alarm causes', () =>
+    {
+        const s = base({ need: [2, 2, 1], alloc: [2, 2, 1], sensorAlarmMs: 5000 });
+        const lines = rerouteMessages(s, s, ['demand'], rng);
+        expect(lines[0]).toContain('SENSORES');
+    });
 });

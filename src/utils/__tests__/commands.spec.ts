@@ -50,6 +50,10 @@ describe('parseCommand', () =>
         expect(parseCommand('> marines')).toEqual({ type: 'marines' });
         expect(parseCommand('>LV426')).toEqual({ type: 'marines' });
         expect(parseCommand('> escuadra')).toEqual({ type: 'marines' });
+        expect(parseCommand('> desmagnetizar')).toEqual({ type: 'degauss' });
+        expect(parseCommand('> desmag')).toEqual({ type: 'degauss' });
+        expect(parseCommand('> estasis')).toEqual({ type: 'stasis' });
+        expect(parseCommand('> hipersueño')).toEqual({ type: 'stasis' });
     });
 
     it('reports unknown verbs', () =>

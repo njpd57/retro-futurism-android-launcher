@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useSystemStatusStore } from '@/stores/useSystemStatusStore';
-import { signalBars } from '@/utils/tui';
+import SignalBars from '../gauges/SignalBars.vue';
 
 const status = useSystemStatusStore();
 
@@ -14,8 +14,8 @@ const c = computed(() => status.connectivity);
 <template>
     <div>
         <template v-if="c">
-            <div>{{ TYPE_LABEL[c.type] }} <span v-if="c.type === 'wifi'">{{ signalBars(c.wifiLevel) }}</span> {{ ARROWS[c.dataActivity] }}</div>
-            <div class="dim">MÓVIL {{ signalBars(c.cellularLevel) }}</div>
+            <div class="line">{{ TYPE_LABEL[c.type] }} <SignalBars v-if="c.type === 'wifi'" :level="c.wifiLevel" /> <span class="arrows">{{ ARROWS[c.dataActivity] }}</span></div>
+            <div class="line dim">MÓVIL <SignalBars :level="c.cellularLevel" /></div>
         </template>
         <div v-else>SIN DATOS</div>
     </div>
@@ -23,4 +23,6 @@ const c = computed(() => status.connectivity);
 
 <style scoped lang="scss">
 .dim { color: var(--ph-dim); }
+.line { display: flex; align-items: center; gap: 8px; white-space: pre; }
+.arrows { white-space: pre; }
 </style>

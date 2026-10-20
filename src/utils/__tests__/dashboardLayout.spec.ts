@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addWidget, DEFAULT_LAYOUT, moveWidget, newItemId, removeWidget, toggleMinimized } from '../dashboardLayout';
+import { addWidget, cycleSize, DEFAULT_PANELS, defaultLayoutSet, moveWidget, sizeOf, newItemId, removeWidget, toggleMinimized } from '../dashboardLayout';
 
 const layout = [
     { id: 'a-1', kind: 'a', minimized: false },
@@ -9,9 +9,35 @@ const layout = [
 
 describe('dashboardLayout', () =>
 {
-    it('default layout has unique ids', () =>
+    it('default panels have unique ids across all panels', () =>
     {
-        expect(new Set(DEFAULT_LAYOUT.map(i => i.id)).size).toBe(DEFAULT_LAYOUT.length);
+        const all = DEFAULT_PANELS.flat();
+        expect(new Set(all.map(i => i.id)).size).toBe(all.length);
+    });
+
+    it('sizeOf falls back to the first size when the item has none or an unsupported one', () =>
+    {
+        expect(sizeOf({}, ['w', 's'])).toBe('w');
+        expect(sizeOf({ size: 's' }, ['w', 's'])).toBe('s');
+        expect(sizeOf({ size: 'l' }, ['w', 's'])).toBe('w');
+    });
+
+    it('cycleSize moves to the next size, wraps and leaves single-size widgets alone', () =>
+    {
+        const l = [{ id: 'a-1', kind: 'a', minimized: false }];
+        const once = cycleSize(l, 'a-1', ['w', 's', 'l']);
+        expect(once[0].size).toBe('s');
+        expect(cycleSize(cycleSize(once, 'a-1', ['w', 's', 'l']), 'a-1', ['w', 's', 'l'])[0].size).toBe('w');
+        expect(cycleSize(l, 'a-1', ['w'])).toEqual(l);
+        expect(l[0]).not.toHaveProperty('size');
+    });
+
+    it('defaultLayoutSet returns a fresh copy', () =>
+    {
+        const set = defaultLayoutSet();
+        expect(set.panels).toEqual(DEFAULT_PANELS);
+        set.panels[0][0].minimized = true;
+        expect(DEFAULT_PANELS[0][0].minimized).toBe(false);
     });
 
     it('newItemId picks the smallest free number', () =>

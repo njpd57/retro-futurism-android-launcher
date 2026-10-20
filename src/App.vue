@@ -40,6 +40,10 @@ import MotherSessions from '@/components/MotherSessions.vue';
 import AppRename from '@/components/AppRename.vue';
 import AppFolderMenu from '@/components/AppFolderMenu.vue';
 import IdleClock from '@/components/IdleClock.vue';
+import StasisPod from '@/components/StasisPod.vue';
+import { useNow } from '@vueuse/core';
+import { useAlarmStore } from '@/stores/useAlarmStore';
+import { stasisActive } from '@/utils/stasis';
 import { useIdleStore } from '@/stores/useIdleStore';
 import { useAppShortcuts } from '@/composables/useAppShortcuts';
 import { useCommandConsole } from '@/composables/useCommandConsole';
@@ -48,6 +52,7 @@ import { useSwipe } from '@/composables/useSwipe';
 import { neighbour } from '@/utils/swipe';
 import { selectPanel } from '@/utils/dashboardLayout';
 import type { Tab } from '@/stores/useSettingsStore';
+import { prefersReducedMotion } from '@/composables/useReducedMotion';
 
 const insets = useWindowInsetsStore();
 const appsStore = useAppsStore();
@@ -154,11 +159,18 @@ const swipe = useSwipe(screenEl, kind =>
 }, () => !overlayOpen.value && !editing.value);
 
 // boot screen once per load; never with reduced motion
-const booting = ref(settings.bootSequence && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const booting = ref(settings.bootSequence && !prefersReducedMotion());
 
 const idleStore = useIdleStore();
+const alarmStore = useAlarmStore();
+// HIPERSUEÑO: the rest screen at night, with an alarm set, is a pod counting down to it. Decided when the screen rests.
+const clock = useNow({ interval: 60_000 });
+// `> estasis` shows the pod at once (to see it without waiting for the night): until the next alarm, or 7 hours if none is set
+const stasisPreview = ref<number | null>(null);
+const stasisPreviewWake = () => alarmStore.nextAlarm?.triggerTime ?? Date.now() + 7 * 3_600_000;
+const stasisWake = computed(() => settings.hypersleep && stasisActive(clock.value, alarmStore.nextAlarm?.triggerTime ?? null) ? alarmStore.nextAlarm!.triggerTime : null);
 
-const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch, organize: request => organizer.show(request), showImages: () => imagesStore.show(), showGame: () => isolation.show(), showMarines: () => marines.show() });
+const commandConsole = useCommandConsole({ query, apps: () => appsStore.apps.values(), launch, organize: request => organizer.show(request), showImages: () => imagesStore.show(), showGame: () => isolation.show(), showMarines: () => marines.show(), showStasis: () => { stasisPreview.value = stasisPreviewWake(); } });
 
 // the typed text goes to the MOTHER chat as a question
 function askMother(text: string)
@@ -294,7 +306,7 @@ onUnmounted(() =>
                 <div v-if="commandConsole.command.value" class="console">
                     <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
                 </div>
-                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()" @images="imagesStore.show()">
+                <AppList v-else :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()" @images="imagesStore.show()" @new-folder="folderApp = $event">
                     <ExtraResults v-if="query.trim()" :query="query" :top-app="results[0] ?? null" @ask="askMother" />
                 </AppList>
             </template>
@@ -303,7 +315,11 @@ onUnmounted(() =>
         </div>
 
         <BootSequence v-if="booting" @done="booting = false" />
-        <IdleClock v-if="idleStore.idle" @wake="idleStore.wake()" />
+        <StasisPod v-if="stasisPreview !== null" :wake-at="stasisPreview" @wake="stasisPreview = null" />
+        <template v-if="idleStore.idle">
+            <StasisPod v-if="stasisWake !== null" :wake-at="stasisWake" @wake="idleStore.wake()" />
+            <IdleClock v-else @wake="idleStore.wake()" />
+        </template>
         <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
         <NotificationWindow v-if="notificationsOpen" @close="notificationsOpen = false" />
 

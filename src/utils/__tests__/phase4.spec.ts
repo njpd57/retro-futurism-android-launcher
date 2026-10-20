@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BridgeAppUsage, BridgeContact } from '@/types/bridge-fork';
-import { blipCell, blipFromKey, nearestBlip, radarFrame } from '../radar';
+import { blipFromKey, radarContacts, radarScene, SWEEP_WEDGES } from '../radar';
 import { primaryNumber, shortName } from '../contacts';
 import { formatUsage, topUsage, totalUsageMs } from '../usage';
 import { formatTimer, isFinished, remainingMs } from '../timer';
@@ -10,12 +10,13 @@ const usage = (packageName: string, minutes: number): BridgeAppUsage => ({ packa
 
 describe('radar', () =>
 {
-    it('has the expected size and a center mark', () =>
+    it('draws the beam and a fading trail behind it', () =>
     {
-        const f = radarFrame(5, 0, []);
-        expect(f).toHaveLength(11);
-        expect(f.every(row => [...row].length === 21)).toBe(true);
-        expect(f[5][10]).toBe('+');
+        const { wedges } = radarScene(1, []);
+        expect(wedges).toHaveLength(SWEEP_WEDGES);
+        expect(wedges[0].opacity).toBeGreaterThan(wedges[1].opacity);
+        for (let i = 2; i < wedges.length; i++) expect(wedges[i].opacity).toBeLessThan(wedges[i - 1].opacity);
+        expect(wedges.every(w => w.d.startsWith('M0 0 L') && w.d.endsWith('Z'))).toBe(true);
     });
 
     it('blip positions are stable and inside the circle', () =>
@@ -29,28 +30,15 @@ describe('radar', () =>
         }
     });
 
-    it('lights a blip the sweep just passed', () =>
+    it('lights a blip the sweep just passed and dims it as the beam moves away', () =>
     {
-        const f = radarFrame(6, 0.05, [{ angle: 0, radius: 0.8 }]);
-        expect(f.join('')).toContain('◉');
-    });
-});
-
-describe('radar scanner', () =>
-{
-    const blips = [{ angle: 0, radius: 0.8 }, { angle: Math.PI, radius: 0.8 }];
-
-    it('picks the blip under or next to the tap', () =>
-    {
-        const { c, r } = blipCell(5, blips[1]);
-        expect(nearestBlip(5, c, r, blips)).toBe(1);
-        expect(nearestBlip(5, c + 2, r + 1, blips)).toBe(1);
-    });
-
-    it('returns -1 when nothing is near', () =>
-    {
-        expect(nearestBlip(5, 10, 5, blips)).toBe(-1);
-        expect(nearestBlip(5, 0, 0, [])).toBe(-1);
+        const blip = { angle: 0, radius: 0.8 };
+        const [fresh] = radarScene(0.05, [blip]).dots;
+        expect(fresh.brightness).toBe(1);
+        expect(fresh.x).toBeCloseTo(0.8);
+        expect(fresh.y).toBeCloseTo(0);
+        expect(radarScene(2, [blip]).dots[0].brightness).toBeLessThan(1);
+        expect(radarScene(4, [blip]).dots[0].brightness).toBeLessThan(radarScene(2, [blip]).dots[0].brightness);
     });
 });
 
@@ -117,5 +105,44 @@ describe('formatBytes', () =>
         expect(formatBytes(47 * 1024 ** 3)).toBe('47.0 GB');
         expect(formatBytes(512 * 1024 ** 2)).toBe('512 MB');
         expect(formatBytes(0)).toBe('0 MB');
+    });
+});
+
+
+describe('radar contacts', () =>
+{
+    const note = (key: string, packageName: string, postTime: number) => ({
+        key, packageName, postTime, title: key, text: null, subText: null, category: null,
+        isOngoing: false, isClearable: true, isGroupSummary: false, isMedia: false, hasLargeIcon: false, actions: [],
+    });
+
+    it('groups the notifications of an app into one contact', () =>
+    {
+        const contacts = radarContacts([note('a1', 'com.a', 1), note('b1', 'com.b', 2), note('a2', 'com.a', 3)]);
+        expect(contacts.map(c => c.packageName)).toEqual(['com.a', 'com.b']);
+        expect(contacts[0].notifications.map(n => n.key)).toEqual(['a2', 'a1']);
+    });
+
+    it('places a contact by its package, so it does not move when a signal arrives', () =>
+    {
+        const before = radarContacts([note('a1', 'com.a', 1)])[0].blip;
+        const after = radarContacts([note('a1', 'com.a', 1), note('a2', 'com.a', 2)])[0].blip;
+        expect(after.angle).toBe(before.angle);
+        expect(after.radius).toBe(before.radius);
+    });
+
+    it('marks a busy app as heavy and caps the number of contacts', () =>
+    {
+        const busy = radarContacts([note('1', 'com.a', 1), note('2', 'com.a', 2), note('3', 'com.a', 3)]);
+        expect(busy[0].blip.heavy).toBe(true);
+        expect(radarContacts([note('1', 'com.a', 1)])[0].blip.heavy).toBe(false);
+        const many = Array.from({ length: 20 }, (_, i) => note(`k${i}`, `com.app${i}`, i));
+        expect(radarContacts(many)).toHaveLength(12);
+    });
+
+    it('flags a heavy contact so it is drawn bigger', () =>
+    {
+        expect(radarScene(0, [{ angle: 0, radius: 0.8 }]).dots[0].heavy).toBe(false);
+        expect(radarScene(0, [{ angle: 0, radius: 0.8, heavy: true }]).dots[0].heavy).toBe(true);
     });
 });

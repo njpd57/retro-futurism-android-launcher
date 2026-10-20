@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { WIDGETS } from '@/widgets/registry';
+import { SIZE_CELLS, SIZE_LABELS } from '@/utils/dashboardLayout';
 import { CATEGORIES, widgetsByCategory, type WidgetCategory } from '@/utils/widgetCatalog';
 import TermInput from './TermInput.vue';
 import TermMenu from './TermMenu.vue';
@@ -42,10 +43,10 @@ const counts = computed(() =>
                         v-for="e in g.entries"
                         :key="e.kind"
                         class="card pressable"
-                        :class="{ wide: e.def.span === 2 }"
+                        :class="{ wide: SIZE_CELLS[e.def.sizes[0]].cols === 2 }"
                         @click="$emit('add', e.kind)">
                         <pre class="preview">{{ e.def.preview.join('\n') }}</pre>
-                        <div class="title"><span>{{ e.def.title }}</span><span class="dim">{{ counts[e.kind] ? `×${counts[e.kind]} ` : '' }}{{ e.def.span }}COL</span></div>
+                        <div class="title"><span>{{ e.def.title }}</span><span class="dim">{{ counts[e.kind] ? `×${counts[e.kind]} ` : '' }}{{ SIZE_LABELS[e.def.sizes[0]] }}</span></div>
                         <div class="dim">{{ e.def.description }}</div>
                         <div class="add">[AÑADIR]</div>
                     </div>

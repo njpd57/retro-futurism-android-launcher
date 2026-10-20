@@ -19,6 +19,7 @@ import { tick } from '@/utils/haptics';
 import { bar, formatDuration } from '@/utils/tui';
 import MarinesControls from './MarinesControls.vue';
 import MarinesView from './MarinesView.vue';
+import { prefersReducedMotion } from '@/composables/useReducedMotion';
 
 const marines = useMarinesStore();
 const settings = useSettingsStore();
@@ -37,7 +38,7 @@ const SHOT_SOUND: Record<WeaponId, SfxName> = { rifle: 'pulse', shotgun: 'shotgu
 /** the marines' rifles are heard at most this often, or four of them a second would be a wall of noise */
 const RATTLE_MS = 110;
 const rng = Math.random;
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reducedMotion = prefersReducedMotion();
 
 const view = ref<InstanceType<typeof MarinesView> | null>(null);
 const campaignMode = computed(() => marines.prefs.mode === 'campaign');

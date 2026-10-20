@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useLocalStorage } from '@vueuse/core';
 import { usePausableInterval } from '@/composables/usePausableInterval';
-import { MAX_LEVEL, POWER, SYSTEMS, adjust, freePower, newGame, score, step, type RerouteState } from '@/games/reroute';
+import { MAX_LEVEL, POWER, SYSTEMS, adjust, effectiveNeed, freePower, newGame, score, step, type RerouteState } from '@/games/reroute';
 import { rerouteMessages } from '@/games/rerouteLog';
 import { useLogStore } from '@/stores/useLogStore';
 import { useSoundStore } from '@/stores/useSoundStore';
@@ -37,6 +37,9 @@ const loop = usePausableInterval(() =>
     }
     state.value = result.state;
     if (result.events.includes('demand')) sound.playAlways('ping');
+    if (result.events.includes('doorFault')) sound.playAlways('door');
+    if (result.events.includes('sensorAlarm')) sound.playAlways('alert');
+    if (result.events.includes('ventLeak')) sound.playAlways('hiss');
     if (result.events.includes('lost'))
     {
         loop.stop();
@@ -54,6 +57,9 @@ function start()
     loop.start();
 }
 
+const needs = computed(() => effectiveNeed(state.value));
+/** Tag beside a system's name while an incident affects it. */
+const flag = (i: number) => i === 2 && state.value.sensorAlarmMs > 0 ? ' [ALARMA]' : i === 1 && state.value.ventLeakMs > 0 ? ' [FUGA]' : '';
 const give = (i: number, d: 1 | -1) => { state.value = adjust(state.value, i, d); };
 const levelBar = (n: number) => bar(n / MAX_LEVEL, MAX_LEVEL);
 </script>
@@ -72,16 +78,16 @@ const levelBar = (n: number) => bar(n / MAX_LEVEL, MAX_LEVEL);
                 <span>{{ score(state) }} S</span>
             </div>
             <div class="msg">{{ message || 'SISTEMAS NOMINALES.' }}</div>
-            <div v-for="(name, i) in SYSTEMS" :key="name" class="sys" :class="{ short: state.need[i] > state.alloc[i], failing: state.integrity[i] < 35 }">
+            <div v-for="(name, i) in SYSTEMS" :key="name" class="sys" :class="{ short: needs[i] > state.alloc[i], failing: state.integrity[i] < 35 }">
                 <div class="name">
-                    <span>{{ name }}</span>
+                    <span>{{ name }}{{ flag(i) }}</span>
                     <span>{{ Math.round(state.integrity[i]) }}%</span>
                 </div>
                 <div class="ctl">
                     <span class="btn pressable" @click="give(i, -1)">[-]</span>
                     <span class="lvl">{{ levelBar(state.alloc[i]) }}</span>
                     <span class="btn pressable" @click="give(i, 1)">[+]</span>
-                    <span class="need">PIDE {{ levelBar(state.need[i]) }}</span>
+                    <span class="need">PIDE {{ levelBar(needs[i]) }}</span>
                 </div>
             </div>
             <template v-if="state.phase === 'lost'">

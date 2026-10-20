@@ -1,9 +1,36 @@
+import type { BridgeNotification } from '@/types/bridge-fork';
+import { groupByApp } from './notifications';
+
 export interface RadarBlip
 {
     /** Radians, 0 = east, counter-clockwise on screen is negative. */
     angle: number;
     /** 0 (center) to 1 (edge). */
     radius: number;
+    /** A heavy contact (several signals) is drawn bigger. */
+    heavy?: boolean;
+}
+
+/** An app on the radar: one blip, however many notifications it has. */
+export interface RadarContact
+{
+    packageName: string;
+    notifications: BridgeNotification[];
+    blip: RadarBlip;
+}
+
+/** Signals at which a contact is drawn heavy. */
+export const HEAVY_CONTACT = 3;
+export const MAX_CONTACTS = 12;
+
+/** One contact per app, the busiest-recent first (up to `limit`). Its position depends only on the package, so it stays put. */
+export function radarContacts(list: readonly BridgeNotification[], limit = MAX_CONTACTS): RadarContact[]
+{
+    return groupByApp(list).slice(0, limit).map(g => ({
+        packageName: g.packageName,
+        notifications: g.items,
+        blip: { ...blipFromKey(g.packageName), heavy: g.items.length >= HEAVY_CONTACT },
+    }));
 }
 
 const TAU = Math.PI * 2;
@@ -18,70 +45,53 @@ export function blipFromKey(key: string): RadarBlip
     return { angle: (h % 3600) / 3600 * TAU, radius: 0.3 + ((h >>> 12) % 700) / 1000 };
 }
 
-/** The grid cell (column `c`, row `r`) where a blip is drawn on a radar of the given radius. */
-export function blipCell(radius: number, blip: RadarBlip): { c: number; r: number }
+/** A wedge of the sweep, as an SVG path in a viewBox centred on the radar (radius 1), and how bright it is (1 = the beam). */
+export interface RadarWedge
 {
-    return {
-        c: Math.round(radius * 2 + Math.cos(blip.angle) * blip.radius * radius * 2),
-        r: Math.round(radius + Math.sin(blip.angle) * blip.radius * radius),
-    };
+    d: string;
+    opacity: number;
 }
 
-/**
- * Index of the blip closest to a tapped cell, or -1 when none is near. Distance is measured in rows, so a column
- * counts for half (characters are about twice as tall as wide); `reach` is generous because fingers are fat.
- */
-export function nearestBlip(radius: number, col: number, row: number, blips: readonly RadarBlip[], reach = 1.6): number
+/** A contact placed in the same viewBox; `brightness` is high right after the beam passed over it and fades. */
+export interface RadarDot
 {
-    let best = -1;
-    let bestDist = reach;
-    blips.forEach((blip, i) =>
-    {
-        const { c, r } = blipCell(radius, blip);
-        const d = Math.hypot((col - c) / 2, row - r);
-        if (d <= bestDist) { best = i; bestDist = d; }
-    });
-    return best;
+    x: number;
+    y: number;
+    brightness: number;
+    heavy: boolean;
 }
 
+export const SWEEP_WEDGES = 7;
+const WEDGE_ANGLE = 0.17;
+
+const point = (angle: number, radius = 1) => `${(Math.cos(angle) * radius).toFixed(3)} ${(Math.sin(angle) * radius).toFixed(3)}`;
+
 /**
- * ASCII radar: `4*radius + 1` columns by `2*radius + 1` rows (characters are about twice as tall as wide).
- * The sweep is a bright wedge at `sweep` radians with a fading trail behind it; blips light up when it passes.
+ * The radar as vector shapes for a viewBox of `-1 -1 2 2`: the beam is the first wedge, behind it come dimmer ones
+ * (the fading phosphor trail), and a blip lights up when the beam passes it. Angles grow clockwise on screen.
  */
-export function radarFrame(radius: number, sweep: number, blips: readonly RadarBlip[]): string[]
+export function radarScene(sweep: number, blips: readonly RadarBlip[]): { wedges: RadarWedge[]; dots: RadarDot[] }
 {
-    const cols = radius * 4 + 1;
-    const rows = radius * 2 + 1;
-    const grid: string[][] = Array.from({ length: rows }, () => Array<string>(cols).fill(' '));
-
-    const norm = (a: number) => ((a % TAU) + TAU) % TAU;
-
-    for (let r = 0; r < rows; r++)
+    const wedges: RadarWedge[] = [];
+    for (let i = 0; i < SWEEP_WEDGES; i++)
     {
-        for (let c = 0; c < cols; c++)
-        {
-            const dx = (c - radius * 2) / (radius * 2);
-            const dy = (r - radius) / radius;
-            const dist = Math.hypot(dx, dy);
-            if (dist > 1.02) continue;
-
-            if (dist < 0.08) { grid[r][c] = '+'; continue; }
-
-            const behind = norm(sweep - Math.atan2(dy, dx)); // how far the sweep has moved past this cell
-            if (behind < 0.12) grid[r][c] = '▓';
-            else if (behind < 0.6) grid[r][c] = '▒';
-            else if (behind < 1.2) grid[r][c] = '░';
-            else if (dist > 0.96 || Math.abs(dist - 0.5) < 0.04) grid[r][c] = '·';
-        }
+        const to = sweep - i * WEDGE_ANGLE;
+        const from = to - WEDGE_ANGLE;
+        wedges.push({ d: `M0 0 L${point(from)} A1 1 0 0 1 ${point(to)} Z`, opacity: i === 0 ? 0.55 : 0.3 * (1 - i / SWEEP_WEDGES) });
     }
 
-    for (const blip of blips)
+    const dots = blips.map(blip =>
     {
-        const { c, r } = blipCell(radius, blip);
-        if (r < 0 || r >= rows || c < 0 || c >= cols) continue;
         const behind = norm(sweep - blip.angle);
-        grid[r][c] = behind < 1 ? '◉' : behind < 3 ? 'o' : '·';
-    }
+        return {
+            x: Math.cos(blip.angle) * blip.radius,
+            y: Math.sin(blip.angle) * blip.radius,
+            brightness: behind < 1 ? 1 : behind < 3 ? 0.55 : 0.25,
+            heavy: !!blip.heavy,
+        };
+    });
 
-    return grid.map(row => row.join(''));
+    return { wedges, dots };
 }
+
+const norm = (a: number) => ((a % TAU) + TAU) % TAU;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BridgeCalendarEvent, BridgeMediaSession } from '@/types/bridge-fork';
 import { eventDayKey, eventTimeLabel, groupEventsByDay } from '../agenda';
-import { formatMediaTime, mediaPosition } from '../media';
+import { formatMediaTime, mediaPosition, reelGlyph, tapeCounter, tapeRun, tapeStatus, tapeUnit } from '../media';
 import { isTaskLine, toggleTaskLine } from '../notes';
 import { forecastUrl, isStale, parseForecast, weatherText } from '../weather';
 
@@ -103,5 +103,44 @@ describe('weather', () =>
         expect(weatherText(63)).toBe('LLUVIA');
         expect(weatherText(96)).toBe('TORMENTA');
         expect(forecastUrl(1.5, -2)).toContain('latitude=1.5&longitude=-2');
+    });
+});
+
+
+describe('tape unit', () =>
+{
+    it('shows the counter as four digits and a total', () =>
+    {
+        expect(tapeCounter(347_000, 1_200_000)).toBe('0347 / 1200');
+        expect(tapeCounter(0, 0)).toBe('0000 / ----');
+        expect(tapeCounter(99_999_000, 99_999_000)).toBe('9999 / 9999');
+        expect(tapeCounter(-5, 10_000)).toBe('0000 / 0010');
+    });
+
+    it('turns the reel through four frames only while running', () =>
+    {
+        const frames = [0, 1, 2, 3].map(f => reelGlyph(f, true));
+        expect(new Set(frames).size).toBe(4);
+        expect(reelGlyph(4, true)).toBe(frames[0]);
+        expect(reelGlyph(1, false)).toBe('( ◉ )');
+        expect(reelGlyph(-1, true)).toBe(frames[3]);
+    });
+
+    it('moves the tape one step per frame, and holds it still when stopped', () =>
+    {
+        expect(tapeRun(0, true, 6)).toBe('═─═─═─');
+        expect(tapeRun(1, true, 6)).toBe('─═─═─═');
+        expect(tapeRun(1, false, 6)).toBe(tapeRun(0, false, 6));
+        expect(tapeRun(0, true, 0)).toBe('');
+    });
+
+    it('names the state in Spanish and numbers the unit', () =>
+    {
+        expect(tapeStatus('playing')).toBe('REPRODUCIENDO');
+        expect(tapeStatus('paused')).toBe('EN PAUSA');
+        expect(tapeStatus('none')).toBe('DETENIDA');
+        expect(tapeUnit('media-2')).toBe('02');
+        expect(tapeUnit('media-17')).toBe('17');
+        expect(tapeUnit('media')).toBe('01');
     });
 });

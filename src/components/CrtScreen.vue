@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
 import { useElementSize, useNow } from '@vueuse/core';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
+import { useTubeStore } from '@/stores/useTubeStore';
 import { tick } from '@/utils/haptics';
 import { bendK as bendCoef, bendOffset, correctPoint } from '@/utils/curvature';
 import { isNight, NIGHT_MAX_BLOOM } from '@/utils/nightShift';
+import { nextDegaussMinutes } from '@/utils/degauss';
+import { burnBands, burnOpacity, type BurnBand } from '@/utils/burnIn';
+import { usePausableInterval } from '@/composables/usePausableInterval';
 
 const settings = useSettingsStore();
 const sound = useSoundStore();
+const tube = useTubeStore();
 
 // night shift: red phosphor and less bloom by schedule, without touching the user's own choice
 const now = useNow({ interval: 60_000 });
@@ -60,6 +65,90 @@ function buildBendMap()
 
 watch([tubeW, tubeH, bendK, () => settings.curvature], () => { if (settings.curvature) buildBendMap(); });
 onBeforeUnmount(() => { bendMap.value = ''; });
+
+// degauss: the picture shakes and ripples for a moment, a damped oscillation of a turbulence displacement. It sits on
+// .tube next to the bend filter and only lives while it plays, so the touch correction (which follows the bend) is not
+// touched for longer than that
+const DEGAUSS_MS = 600;
+const DEGAUSS_MAX_PX = 22;
+const degaussing = ref(false);
+const degaussScale = ref(0);
+const degaussSeed = ref(1);
+const degaussFlash = ref(1);
+let degaussFrame = 0;
+
+function playDegauss()
+{
+    cancelAnimationFrame(degaussFrame);
+    degaussing.value = true;
+    sound.play('thunk');
+    const start = performance.now();
+    const frame = (t: number) =>
+    {
+        const p = Math.min(1, (t - start) / DEGAUSS_MS);
+        const decay = Math.exp(-4 * p);
+        degaussScale.value = DEGAUSS_MAX_PX * decay * Math.cos(p * Math.PI * 7);
+        degaussSeed.value = 1 + Math.floor(p * DEGAUSS_MS / 60); // the noise changes in steps, not smoothly
+        degaussFlash.value = 1 + 0.5 * Math.exp(-6 * p);
+        if (p < 1) degaussFrame = requestAnimationFrame(frame); else degaussing.value = false;
+    };
+    degaussFrame = requestAnimationFrame(frame);
+}
+
+watch(() => tube.degaussPulse, playDegauss);
+// a new phosphor is a new tube colour: degauss it (the first value is not a change)
+watch(() => settings.phosphor, () => tube.degauss());
+onBeforeUnmount(() => cancelAnimationFrame(degaussFrame));
+
+const tubeStyle = computed(() => degaussing.value
+    ? { filter: `${settings.curvature && bendMap.value ? 'url(#crt-bend) ' : ''}url(#crt-degauss) brightness(${degaussFlash.value.toFixed(3)})` }
+    : undefined);
+
+// switching on after a pause is a short flash; the class is dropped once it has played
+let warmTimer = 0;
+watch(() => tube.power, power =>
+{
+    window.clearTimeout(warmTimer);
+    if (power === 'warming') warmTimer = window.setTimeout(() => tube.warmed(), 400);
+});
+onBeforeUnmount(() => window.clearTimeout(warmTimer));
+
+// the tube degausses by itself every now and then: minutes of visible screen, counted only while the launcher is on
+let minutesToDegauss = nextDegaussMinutes(Math.random);
+const autoDegaussTimer = usePausableInterval(() =>
+{
+    if (--minutesToDegauss > 0) return;
+    minutesToDegauss = nextDegaussMinutes(Math.random);
+    tube.degauss();
+}, 60_000);
+watch(() => settings.autoDegauss, on => { if (on) autoDegaussTimer.start(); else autoDegaussTimer.stop(); });
+onMounted(() => { if (settings.autoDegauss) autoDegaussTimer.start(); });
+
+// phosphor persistence: minutes of use are counted while the launcher is on screen, and the ghost bands follow the
+// frame lines (under the top bar, over the soft keys), which are measured so they fit any device
+const burnOn = computed(() => settings.phosphorBurn && settings.burnMinutes > 0);
+const burn = computed(() => burnOpacity(settings.burnMinutes));
+const bands = ref<BurnBand[]>([]);
+
+function measureBands()
+{
+    const root = tubeEl.value;
+    if (!root) return;
+    const box = root.getBoundingClientRect();
+    const topBar = root.querySelector('.top-bar')?.getBoundingClientRect();
+    const keys = root.querySelector('.soft-keys')?.getBoundingClientRect();
+    bands.value = burnBands(topBar ? topBar.bottom - box.top : null, keys ? keys.top - box.top : null, box.height);
+}
+
+const burnTimer = usePausableInterval(() =>
+{
+    settings.burnMinutes++;
+    measureBands();
+}, 60_000);
+
+watch(() => settings.phosphorBurn, on => { if (on) { burnTimer.start(); measureBands(); } else burnTimer.stop(); });
+watch([tubeW, tubeH], measureBands);
+onMounted(() => { if (settings.phosphorBurn) { burnTimer.start(); measureBands(); } });
 
 // one delegated listener instead of a handler per component
 const PRESSABLE = '.menu-item, .soft-keys button, .tab, .btn, .app-row, .action, .pressable';
@@ -115,7 +204,18 @@ function onInput(e: Event)
             </filter>
         </svg>
 
-        <div ref="tubeEl" class="tube"><slot /></div>
+        <svg v-if="degaussing && tubeW > 1" class="bend-defs" width="0" height="0" aria-hidden="true">
+            <filter id="crt-degauss" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB" x="0" y="0" :width="tubeW" :height="tubeH">
+                <feTurbulence type="fractalNoise" baseFrequency="0.004 0.02" numOctaves="1" :seed="degaussSeed" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" :scale="degaussScale" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </svg>
+
+        <div ref="tubeEl" class="tube" :class="{ 'tube-off': tube.power === 'off', 'tube-on': tube.power === 'warming' }" :style="tubeStyle"><slot /></div>
+
+        <div v-if="burnOn" class="burn" aria-hidden="true" :style="{ opacity: burn }">
+            <div v-for="b in bands" :key="b.top" class="band" :style="{ top: b.top + 'px', height: b.height + 'px' }" />
+        </div>
 
         <div class="crt-overlay" :class="{ scanlines: settings.scanlines, flicker: settings.flicker, vignette: settings.vignette, curved: settings.curvature }">
             <div v-if="settings.sweep" class="sweep" />
@@ -150,6 +250,24 @@ function onInput(e: Event)
 }
 
 .bend-defs { position: absolute; pointer-events: none; }
+
+// the ghost sits over the tube's box; it only ever lights the dark gap next to the bars, never a glyph
+.burn {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99;
+
+    .curved > & { inset: var(--tube-inset); }
+
+    .band {
+        position: absolute;
+        left: 0;
+        right: 0;
+        background: var(--ph);
+        mix-blend-mode: screen;
+    }
+}
 
 .crt-overlay {
     position: absolute;
@@ -224,8 +342,30 @@ function onInput(e: Event)
     to { opacity: 0.045; }
 }
 
+// the tube switching off: the picture folds to a line, then to a dot, in a few steps
+.tube-off {
+    animation: tube-off 0.45s steps(6) forwards;
+}
+
+.tube-on {
+    animation: tube-on 0.4s steps(5) both;
+}
+
+@keyframes tube-off {
+    0% { transform: scale(1, 1); opacity: 1; }
+    55% { transform: scale(1, 0.01); opacity: 1; }
+    100% { transform: scale(0.01, 0.01); opacity: 0; }
+}
+
+@keyframes tube-on {
+    0% { transform: scale(0.01, 0.01); opacity: 1; }
+    40% { transform: scale(1, 0.01); opacity: 1; }
+    100% { transform: scale(1, 1); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .crt-overlay.flicker::after,
     .crt-overlay > .sweep { animation: none; }
+    .tube-off, .tube-on { animation: none; }
 }
 </style>

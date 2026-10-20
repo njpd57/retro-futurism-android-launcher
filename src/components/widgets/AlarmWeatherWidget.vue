@@ -2,9 +2,10 @@
 import { ref } from 'vue';
 import { useAlarmStore } from '@/stores/useAlarmStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
-import { formatClock, formatDateTui, sparkline } from '@/utils/tui';
+import { formatClock, formatDateTui } from '@/utils/tui';
 import { weatherText } from '@/utils/weather';
 import CityPicker from '../CityPicker.vue';
+import Sparkline from '../gauges/Sparkline.vue';
 
 const alarm = useAlarmStore();
 const weather = useWeatherStore();
@@ -34,7 +35,7 @@ function alarmLabel(triggerTime: number)
         <template v-if="weather.city">
             <div v-if="weather.forecast">
                 <span class="temp">{{ Math.round(weather.forecast.temperature) }}°C</span> {{ weatherText(weather.forecast.code) }}
-                <div class="spark">{{ sparkline(weather.forecast.hourly) }}</div>
+                <Sparkline class="spark" mode="line" :values="weather.forecast.hourly" />
             </div>
             <div v-else class="dim">{{ weather.failed ? `SIN ENLACE · ${weather.lastError}` : 'CONSULTANDO…' }}</div>
             <div v-if="weather.failed && weather.forecast" class="dim">DATOS ANTIGUOS · {{ weather.lastError }}</div>
@@ -49,5 +50,5 @@ function alarmLabel(triggerTime: number)
 .dim { color: var(--ph-dim); }
 .row { padding: 1px 0; &:active { @include inverse; } }
 .temp { font-size: 1.5em; }
-.spark { letter-spacing: 2px; }
+.spark { margin-top: 2px; }
 </style>

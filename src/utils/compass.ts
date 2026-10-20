@@ -14,19 +14,39 @@ export function compassPoint(heading: number)
     return POINTS[Math.round(normalizeDegrees(heading) / 45) % 8];
 }
 
-/**
- * A strip of the horizon `width` characters wide centred on `heading`: a tick every 15°, the cardinal
- * and intercardinal letters at their bearings. The centre column is the heading itself.
- */
-export function compassStrip(heading: number, width: number, degreesPerChar = 5): string
+export interface CompassMark
 {
-    const half = Math.floor(width / 2);
-    let out = '';
-    for (let i = -half; i <= half; i++)
+    /** Bearing in degrees, clockwise from north. */
+    deg: number;
+    /** SVG path of the tick on a rose of radius 1 (longer every 30°, longest at the cardinal points). */
+    d: string;
+}
+
+export interface CompassLabel
+{
+    text: string;
+    x: number;
+    y: number;
+}
+
+const polar = (deg: number, r: number) => `${(Math.sin(deg * Math.PI / 180) * r).toFixed(3)} ${(-Math.cos(deg * Math.PI / 180) * r).toFixed(3)}`;
+
+/** The card of a compass rose for a viewBox centred on the origin: a tick every 5°, and the eight points named inside. */
+export function compassRose(): { marks: CompassMark[]; labels: CompassLabel[] }
+{
+    const marks: CompassMark[] = [];
+    for (let deg = 0; deg < 360; deg += 5)
     {
-        const bearing = normalizeDegrees(Math.round((heading + i * degreesPerChar) / degreesPerChar) * degreesPerChar);
-        const point = bearing % 45 === 0 ? POINTS[bearing / 45] : null;
-        out += point ? point[0] : bearing % 15 === 0 ? '|' : '·';
+        const inner = deg % 90 === 0 ? 0.78 : deg % 30 === 0 ? 0.84 : deg % 15 === 0 ? 0.9 : 0.94;
+        marks.push({ deg, d: `M${polar(deg, inner)} L${polar(deg, 1)}` });
     }
-    return out;
+
+    const labels = POINTS.map((text, i) =>
+    {
+        const r = i % 2 === 0 ? 0.6 : 0.62;
+        const deg = i * 45;
+        return { text, x: Math.sin(deg * Math.PI / 180) * r, y: -Math.cos(deg * Math.PI / 180) * r };
+    });
+
+    return { marks, labels };
 }

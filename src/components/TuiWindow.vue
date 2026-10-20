@@ -7,9 +7,12 @@ withDefaults(defineProps<{
     minimizable?: boolean;
     closable?: boolean;
     movable?: boolean;
-}>(), { minimized: false, minimizable: true, closable: false, movable: false });
+    resizable?: boolean;
+    /** Fill the height the parent gives (a dashboard cell) instead of growing with the content. */
+    fill?: boolean;
+}>(), { minimized: false, minimizable: true, closable: false, movable: false, resizable: false, fill: false });
 
-defineEmits<{ (e: 'toggle'): void; (e: 'close'): void; (e: 'move', delta: -1 | 1): void }>();
+defineEmits<{ (e: 'toggle'): void; (e: 'close'): void; (e: 'move', delta: -1 | 1): void; (e: 'resize'): void }>();
 
 const body = ref<HTMLElement | null>(null);
 const scrollable = ref(false);
@@ -43,10 +46,11 @@ onBeforeUnmount(() => observer?.disconnect());
 </script>
 
 <template>
-    <section class="tui-window">
+    <section class="tui-window" :class="{ fill, minimized }">
         <header class="title-bar">
             <span v-if="minimizable" class="btn" @click.stop="$emit('toggle')">{{ minimized ? '▣' : '□' }}</span>
             <span class="title">{{ title }}</span>
+            <span v-if="resizable" class="btn" @click.stop="$emit('resize')">◢</span>
             <span v-if="movable" class="btn" @click.stop="$emit('move', -1)">◀</span>
             <span v-if="movable" class="btn" @click.stop="$emit('move', 1)">▶</span>
             <span v-if="closable" class="btn" @click.stop="$emit('close')">✕</span>
@@ -75,6 +79,15 @@ onBeforeUnmount(() => observer?.disconnect());
     border: 2px solid var(--ph);
     background: var(--ph-bg);
     @include box-glow(0.6);
+
+    // In a dashboard cell the window is as tall as the cell and its body scrolls; the body is a size container so
+    // widgets can adapt to the room they have with @container.
+    &.fill {
+        min-height: 0;
+        &.minimized { align-self: start; }
+        > .frame { overflow: hidden; }
+        > .frame > .body { max-height: none; container-type: size; }
+    }
 
     > .title-bar {
         @include inverse;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_LEVEL, POWER, SYSTEMS, adjust, freePower, needInterval, newGame, pickNeeds, score, step } from '../reroute';
+import { MAX_LEVEL, POWER, SYSTEMS, adjust, effectiveNeed, freePower, incidentInterval, needInterval, newGame, pickNeeds, score, step } from '../reroute';
 
 const seq = (...values: number[]) => { let i = 0; return () => values[i++ % values.length]; };
 const total = (a: number[]) => a.reduce((x, y) => x + y, 0);
@@ -72,5 +72,62 @@ describe('reroute', () =>
     {
         const s = { ...newGame(Math.random), need: [2, 2, 2] };
         expect(score(step(s, 4500, Math.random).state)).toBe(4);
+    });
+});
+
+describe('reroute incidents', () =>
+{
+    // 0..1/3 door fault, 1/3..2/3 sensor alarm, 2/3..1 vent leak
+    const calm = { ...newGame(() => 0), need: [2, 2, 2], alloc: [2, 2, 2], needTimerMs: 1e9 };
+    const due = (over = {}) => ({ ...calm, incidentTimerMs: 10, ...over });
+
+    it('does not start before the first interval', () =>
+    {
+        expect(newGame(() => 0).incidentTimerMs).toBeGreaterThanOrEqual(15000);
+        expect(step(calm, 1000, () => 0).events).toEqual([]);
+    });
+
+    it('a door fault takes a quarter of PUERTAS but never kills by itself', () =>
+    {
+        const r = step(due(), 100, () => 0.1);
+        expect(r.events).toEqual(['doorFault']);
+        expect(r.state.integrity[0]).toBe(75);
+        const low = step(due({ integrity: [20, 100, 100] }), 100, () => 0.1);
+        expect(low.state.integrity[0]).toBe(5);
+        expect(low.state.phase).toBe('playing');
+    });
+
+    it('a sensor alarm doubles what SENSORES asks for, for a while', () =>
+    {
+        const r = step(due({ need: [2, 2, 1] }), 100, () => 0.5);
+        expect(r.events).toEqual(['sensorAlarm']);
+        expect(effectiveNeed(r.state)).toEqual([2, 2, 2]);
+        expect(effectiveNeed({ ...r.state, need: [2, 2, 3] })[2]).toBe(MAX_LEVEL);
+        const later = step(r.state, 9000, () => 0.5).state;
+        expect(later.sensorAlarmMs).toBe(0);
+        expect(effectiveNeed(later)).toEqual(later.need);
+    });
+
+    it('the extra demand hurts SENSORES when it is not met', () =>
+    {
+        const alarm = due({ need: [2, 2, 1], alloc: [2, 2, 1] });
+        let s = step(alarm, 100, () => 0.5).state;
+        s = step(s, 1000, () => 0.5).state;
+        expect(s.integrity[2]).toBeLessThan(100);
+    });
+
+    it('a vent leak bleeds SOPORTE VITAL even when it has its power', () =>
+    {
+        const r = step(due(), 100, () => 0.9);
+        expect(r.events).toEqual(['ventLeak']);
+        const after = step(r.state, 1000, () => 0.9).state;
+        expect(after.integrity[1]).toBeLessThan(100);
+        expect(after.integrity[0]).toBe(100);
+    });
+
+    it('incidents come closer together as the run goes on, never under the minimum', () =>
+    {
+        expect(incidentInterval(0, () => 0)).toBeGreaterThan(incidentInterval(200_000, () => 0));
+        expect(incidentInterval(10_000_000, () => 0)).toBe(8000);
     });
 });

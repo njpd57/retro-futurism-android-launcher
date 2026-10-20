@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useSystemStatusStore } from '@/stores/useSystemStatusStore';
-import { bar, formatBytes } from '@/utils/tui';
+import { formatBytes } from '@/utils/tui';
+import GaugeBar from '../gauges/GaugeBar.vue';
 
 const status = useSystemStatusStore();
 
@@ -12,7 +13,7 @@ const fraction = computed(() => status.storage ? used.value / status.storage.tot
 <template>
     <div>
         <template v-if="status.storage">
-            <div>MEM {{ bar(fraction, 8) }} {{ Math.round(fraction * 100) }}%</div>
+            <div class="meter"><span>MEM</span><GaugeBar :fraction="fraction" :segments="10" /><span>{{ Math.round(fraction * 100) }}%</span></div>
             <div class="dim">USADO {{ formatBytes(used) }}</div>
             <div class="dim">LIBRE {{ formatBytes(status.storage.freeBytes) }}</div>
         </template>
@@ -22,4 +23,5 @@ const fraction = computed(() => status.storage ? used.value / status.storage.tot
 
 <style scoped lang="scss">
 .dim { color: var(--ph-dim); }
+.meter { display: flex; align-items: center; gap: 8px; > svg { flex: 1; min-width: 0; } }
 </style>

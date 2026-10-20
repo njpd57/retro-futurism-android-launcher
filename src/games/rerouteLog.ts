@@ -1,4 +1,4 @@
-import { SYSTEMS, type Rng, type RerouteEvent, type RerouteState } from './reroute';
+import { SYSTEMS, effectiveNeed, type Rng, type RerouteEvent, type RerouteState } from './reroute';
 
 /** Integrity (0-100) below which a system counts as failing. */
 export const CRITICAL = 35;
@@ -22,6 +22,18 @@ const LOST: Record<(typeof SYSTEMS)[number], string> = {
     'SOPORTE VITAL': 'FALLO DE SOPORTE VITAL. TRIPULACIÓN NO VIABLE.',
     'SENSORES': 'SENSORES FUERA DE LÍNEA. CONTACTO NO DETECTADO.',
 };
+const DOOR_FAULT = [
+    'FALLO DE PUERTA EN EL SECTOR 7. CIERRE FORZADO.',
+    'MAMPARO DE CUBIERTA B SIN RESPUESTA. PUERTAS DAÑADAS.',
+];
+const SENSOR_ALARM = [
+    'ALARMA DE SENSORES: MOVIMIENTO NO IDENTIFICADO. SENSORES AL LÍMITE.',
+    'CONTACTO EN LOS CONDUCTOS. SENSORES EN DEMANDA.',
+];
+const VENT_LEAK = [
+    'FUGA EN EL CIRCUITO DE AIRE. SOPORTE VITAL EN RIESGO.',
+    'PÉRDIDA DE PRESIÓN EN CUBIERTA D. SOPORTE VITAL DEGRADÁNDOSE.',
+];
 const LOST_TAIL = 'ORDEN ESPECIAL 937.';
 
 const pick = <T>(list: readonly T[], rng: Rng) => list[Math.min(list.length - 1, Math.floor(rng() * list.length))];
@@ -44,12 +56,16 @@ export function rerouteMessages(prev: RerouteState, next: RerouteState, events: 
         else if (prev.integrity[i] < CRITICAL && next.integrity[i] >= CRITICAL) out.push(fill(pick(STABLE, rng), i));
     });
 
+    if (events.includes('doorFault')) out.push(pick(DOOR_FAULT, rng));
+    if (events.includes('sensorAlarm')) out.push(pick(SENSOR_ALARM, rng));
+    if (events.includes('ventLeak')) out.push(pick(VENT_LEAK, rng));
+
     if (events.includes('demand'))
     {
         // the system with the biggest shortfall is the one MOTHER warns about; no shortfall, nothing to say
         let worst = -1;
         let gap = 0;
-        next.need.forEach((n, i) => { if (n - next.alloc[i] > gap) { gap = n - next.alloc[i]; worst = i; } });
+        effectiveNeed(next).forEach((n, i) => { if (n - next.alloc[i] > gap) { gap = n - next.alloc[i]; worst = i; } });
         if (worst >= 0) out.push(fill(pick(DEMAND, rng), worst));
     }
 

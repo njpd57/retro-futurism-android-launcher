@@ -2,14 +2,14 @@
 import { computed } from 'vue';
 import { bar } from '@/utils/tui';
 
-const props = defineProps<{ label: string; count: number; fraction: number; hasNew: boolean; system: boolean }>();
+const props = defineProps<{ label: string; count: number; fraction: number; hasNew: boolean; system: boolean; boxId?: string; dropState?: 'none' | 'ready' | 'over' }>();
 defineEmits<{ (e: 'open'): void }>();
 
 const usage = computed(() => bar(props.fraction, 6));
 </script>
 
 <template>
-    <div class="folder-box pressable" :class="{ system }" @click="$emit('open')">
+    <div class="folder-box pressable" :class="[{ system }, dropState && dropState !== 'none' ? `drop-${dropState}` : '']" :data-drop-box="system ? undefined : boxId" @click="$emit('open')">
         <div class="name">{{ label }}<span v-if="hasNew">*</span></div>
         <div class="meta"><span>({{ count }})</span><span class="usage">{{ usage }}</span></div>
     </div>
@@ -42,5 +42,9 @@ const usage = computed(() => bar(props.fraction, 6));
     }
 
     &:active > .meta { color: inherit; }
+
+    // while an app is carried: folders that accept it are bright, the rest recede, the one under the finger is lit
+    &.drop-ready { border-style: dashed; }
+    &.drop-over { @include inverse; > .meta { color: inherit; } }
 }
 </style>

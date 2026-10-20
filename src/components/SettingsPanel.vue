@@ -12,6 +12,7 @@ import MenuItem from './MenuItem.vue';
 import { canVibrate } from '@/utils/haptics';
 import { nextIdleMinutes } from '@/utils/idle';
 import { IMAGE_FILTERS, nextFilter } from '@/utils/crtFilter';
+import { defaultLayoutSet } from '@/utils/dashboardLayout';
 
 defineEmits<{ (e: 'close'): void }>();
 
@@ -28,6 +29,15 @@ const DIAGNOSTIC_METHODS = [
     'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL', 'getTtsAvailable', 'requestVibrate',
 ] as const;
 const diagnosticOpen = ref(false);
+
+// Two taps to load the starting panels: the first arms it, the second replaces the current ones.
+const resetArmed = ref(false);
+function resetPanels()
+{
+    if (!resetArmed.value) { resetArmed.value = true; return; }
+    settings.layouts = defaultLayoutSet();
+    resetArmed.value = false;
+}
 const motherOpen = ref(false);
 const backupOpen = ref(false);
 const permissionsOpen = ref(false);
@@ -82,6 +92,10 @@ const bloomPct = computed({
                 <span>{{ settings[c.key] }}%</span>
             </div>
         </template>
+        <MenuItem @click="settings.tubePower = !settings.tubePower"><span>APAGADO DEL TUBO</span><span>{{ onOff(settings.tubePower) }}</span></MenuItem>
+        <MenuItem @click="settings.autoDegauss = !settings.autoDegauss"><span>DESMAGNETIZADO AUTOMÁTICO</span><span>{{ onOff(settings.autoDegauss) }}</span></MenuItem>
+        <MenuItem @click="settings.phosphorBurn = !settings.phosphorBurn"><span>PERSISTENCIA DE FÓSFORO</span><span>{{ onOff(settings.phosphorBurn) }}</span></MenuItem>
+        <MenuItem v-if="settings.phosphorBurn && settings.burnMinutes" @click="settings.burnMinutes = 0"><span>[BORRAR QUEMADURA]</span><span>{{ Math.round(settings.burnMinutes / 60) }} H</span></MenuItem>
         <MenuItem @click="settings.imageFilter = nextFilter(settings.imageFilter)">
             <span>FILTRO IMÁGENES</span><span>{{ IMAGE_FILTERS.find(f => f.id === settings.imageFilter)?.label }}</span>
         </MenuItem>
@@ -104,14 +118,18 @@ const bloomPct = computed({
             <span>REPOSO</span><span>{{ settings.idleMinutes ? `${settings.idleMinutes} MIN` : 'OFF' }}</span>
         </MenuItem>
         <MenuItem @click="settings.nightShift = !settings.nightShift"><span>TURNO NOCTURNO</span><span>{{ onOff(settings.nightShift) }}</span></MenuItem>
+        <MenuItem @click="settings.hypersleep = !settings.hypersleep"><span>HIPERSUEÑO</span><span>{{ onOff(settings.hypersleep) }}</span></MenuItem>
         <MenuItem @click="settings.showType = !settings.showType"><span>COLUMNA TIPO</span><span>{{ onOff(settings.showType) }}</span></MenuItem>
         <MenuItem @click="settings.folderBoxes = !settings.folderBoxes"><span>CARPETAS EN CAJAS</span><span>{{ onOff(settings.folderBoxes) }}</span></MenuItem>
+        <MenuItem v-if="settings.folderBoxes" @click="settings.appsLayout = settings.appsLayout === 'deck' ? 'boxes' : 'deck'"><span>VISTA DE CAJAS</span><span>{{ settings.appsLayout === 'deck' ? 'CUBIERTAS' : 'REJILLA' }}</span></MenuItem>
 
         <MenuItem @click="toggles.bridgeButtonVisibility = bridgeButtonShown ? 'hidden' : 'shown'">
             <span>BOTÓN BRIDGE</span><span>{{ onOff(bridgeButtonShown) }}</span>
         </MenuItem>
 
         <MenuItem @click="settings.ownStatusBar = !settings.ownStatusBar"><span>BARRA PROPIA</span><span>{{ onOff(settings.ownStatusBar) }}</span></MenuItem>
+
+        <MenuItem @click="resetPanels"><span>{{ resetArmed ? '¿CONFIRMAR? PULSA OTRA VEZ' : '[RESTABLECER PANELES]' }}</span><span>P1-P4</span></MenuItem>
 
         <MenuItem @click="hiddenOpen = true"><span>APPS OCULTAS ({{ settings.hiddenApps.length }})</span><span>›</span></MenuItem>
 

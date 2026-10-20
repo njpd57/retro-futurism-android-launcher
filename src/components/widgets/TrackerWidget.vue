@@ -151,7 +151,7 @@ onBeforeUnmount(() =>
 </script>
 
 <template>
-    <div>
+    <div class="tracker">
         <div class="hud">
             <span>PUERTAS {{ bar(state.doors / MAX_DOORS, MAX_DOORS) }}</span>
             <span>SELLADAS {{ state.score }} · MEJOR {{ best }}</span>
@@ -165,13 +165,16 @@ onBeforeUnmount(() =>
 </template>
 
 <style scoped lang="scss">
-.hud { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85em; color: var(--ph-dim); }
+.tracker { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.hud { flex: none; display: flex; justify-content: space-between; gap: 8px; font-size: 0.85em; color: var(--ph-dim); }
 .stage {
     position: relative;
+    flex: 1;
+    min-height: 0;
     &.hit { background: var(--ph-glow); }
     &.miss { outline: 1px solid var(--ph-dim); }
 }
-.radar { display: block; width: 100%; height: 180px; touch-action: pan-y; }
+.radar { display: block; width: 100%; height: 100%; min-height: 120px; touch-action: pan-y; }
 .overlay {
     position: absolute;
     inset: 0;

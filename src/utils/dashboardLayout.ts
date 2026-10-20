@@ -1,13 +1,52 @@
+/** Window sizes in grid cells (columns x rows): small 1x1, wide 2x1, tall 1x2, large 2x2. */
+export type WidgetSize = 's' | 'w' | 't' | 'l';
+
+export const SIZE_CELLS: Record<WidgetSize, { cols: 1 | 2; rows: 1 | 2 }> = {
+    s: { cols: 1, rows: 1 },
+    w: { cols: 2, rows: 1 },
+    t: { cols: 1, rows: 2 },
+    l: { cols: 2, rows: 2 },
+};
+
+export const SIZE_LABELS: Record<WidgetSize, string> = { s: '1×1', w: '2×1', t: '1×2', l: '2×2' };
+
 export interface DashboardItem
 {
     id: string;
     kind: string;
     minimized: boolean;
+    /** Chosen size; absent in layouts saved before sizes existed (the widget's first size applies). */
+    size?: WidgetSize;
 }
 
-const item = (kind: string): DashboardItem => ({ id: `${kind}-1`, kind, minimized: false });
+/** The size an item is drawn at: its own when the widget supports it, otherwise the widget's default (the first). */
+export function sizeOf(item: Pick<DashboardItem, 'size'>, sizes: readonly WidgetSize[]): WidgetSize
+{
+    return item.size && sizes.includes(item.size) ? item.size : sizes[0];
+}
 
-export const DEFAULT_LAYOUT: DashboardItem[] = ['clock', 'power', 'link', 'favorites', 'scope', 'recent', 'log'].map(item);
+/** Moves one item to the next size its widget supports, wrapping around. */
+export function cycleSize(layout: readonly DashboardItem[], id: string, sizes: readonly WidgetSize[]): DashboardItem[]
+{
+    return layout.map(i =>
+    {
+        if (i.id !== id || sizes.length < 2) return i;
+        return { ...i, size: sizes[(sizes.indexOf(sizeOf(i, sizes)) + 1) % sizes.length] };
+    });
+}
+
+const item = (kind: string, size?: WidgetSize): DashboardItem => ({ id: `${kind}-1`, kind, minimized: false, ...(size ? { size } : {}) });
+
+/** The panels a fresh install starts with, as `kind:size`. Ids are unique across panels because they key the widget's stored state. */
+const DEFAULT_PANEL_SPECS: string[][] = [
+    ['clock:w', 'power:s', 'link:s', 'alarm:w', 'agenda:t', 'favorites:t', 'media:w', 'recent:w'],
+    ['radar:l', 'mother:w', 'contacts:s', 'storage:s', 'screentime:w', 'log:w', 'telemetry:s', 'scope:s'],
+    ['forecast:t', 'moon:s', 'compass:s', 'clocks:s', 'countdown:s', 'timer:s', 'protocol:t', 'notes:t', 'images:w'],
+    ['tracker:l', 'reroute:w', 'isolation:w', 'marines:s', 'nostromo:l'],
+];
+
+export const DEFAULT_PANELS: DashboardItem[][] = DEFAULT_PANEL_SPECS.map(panel =>
+    panel.map(spec => { const [kind, size] = spec.split(':'); return item(kind, size as WidgetSize); }));
 
 /** `kind-N` with the smallest N not used by the layout. */
 export function newItemId(layout: readonly DashboardItem[], kind: string)
@@ -56,10 +95,17 @@ export interface LayoutSet
 
 export const MAX_PANELS = 4;
 
-/** A set with one panel. `legacy` is the single layout stored before panels existed. */
+/** The starting set: the single layout stored before panels existed as panel 1 when `legacy` is given, otherwise the default panels. */
 export function createLayoutSet(legacy?: readonly DashboardItem[] | null): LayoutSet
 {
-    return { active: 0, panels: [[...(legacy ?? DEFAULT_LAYOUT)]] };
+    if (legacy) return { active: 0, panels: [[...legacy]] };
+    return defaultLayoutSet();
+}
+
+/** A fresh copy of the starting panels. */
+export function defaultLayoutSet(): LayoutSet
+{
+    return { active: 0, panels: DEFAULT_PANELS.map(p => p.map(i => ({ ...i }))) };
 }
 
 /** Repairs a stored set: at least one panel, `active` inside the range. */

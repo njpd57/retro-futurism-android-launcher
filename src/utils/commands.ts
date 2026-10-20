@@ -16,6 +16,8 @@ export type Command =
     | { type: 'images' }
     | { type: 'game' }
     | { type: 'marines' }
+    | { type: 'degauss' }
+    | { type: 'stasis' }
     | { type: 'unknown'; word: string };
 
 export const COMMAND_HELP = [
@@ -30,6 +32,8 @@ export const COMMAND_HELP = [
     'IMAGENES',
     'AISLAMIENTO',
     'MARINES',
+    'DESMAGNETIZAR',
+    'ESTASIS',
     'AYUDA',
 ];
 
@@ -81,6 +85,8 @@ const ALIASES: Record<string, string> = {
     imagenes: 'images', imagen: 'images', fotos: 'images', visor: 'images',
     aislamiento: 'game', juego: 'game', alien: 'game',
     marines: 'marines', escuadra: 'marines', lv426: 'marines', colonial: 'marines',
+    estasis: 'stasis', hipersueno: 'stasis', capsula: 'stasis',
+    desmagnetizar: 'degauss', desmag: 'degauss', degauss: 'degauss',
     ayuda: 'help', help: 'help', '?': 'help',
 };
 
@@ -119,6 +125,8 @@ export function parseCommand(input: string): Command | null
         case 'images': return { type: 'images' };
         case 'game': return { type: 'game' };
         case 'marines': return { type: 'marines' };
+        case 'degauss': return { type: 'degauss' };
+        case 'stasis': return { type: 'stasis' };
         default: return { type: 'unknown', word };
     }
 }

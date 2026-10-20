@@ -30,7 +30,8 @@ export function useSwipe(el: Ref<HTMLElement | null>, onSwipe: (kind: SwipeKind)
         const touch = e.changedTouches[0];
         const s = start;
         start = null;
-        if (!s || !touch) return;
+        // a child (a lifted app row being dragged) already took this touch
+        if (!s || !touch || e.defaultPrevented) return;
         const kind = classifySwipe({ dx: touch.clientX - s.x, dy: touch.clientY - s.y, startY: s.y - s.top, ms: Date.now() - s.t });
         if (kind) onSwipe(kind);
     }

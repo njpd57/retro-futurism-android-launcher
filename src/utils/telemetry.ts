@@ -38,9 +38,3 @@ export function latencyStats(history: readonly Sample[])
         lossPct: history.length ? Math.round(((history.length - ok.length) / history.length) * 100) : 0,
     };
 }
-
-/** Sparkline input: lost samples are drawn at the ceiling. */
-export function sparkValues(history: readonly Sample[], ceiling = TIMEOUT_MS): number[]
-{
-    return history.map(s => s ?? ceiling);
-}

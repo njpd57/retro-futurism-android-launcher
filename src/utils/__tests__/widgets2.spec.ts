@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { addItem, isDone, MAX_PROTOCOL_ITEMS, progress, removeItem, toggleItem } from '../protocol';
 import { formatCountdown, parseDateInput } from '../countdown';
 import { DEFAULT_ZONES, MAX_ZONES, toggleZone, zoneLabel, zoneTime } from '../worldClock';
-import { moonArt, moonCycle, moonIllumination, moonName } from '../moon';
+import { moonCycle, moonIllumination, moonLitArea, moonName, moonPath, moonShape } from '../moon';
 
 describe('protocol', () =>
 {
@@ -97,22 +97,31 @@ describe('moon', () =>
         expect(moonIllumination(0)).toBeCloseTo(0);
     });
 
-    it('draws a round disc with the lit side on the correct edge', () =>
+    it('lights the right side while waxing and the left while waning', () =>
     {
-        const lit = (rows: string[]) => rows.join('').replace(/[^█▀▄]/g, '').length;
-        const columns = (rows: string[]) => rows.flatMap(r => [...r].map((c, i) => '█▀▄'.includes(c) ? i : -1)).filter(i => i >= 0);
+        expect(moonShape(0.25).side).toBe('right');
+        expect(moonShape(0.75).side).toBe('left');
+        expect(moonPath(0.25)).toMatch(/^M0 -1 A1 1 0 0 1 0 1 /);
+        expect(moonPath(0.75)).toMatch(/^M0 -1 A1 1 0 0 0 0 1 /);
+    });
 
-        const newMoon = moonArt(0);
-        expect(newMoon).toHaveLength(8);
-        expect(newMoon.every(r => r.length === 15)).toBe(true);
-        expect(lit(newMoon)).toBe(0);
-        expect(newMoon.join('')).toContain('░');
+    it('lit area follows the illumination: none at new, half at quarter, all at full', () =>
+    {
+        expect(moonLitArea(moonShape(0))).toBeCloseTo(0);
+        expect(moonLitArea(moonShape(0.25))).toBeCloseTo(Math.PI / 2);
+        expect(moonLitArea(moonShape(0.5))).toBeCloseTo(Math.PI);
+        for (const c of [0.05, 0.15, 0.3, 0.4, 0.6, 0.8, 0.95])
+            expect(moonLitArea(moonShape(c))).toBeCloseTo(Math.PI * moonIllumination(c));
+    });
 
-        expect(lit(moonArt(0.5))).toBeGreaterThan(lit(moonArt(0.25)));
-        expect(lit(moonArt(0.25))).toBeGreaterThan(0);
-        expect(Math.min(...columns(moonArt(0.25)))).toBeGreaterThanOrEqual(6); // first quarter: right half
-        expect(Math.max(...columns(moonArt(0.75)))).toBeLessThanOrEqual(8); // last quarter: left half
-        expect(moonArt(0.5, 3)).toHaveLength(4);
+    it('bends the terminator into the lit side for a crescent and the dark side for a gibbous', () =>
+    {
+        expect(moonShape(0.1).gibbous).toBe(false);
+        expect(moonShape(0.4).gibbous).toBe(true);
+        expect(moonPath(0.1)).toMatch(/ 0 0 0 0 -1 Z$/); // waxing crescent: back counter-clockwise
+        expect(moonPath(0.4)).toMatch(/ 0 0 1 0 -1 Z$/); // waxing gibbous: back clockwise
+        expect(moonPath(0.9)).toMatch(/ 0 0 1 0 -1 Z$/); // waning crescent
+        expect(moonPath(0.6)).toMatch(/ 0 0 0 0 -1 Z$/); // waning gibbous
     });
 });
 
@@ -182,8 +191,8 @@ describe('stopwatch', () =>
     });
 });
 
-import { latencyStats, normalizeHost, pushSample, sparkValues } from '../telemetry';
-import { compassPoint, compassStrip, headingFromAlpha } from '../compass';
+import { latencyStats, normalizeHost, pushSample } from '../telemetry';
+import { compassPoint, compassRose, headingFromAlpha } from '../compass';
 
 describe('telemetry', () =>
 {
@@ -204,7 +213,6 @@ describe('telemetry', () =>
         expect(h).toEqual([60, null, 80]);
         expect(latencyStats(h)).toEqual({ last: 80, avg: 70, max: 80, lossPct: 33 });
         expect(latencyStats([])).toEqual({ last: null, avg: null, max: null, lossPct: 0 });
-        expect(sparkValues([10, null], 100)).toEqual([10, 100]);
     });
 });
 
@@ -221,13 +229,14 @@ describe('compass', () =>
         expect(compassPoint(270)).toBe('O');
     });
 
-    it('centres the strip on the heading', () =>
+    it('draws a tick every 5 degrees and names the eight points around the rose', () =>
     {
-        const strip = compassStrip(90, 21);
-        expect(strip).toHaveLength(21);
-        expect(strip[10]).toBe('E');
-        expect(compassStrip(0, 21)[10]).toBe('N');
-        expect(compassStrip(358, 21)).toHaveLength(21);
+        const { marks, labels } = compassRose();
+        expect(marks).toHaveLength(72);
+        expect(marks[0].d.startsWith('M0.000 -0.780')).toBe(true); // north is the longest tick, pointing up
+        expect(labels.map(l => l.text)).toEqual(['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']);
+        expect(labels[0].y).toBeLessThan(0); // north at the top
+        expect(labels[2].x).toBeGreaterThan(0); // east at the right
     });
 });
 

@@ -22,44 +22,34 @@ export function moonIllumination(cycle: number)
     return (1 - Math.cos(2 * Math.PI * cycle)) / 2;
 }
 
-type Pixel = 'L' | 'D' | 'O';
+/** Which part of the disc is lit: the right side while waxing, the left while waning, bounded by a half-ellipse terminator. */
+export interface MoonShape
+{
+    side: 'right' | 'left';
+    /** Horizontal radius of the terminator, 0 (quarter) to 1 (new or full), on a disc of radius 1. */
+    rx: number;
+    /** True when the terminator bulges into the dark side, so more than half the disc is lit. */
+    gibbous: boolean;
+}
 
-/**
- * The moon as block characters, two pixels per character cell with half blocks so the disc is round:
- * `█ ▀ ▄` lit, `░` the dark side, spaces outside. `2r+1` columns by `r+1` rows.
- */
-export function moonArt(cycle: number, radius = 7): string[]
+export function moonShape(cycle: number): MoonShape
 {
     const cos = Math.cos(2 * Math.PI * cycle);
-    const waxing = cycle < 0.5;
-    const size = 2 * radius + 1;
-    const reach = radius * radius + radius; // a little over r² so small discs look round
+    return { side: cycle % 1 < 0.5 ? 'right' : 'left', rx: Math.abs(cos), gibbous: cos < 0 };
+}
 
-    const pixel = (px: number, py: number): Pixel =>
-    {
-        const x = px - radius;
-        const y = py - radius;
-        if (py >= size || x * x + y * y > reach) return 'O';
-        const half = Math.sqrt(reach - y * y);
-        const lit = waxing ? x > half * cos + 1e-9 : x < -half * cos - 1e-9;
-        return lit ? 'L' : 'D';
-    };
+/** Area of the lit part of a disc of radius 1 (π is a full disc); matches `π × moonIllumination`. */
+export function moonLitArea(shape: MoonShape)
+{
+    return Math.PI / 2 + (shape.gibbous ? 1 : -1) * Math.PI * shape.rx / 2;
+}
 
-    const rows: string[] = [];
-    for (let py = 0; py < size; py += 2)
-    {
-        let row = '';
-        for (let px = 0; px < size; px++)
-        {
-            const top = pixel(px, py);
-            const bottom = pixel(px, py + 1);
-            row += top === 'L' && bottom === 'L' ? '█'
-                : top === 'L' ? '▀'
-                : bottom === 'L' ? '▄'
-                : top === 'O' && bottom === 'O' ? ' '
-                : '░';
-        }
-        rows.push(row);
-    }
-    return rows;
+/** The lit part of the moon as an SVG path on a disc of radius 1 centred on the origin. */
+export function moonPath(cycle: number)
+{
+    const { side, rx, gibbous } = moonShape(cycle);
+    const rim = side === 'right' ? 1 : 0; // top to bottom through the lit side
+    // back from the bottom to the top the terminator bulges into the lit side (crescent) or the dark one (gibbous)
+    const back = (side === 'right') === gibbous ? 1 : 0;
+    return `M0 -1 A1 1 0 0 ${rim} 0 1 A${rx.toFixed(4)} 1 0 0 ${back} 0 -1 Z`;
 }

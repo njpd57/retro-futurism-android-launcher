@@ -3,15 +3,14 @@ import { computed, onMounted, ref } from 'vue';
 import { useLocalStorage } from '@vueuse/core';
 import TermInput from '../TermInput.vue';
 import { usePausableInterval } from '@/composables/usePausableInterval';
-import { DEFAULT_HOST, latencyStats, normalizeHost, pushSample, sparkValues, TIMEOUT_MS, type Sample } from '@/utils/telemetry';
-import { sparkline } from '@/utils/tui';
+import { DEFAULT_HOST, latencyStats, normalizeHost, pushSample, TIMEOUT_MS, type Sample } from '@/utils/telemetry';
+import Sparkline from '../gauges/Sparkline.vue';
 
 const props = defineProps<{ id: string }>();
 
 const host = useLocalStorage(`widget.telemetry.${props.id}`, DEFAULT_HOST);
 const history = ref<Sample[]>([]);
 const stats = computed(() => latencyStats(history.value));
-const spark = computed(() => history.value.length > 1 ? sparkline(sparkValues(history.value), 0, TIMEOUT_MS) : '');
 
 const editing = ref(false);
 const draft = ref('');
@@ -73,7 +72,7 @@ const hostLabel = computed(() => { try { return new URL(host.value).hostname.toU
         <template v-else>
             <div class="dim pressable" @click="edit">{{ hostLabel }} ›</div>
             <div class="big">{{ stats.last === null ? (history.length ? 'PERDIDO' : '…') : `${stats.last} MS` }}</div>
-            <div class="spark">{{ spark }}</div>
+            <Sparkline v-if="history.length > 1" :values="history" :min="0" :max="TIMEOUT_MS" />
             <div class="dim">MED {{ stats.avg ?? '--' }} · MÁX {{ stats.max ?? '--' }} · PÉRD {{ stats.lossPct }}%</div>
         </template>
     </div>
@@ -82,7 +81,6 @@ const hostLabel = computed(() => { try { return new URL(host.value).hostname.toU
 <style scoped lang="scss">
 .dim { color: var(--ph-dim); }
 .big { font-size: 1.4em; line-height: 1.1; }
-.spark { letter-spacing: 1px; overflow: hidden; }
 .action { display: inline-block; padding: 2px 8px 2px 0; &:active { @include inverse; } }
 
 input {

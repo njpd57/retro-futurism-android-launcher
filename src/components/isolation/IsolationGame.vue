@@ -24,6 +24,7 @@ import IsolationBag from './IsolationBag.vue';
 import IsolationControls from './IsolationControls.vue';
 import IsolationMap from './IsolationMap.vue';
 import IsolationView from './IsolationView.vue';
+import { prefersReducedMotion } from '@/composables/useReducedMotion';
 
 const isolation = useIsolationStore();
 const log = useLogStore();
@@ -43,7 +44,7 @@ const FLASH_MS = 700;
 /** a heartbeat on the vibrator while the creature is next to the player */
 const HEARTBEAT_MS = 850;
 const rng = Math.random;
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reducedMotion = prefersReducedMotion();
 
 type Screen = 'title' | 'difficulty' | 'briefing' | 'playing' | 'paused' | 'report' | 'ending' | 'archive';
 

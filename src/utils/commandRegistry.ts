@@ -28,6 +28,8 @@ export const COMMANDS: Record<CommandScope, CommandDef[]> = {
         { name: 'imagenes', args: '', hint: 'VISOR DE IMÁGENES CRT', example: 'imagenes' },
         { name: 'aislamiento', args: '', hint: 'JUEGO DE SUPERVIVENCIA', example: 'aislamiento' },
         { name: 'marines', args: '', hint: 'JUEGO DE ACCIÓN: LV-426', example: 'marines' },
+        { name: 'estasis', args: '', hint: 'VER LA CÁPSULA DE HIPERSUEÑO', example: 'estasis' },
+        { name: 'desmagnetizar', args: '', hint: 'SACUDE EL TUBO', example: 'desmagnetizar' },
         { name: 'ayuda', args: '', hint: 'LISTA DE ÓRDENES', example: 'ayuda' },
     ],
     mother: [

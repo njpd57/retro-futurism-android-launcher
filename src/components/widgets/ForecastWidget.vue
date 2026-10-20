@@ -2,14 +2,14 @@
 import { computed, onMounted, ref } from 'vue';
 import { useWeatherStore } from '@/stores/useWeatherStore';
 import CityPicker from '../CityPicker.vue';
-import { sparkline } from '@/utils/tui';
+import Sparkline from '../gauges/Sparkline.vue';
 import { dailyRows, weatherText } from '@/utils/weather';
 
 const weather = useWeatherStore();
 const picking = ref(false);
 
 const rows = computed(() => weather.forecast?.daily ? dailyRows(weather.forecast.daily) : []);
-const spark = computed(() => rows.value.length ? sparkline(rows.value.map(r => r.max)) : '');
+const maxes = computed(() => rows.value.map(r => r.max));
 
 // a forecast cached before the 7-day data existed is refreshed once
 onMounted(() =>
@@ -22,7 +22,8 @@ onMounted(() =>
     <div>
         <div v-if="!weather.city" class="action pressable" @click="picking = true">[ELEGIR CIUDAD]</div>
         <template v-else-if="rows.length">
-            <div class="dim pressable" @click="picking = true">{{ weather.city.name.toUpperCase() }} · MÁX {{ spark }}</div>
+            <div class="dim pressable" @click="picking = true">{{ weather.city.name.toUpperCase() }} · MÁX</div>
+            <Sparkline mode="line" :values="maxes" />
             <div v-for="r in rows" :key="r.day + r.max" class="row">
                 <span>{{ r.day }}</span>
                 <span>{{ r.min }}/{{ r.max }}°</span>

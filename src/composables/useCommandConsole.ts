@@ -1,6 +1,7 @@
 import { computed, ref, type Ref } from 'vue';
 import { useDashboardActions } from './useDashboardActions';
 import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
+import { useTubeStore } from '@/stores/useTubeStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { SORT_MODES, searchApps } from '@/utils/appSearch';
@@ -20,9 +21,11 @@ export function useCommandConsole(options: {
     showGame: () => void;
     /** opens the MARINES game */
     showMarines: () => void;
+    showStasis: () => void;
 })
 {
     const settings = useSettingsStore();
+    const tube = useTubeStore();
     const weather = useWeatherStore();
     const { saveNote } = useDashboardActions();
 
@@ -56,6 +59,8 @@ export function useCommandConsole(options: {
             case 'images': return ['VISOR DE IMÁGENES'];
             case 'game': return ['AISLAMIENTO: SUPERVIVENCIA A BORDO'];
             case 'marines': return ['MARINES: LV-426, ÚLTIMA DEFENSA'];
+            case 'degauss': return ['DESMAGNETIZAR EL TUBO'];
+            case 'stasis': return ['CÁPSULA DE HIPERSUEÑO'];
             case 'unknown': return [`ORDEN DESCONOCIDA: ${c.word.toUpperCase()}`, 'ESCRIBE > AYUDA'];
         }
     });
@@ -116,6 +121,14 @@ export function useCommandConsole(options: {
                 break;
             case 'marines':
                 options.showMarines();
+                options.query.value = '';
+                break;
+            case 'degauss':
+                tube.degauss();
+                options.query.value = '';
+                break;
+            case 'stasis':
+                options.showStasis();
                 options.query.value = '';
                 break;
         }

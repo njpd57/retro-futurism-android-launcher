@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { prefersReducedMotion } from '@/composables/useReducedMotion';
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const settings = useSettingsStore();
@@ -17,7 +18,7 @@ let t = 0;
 let resizeObserver: ResizeObserver | null = null;
 const bars = Array.from({ length: BARS }, () => Math.random());
 
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reducedMotion = prefersReducedMotion();
 
 function draw()
 {
@@ -101,15 +102,18 @@ onBeforeUnmount(() =>
 </script>
 
 <template>
-    <div>
+    <div class="scope-box">
         <canvas ref="canvas" class="scope" />
     </div>
 </template>
 
 <style scoped lang="scss">
+.scope-box { height: 100%; min-height: 0; }
+// fills its cell; the floor keeps the trace readable in a small window
 .scope {
     display: block;
     width: 100%;
-    height: 90px;
+    height: 100%;
+    min-height: 50px;
 }
 </style>
