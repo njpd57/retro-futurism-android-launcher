@@ -5,11 +5,13 @@ import { HANDOFF_MS } from '@/utils/handoff';
 import { useAnimStore } from './useAnimStore';
 import { useBridgeEventStore } from './useBridgeEventStore';
 import { useSettingsStore } from './useSettingsStore';
+import { useSoundStore } from './useSoundStore';
 
 /** The picture tube's own states: a degauss pulse on demand, and switching off / on around the launcher's pause. */
 export const useTubeStore = defineStore('tube', () =>
 {
     const settings = useSettingsStore();
+    const sound = useSoundStore();
     const bridgeEvents = useBridgeEventStore();
     const anim = useAnimStore();
 
@@ -35,7 +37,7 @@ export const useTubeStore = defineStore('tube', () =>
     function switchOn()
     {
         handoff.value = null;
-        if (power.value === 'off') power.value = 'warming';
+        if (power.value === 'off') { power.value = 'warming'; sound.play('powerOn'); }
     }
 
     function warmed() { power.value = 'on'; }
@@ -64,7 +66,7 @@ export const useTubeStore = defineStore('tube', () =>
         const lead = anim.transitions ? HANDOFF_MS : 0;
         if (lead)
             handoff.value = { label, id: (handoff.value?.id ?? 0) + 1 };
-        window.setTimeout(() => { power.value = 'off'; }, lead);
+        window.setTimeout(() => { power.value = 'off'; sound.play('powerOff'); }, lead);
         window.setTimeout(go, lead + COLLAPSE_MS);
         // if the app never takes over (the launch failed), the launcher is still visible: bring the picture back
         window.setTimeout(() =>

@@ -3,6 +3,7 @@
  * Keys are the `useSettingsStore` ones, so the stored values (and the backup) don't change.
  */
 import { PHOSPHORS, type useSettingsStore } from '@/stores/useSettingsStore';
+import { PROFILE_IDS, PROFILES } from '@/audio/profiles';
 import { IMAGE_FILTERS } from './crtFilter';
 import { IDLE_OPTIONS_MIN } from './idle';
 
@@ -17,7 +18,7 @@ export type Cond = { key: BoolKey | NumKey } | { all: { key: BoolKey | NumKey }[
 export interface ChoiceOption { id: string | number; label: string }
 
 export type Submenu = 'protocols' | 'hidden' | 'mother' | 'permissions' | 'backup' | 'diagnostic';
-export type ActionId = 'degauss' | 'resetPanels' | 'clearBurn' | 'bridgeButton' | 'haptics';
+export type ActionId = 'degauss' | 'resetPanels' | 'clearBurn' | 'bridgeButton' | 'haptics' | 'soundTest';
 
 interface RowBase { label: string; hint: string; when?: Cond }
 export type SettingRow = RowBase & (
@@ -80,6 +81,12 @@ export const SETTINGS_SECTIONS: SettingSection[] = [
             { kind: 'toggle', key: 'soundUi', label: 'SONIDO UI', hint: 'CLICS DE TECLA Y PITIDOS AL PULSAR' },
             { kind: 'toggle', key: 'soundAmbient', label: 'AMBIENTE', hint: 'ZUMBIDO DE TERMINAL Y RÁFAGAS DE DATOS' },
             { kind: 'slider', key: 'volume', label: 'VOLUMEN', min: 0, max: 100, step: 5, fraction: true, hint: 'NIVEL GENERAL DEL SINTETIZADOR' },
+            { kind: 'choice', key: 'soundProfile', label: 'PERFIL', options: PROFILE_IDS.map(id => ({ id, label: PROFILES[id].label })), when: { key: 'soundUi' }, hint: 'TIMBRE DE LA INTERFAZ: TERMINAL, RELÉ, SUAVE O MÍNIMO' },
+            { kind: 'slider', key: 'volumeUi', label: 'CANAL UI', min: 0, max: 100, step: 5, fraction: true, when: { key: 'soundUi' }, hint: 'NIVEL DE CLICS Y PITIDOS' },
+            { kind: 'slider', key: 'volumeAmbient', label: 'CANAL AMBIENTE', min: 0, max: 100, step: 5, fraction: true, when: { key: 'soundAmbient' }, hint: 'NIVEL DEL ZUMBIDO DE FONDO' },
+            { kind: 'slider', key: 'volumeGame', label: 'CANAL JUEGOS', min: 0, max: 100, step: 5, fraction: true, hint: 'NIVEL DE AISLAMIENTO, MARINES Y MINIJUEGOS' },
+            { kind: 'toggle', key: 'soundNotify', label: 'SONIDO DE AVISOS', when: { key: 'soundUi' }, hint: 'TONO AL LLEGAR UNA NOTIFICACIÓN' },
+            { kind: 'action', id: 'soundTest', label: '[PROBAR SONIDOS]', hint: 'REPRODUCE UNA MUESTRA CON LOS AJUSTES ACTUALES' },
             { kind: 'action', id: 'haptics', label: 'VIBRACIÓN', hint: 'PULSO TÁCTIL AL TOCAR' },
         ],
     },
@@ -157,7 +164,7 @@ export function summary(sectionId: string, values: SettingValues): string
     {
         case 'phosphor': return `${choiceLabel(findRow('phosphor', 'phosphor'), values.phosphor)} · ${pct(values.bloom)}`;
         case 'tube': return `${count(values, ['scanlines', 'flicker', 'vignette', 'sweep', 'curvature'])}/5 EFECTOS`;
-        case 'sound': return values.soundUi || values.soundAmbient ? `VOL ${pct(values.volume)}` : 'SILENCIO';
+        case 'sound': return values.soundUi || values.soundAmbient ? `${choiceLabel(findRow('sound', 'soundProfile'), values.soundProfile)} · ${pct(values.volume)}` : 'SILENCIO';
         case 'apps': return values.folderBoxes ? choiceLabel(findRow('apps', 'appsLayout'), values.appsLayout) : 'LISTA';
         case 'shift': return `${count(values, ['alertsEvent', 'alertsBattery', 'alertsAlarm'])}/3 ALERTAS`;
         case 'mother': return values.motherKey ? 'EN LÍNEA' : 'SIN CLAVE';

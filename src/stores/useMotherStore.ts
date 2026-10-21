@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useDashboardActions } from "@/composables/useDashboardActions";
 import { useShipSnapshot } from "@/composables/useShipSnapshot";
 import { accumulateToolCalls, describeAction, MOTHER_TOOLS, parseAction, type MotherAction, type ToolCallAcc } from "@/mother/actions";
@@ -67,6 +67,7 @@ export const useMotherStore = defineStore('mother', () =>
 
     const status = ref<MotherStatus>('idle');
     const error = ref('');
+    watch(error, e => { if (e) sound.play('error'); });
     /** tokens used since the launcher started */
     const tokens = ref({ prompt: 0, completion: 0 });
     const pending = ref<PendingAction[]>([]);

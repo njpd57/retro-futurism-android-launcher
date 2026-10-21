@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
 import { useAnimStore } from '@/stores/useAnimStore';
+import { useSoundStore } from '@/stores/useSoundStore';
 import { TRANSITION_MS, noiseParams } from '@/utils/anim';
 
 const props = withDefaults(defineProps<{
@@ -19,6 +20,7 @@ const props = withDefaults(defineProps<{
 defineEmits<{ (e: 'toggle'): void; (e: 'close'): void; (e: 'move', delta: -1 | 1): void; (e: 'resize'): void }>();
 
 const anim = useAnimStore();
+const sound = useSoundStore();
 const attrs = useAttrs();
 
 // now and then a thin line of interference crosses the window; where and how often is fixed per window
@@ -77,12 +79,12 @@ onBeforeUnmount(() => { observer?.disconnect(); window.clearTimeout(unfoldTimer)
 <template>
     <section class="tui-window" :class="{ fill, minimized, ambient: anim.ambient }" :style="anim.ambient ? noise : undefined">
         <header class="title-bar">
-            <span v-if="minimizable" class="btn" @click.stop="$emit('toggle')">{{ minimized ? '▣' : '□' }}</span>
+            <span v-if="minimizable" class="btn" @click.stop="sound.play('minimize'); $emit('toggle')">{{ minimized ? '▣' : '□' }}</span>
             <span class="title">{{ title }}</span>
             <span v-if="resizable" class="btn" @click.stop="$emit('resize')">◢</span>
             <span v-if="movable" class="btn" @click.stop="$emit('move', -1)">◀</span>
             <span v-if="movable" class="btn" @click.stop="$emit('move', 1)">▶</span>
-            <span v-if="closable" class="btn" @click.stop="$emit('close')">✕</span>
+            <span v-if="closable" class="btn" @click.stop="sound.play('close'); $emit('close')">✕</span>
         </header>
 
         <div v-show="!minimized" class="frame" :class="{ unfold: unfolding }">

@@ -3,12 +3,14 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useLogStore } from '@/stores/useLogStore';
 import { useQuarantineStore } from '@/stores/useQuarantineStore';
+import { useSoundStore } from '@/stores/useSoundStore';
 import { budgetLine, budgetState, canAuthorize, cleanReason, countdownLeft, MAX_REASON } from '@/utils/quarantine';
 import GaugeBar from './gauges/GaugeBar.vue';
 import TermInput from './TermInput.vue';
 import TermMenu from './TermMenu.vue';
 
 const quarantine = useQuarantineStore();
+const sound = useSoundStore();
 const launch = useLaunchStore();
 const log = useLogStore();
 
@@ -46,7 +48,7 @@ function authorize()
         <div class="line dim">{{ left > 0 ? `ESPERA ${left} S` : reason.trim() ? 'LISTO' : 'ESCRIBE UN MOTIVO' }}</div>
         <div class="actions">
             <span class="btn pressable" :class="{ off: !ready }" @click="authorize">[AUTORIZAR]</span>
-            <span class="btn pressable" @click="quarantine.cancel()">[CANCELAR]</span>
+            <span class="btn pressable" @click="sound.play('deny'); quarantine.cancel()">[CANCELAR]</span>
         </div>
     </TermMenu>
 </template>

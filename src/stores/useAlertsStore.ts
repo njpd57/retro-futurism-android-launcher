@@ -41,6 +41,9 @@ export const useAlertsStore = defineStore('alerts', () =>
         dismissed.value,
     ));
 
+    // the ambient hum throbs while any alert is pending
+    watch(() => alerts.value.length > 0, on => sound.setMood(on ? 'alert' : 'calm'), { immediate: true });
+
     // a new alert is logged and, if the user wants it, announced with the klaxon
     watch(alerts, (after, before) =>
     {

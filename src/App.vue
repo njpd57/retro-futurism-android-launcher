@@ -15,6 +15,7 @@ import { useTogglesStore } from '@/stores/useTogglesStore';
 import { useWindowInsetsStore } from '@/stores/useWindowInsetsStore';
 import { nextSortMode, searchApps } from '@/utils/appSearch';
 import { px } from '@/utils/el-utils';
+import { useSoundStore } from '@/stores/useSoundStore';
 import AppList from '@/components/AppList.vue';
 import CrtScreen from '@/components/CrtScreen.vue';
 import Dashboard from '@/components/Dashboard.vue';
@@ -241,6 +242,16 @@ function launchFirst()
         launch(results.value[0]);
 }
 
+const sound = useSoundStore();
+
+function selectTab(tab: Tab)
+{
+    settings.activeTab = tab;
+}
+
+// opening or closing any overlay (settings, menus, notifications, games) makes a sound
+watch(overlayOpen, open => sound.play(open ? 'open' : 'close'));
+
 function closeOverlays()
 {
     notificationsOpen.value = false;
@@ -358,7 +369,7 @@ onUnmounted(() =>
             class="screen"
             :style="{ 'padding-top': px(insetTop), 'padding-bottom': px(insetBottom) }">
             <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
-            <TopBar ref="topBarEl" :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" @open-notifications="notificationsOpen = true" />
+            <TopBar ref="topBarEl" :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="selectTab" @open-notifications="notificationsOpen = true" />
             <AlertStrip />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
             <MotherTerminal v-else-if="settings.activeTab === 'mother'" @sessions="sessionsOpen = true" />

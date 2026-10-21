@@ -1,3 +1,4 @@
+import type { SoundProfileId } from "@/audio/profiles";
 import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
 import { computed } from "vue";
@@ -45,6 +46,12 @@ export const useSettingsStore = defineStore('settings', () =>
     const soundUi = useLocalStorage('settings.soundUi', false);
     const soundAmbient = useLocalStorage('settings.soundAmbient', false);
     const volume = useLocalStorage('settings.volume', 0.5);
+    // per-channel levels (on top of `volume`), the UI timbre and the notification sound
+    const volumeUi = useLocalStorage('settings.volumeUi', 1);
+    const volumeAmbient = useLocalStorage('settings.volumeAmbient', 1);
+    const volumeGame = useLocalStorage('settings.volumeGame', 1);
+    const soundProfile = useLocalStorage<SoundProfileId>('settings.soundProfile', 'terminal');
+    const soundNotify = useLocalStorage('settings.soundNotify', false);
     const labelCase = useLocalStorage<LabelCase>('settings.labelCase', 'upper');
     const showType = useLocalStorage('settings.showType', true);
     const hiddenApps = useLocalStorage<string[]>('settings.hiddenApps', []);
@@ -106,5 +113,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

@@ -66,3 +66,17 @@ export function clearableKeys(list: readonly BridgeNotification[]): string[]
 {
     return list.filter(n => n.isClearable && !n.isOngoing).map(n => n.key);
 }
+
+export type NotifyTone = 'notify' | 'notifyCall' | 'notifySys';
+
+/** The sound for a new notification, by Android category; null when it should stay silent (ongoing, media, group summaries). */
+export function notifyTone(n: Pick<BridgeNotification, 'category' | 'isOngoing' | 'isMedia' | 'isGroupSummary'>): NotifyTone | null
+{
+    if (n.isOngoing || n.isMedia || n.isGroupSummary) return null;
+    switch (n.category)
+    {
+        case 'call': case 'alarm': return 'notifyCall';
+        case 'sys': case 'service': case 'status': case 'progress': case 'transport': return 'notifySys';
+        default: return 'notify';
+    }
+}
