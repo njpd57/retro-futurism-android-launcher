@@ -50,6 +50,8 @@ export const useSettingsStore = defineStore('settings', () =>
     const volumeUi = useLocalStorage('settings.volumeUi', 1);
     const volumeAmbient = useLocalStorage('settings.volumeAmbient', 1);
     const volumeGame = useLocalStorage('settings.volumeGame', 1);
+    // per-sound levels inside each channel (see audio/mix.ts); only the sounds that differ from 1 are kept
+    const soundMix = useLocalStorage<Record<string, number>>('settings.soundMix', {});
     const soundProfile = useLocalStorage<SoundProfileId>('settings.soundProfile', 'terminal');
     const soundNotify = useLocalStorage('settings.soundNotify', false);
     const labelCase = useLocalStorage<LabelCase>('settings.labelCase', 'upper');
@@ -113,5 +115,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

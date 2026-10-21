@@ -16,6 +16,7 @@ import BackupMenu from './BackupMenu.vue';
 import HiddenAppsMenu from './HiddenAppsMenu.vue';
 import PermissionsMenu from './PermissionsMenu.vue';
 import ProtocolsMenu from './ProtocolsMenu.vue';
+import SoundMixMenu from './settings/SoundMixMenu.vue';
 import MotherSettings from './MotherSettings.vue';
 import TermMenu from './TermMenu.vue';
 import TuiWindow from './TuiWindow.vue';
@@ -190,6 +191,9 @@ const peek = ref(false);
         <BackupMenu v-if="view.submenu === 'backup'" @close="view.submenu = null" />
         <PermissionsMenu v-if="view.submenu === 'permissions'" @close="view.submenu = null" />
         <ProtocolsMenu v-if="view.submenu === 'protocols'" @close="view.submenu = null" />
+        <SoundMixMenu v-if="view.submenu === 'mixUi'" bus="ui" @close="view.submenu = null" />
+        <SoundMixMenu v-if="view.submenu === 'mixAmbient'" bus="ambient" @close="view.submenu = null" />
+        <SoundMixMenu v-if="view.submenu === 'mixGame'" bus="game" @close="view.submenu = null" />
         <HiddenAppsMenu v-if="view.submenu === 'hidden'" @close="view.submenu = null" />
         <TermMenu v-if="view.submenu === 'diagnostic'" title="DIAGNÓSTICO" @close="view.submenu = null">
             <MenuItem v-for="d in diagnostic" :key="d.method"><span class="method">{{ d.method }}</span><span>{{ d.ok ? 'OK' : '--' }}</span></MenuItem>

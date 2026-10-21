@@ -1,4 +1,5 @@
 import { getAudio, noiseBuffer, type Bus } from './context';
+import { currentGain } from './mix';
 import { PROFILES, profileAllows, type SoundProfile } from './profiles';
 
 export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 'step' | 'door' | 'hiss' | 'screech' | 'vent' | 'flame' | 'clatter'
@@ -18,6 +19,8 @@ export function busOf(name: SfxName): Bus
 
 // the sound being played right now: set by playSfx, read by the primitives (everything is scheduled synchronously)
 let bus: Bus = 'ui';
+// the user's level for that sound (see mix.ts)
+let soundGain = 1;
 let profile: SoundProfile = PROFILES.terminal;
 
 export function setProfile(p: SoundProfile) { profile = p; }
@@ -32,11 +35,19 @@ interface Opts
 
 function connectOut(a: NonNullable<ReturnType<typeof getAudio>>, node: AudioNode, wet = 0)
 {
-    node.connect(a.out);
+    let dest: AudioNode = a.out;
+    if (soundGain !== 1)
+    {
+        const mix = a.ctx.createGain();
+        mix.gain.value = soundGain;
+        mix.connect(a.out);
+        dest = mix;
+    }
+    node.connect(dest);
     if (wet > 0)
     {
         const send = a.ctx.createGain();
-        send.gain.value = wet;
+        send.gain.value = wet * soundGain;
         node.connect(send).connect(a.reverb);
     }
 }
@@ -233,6 +244,8 @@ const SOUNDS: Record<SfxName, () => void> = {
 export function playSfx(name: SfxName)
 {
     bus = busOf(name);
+    soundGain = currentGain(name);
+    if (soundGain === 0) return;
     if (bus === 'ui' && !profileAllows(profile, name)) return;
     SOUNDS[name]();
 }

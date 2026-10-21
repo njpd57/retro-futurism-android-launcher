@@ -1,7 +1,8 @@
 import { defineStore } from "pinia";
 import { watch } from "vue";
 import { resumeAudio, setBusVolume, setMasterVolume, suspendAudio } from "@/audio/context";
-import { setAmbientLevel, setAmbientMood, startAmbient, stopAmbient, type AmbientMood } from "@/audio/ambient";
+import { applyAmbientMix, previewAmbient, setAmbientLevel, setAmbientMood, startAmbient, stopAmbient, type AmbientMood } from "@/audio/ambient";
+import { normalizeMix, setMix } from "@/audio/mix";
 import { profileOf } from "@/audio/profiles";
 import { playSfx, setProfile, type SfxName } from "@/audio/sfx";
 import { useBridgeEventStore } from "./useBridgeEventStore";
@@ -46,6 +47,10 @@ export const useSoundStore = defineStore('sound', () =>
     setBusVolume('game', settings.volumeGame);
     watch(() => settings.volumeGame, v => setBusVolume('game', v));
 
+    const applyMix = () => { setMix(normalizeMix(settings.soundMix)); applyAmbientMix(); };
+    applyMix();
+    watch(() => settings.soundMix, applyMix, { deep: true });
+
     const applyProfile = () =>
     {
         const p = profileOf(settings.soundProfile);
@@ -84,6 +89,15 @@ export const useSoundStore = defineStore('sound', () =>
         if (!paused) playSfx(name);
     }
 
+    /** [▶] in the mixer: one sample of a sound by its id, heard even when its channel is off. */
+    function preview(id: string)
+    {
+        unlock();
+        resumeAudio();
+        if (id.startsWith('amb')) previewAmbient(id);
+        else playAlways(id as SfxName);
+    }
+
     /** The ambient hum rises and throbs while the ship is on alert. */
     function setMood(m: AmbientMood)
     {
@@ -100,5 +114,5 @@ export const useSoundStore = defineStore('sound', () =>
         testTimers = TEST_SEQUENCE.map(([name, delay]) => window.setTimeout(() => playAlways(name), delay));
     }
 
-    return { play, playAlways, setMood, test, mood: () => mood };
+    return { play, playAlways, preview, setMood, test, mood: () => mood };
 });

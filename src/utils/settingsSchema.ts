@@ -17,7 +17,7 @@ export type Cond = { key: BoolKey | NumKey } | { all: { key: BoolKey | NumKey }[
 
 export interface ChoiceOption { id: string | number; label: string }
 
-export type Submenu = 'protocols' | 'hidden' | 'mother' | 'permissions' | 'backup' | 'diagnostic';
+export type Submenu = 'protocols' | 'hidden' | 'mother' | 'permissions' | 'backup' | 'diagnostic' | 'mixUi' | 'mixAmbient' | 'mixGame';
 export type ActionId = 'degauss' | 'resetPanels' | 'clearBurn' | 'bridgeButton' | 'haptics' | 'soundTest';
 
 interface RowBase { label: string; hint: string; when?: Cond }
@@ -83,8 +83,11 @@ export const SETTINGS_SECTIONS: SettingSection[] = [
             { kind: 'slider', key: 'volume', label: 'VOLUMEN', min: 0, max: 100, step: 5, fraction: true, hint: 'NIVEL GENERAL DEL SINTETIZADOR' },
             { kind: 'choice', key: 'soundProfile', label: 'PERFIL', options: PROFILE_IDS.map(id => ({ id, label: PROFILES[id].label })), when: { key: 'soundUi' }, hint: 'TIMBRE DE LA INTERFAZ: TERMINAL, RELÉ, SUAVE O MÍNIMO' },
             { kind: 'slider', key: 'volumeUi', label: 'CANAL UI', min: 0, max: 100, step: 5, fraction: true, when: { key: 'soundUi' }, hint: 'NIVEL DE CLICS Y PITIDOS' },
+            { kind: 'link', target: 'mixUi', label: 'SONIDOS DEL CANAL UI', when: { key: 'soundUi' }, hint: 'NIVEL DE CADA SONIDO DE LA INTERFAZ' },
             { kind: 'slider', key: 'volumeAmbient', label: 'CANAL AMBIENTE', min: 0, max: 100, step: 5, fraction: true, when: { key: 'soundAmbient' }, hint: 'NIVEL DEL ZUMBIDO DE FONDO' },
+            { kind: 'link', target: 'mixAmbient', label: 'SONIDOS DEL CANAL AMBIENTE', when: { key: 'soundAmbient' }, hint: 'NIVEL DE CADA CAPA DEL AMBIENTE' },
             { kind: 'slider', key: 'volumeGame', label: 'CANAL JUEGOS', min: 0, max: 100, step: 5, fraction: true, hint: 'NIVEL DE AISLAMIENTO, MARINES Y MINIJUEGOS' },
+            { kind: 'link', target: 'mixGame', label: 'SONIDOS DEL CANAL JUEGOS', hint: 'NIVEL DE CADA SONIDO DE LOS JUEGOS' },
             { kind: 'toggle', key: 'soundNotify', label: 'SONIDO DE AVISOS', when: { key: 'soundUi' }, hint: 'TONO AL LLEGAR UNA NOTIFICACIÓN' },
             { kind: 'action', id: 'soundTest', label: '[PROBAR SONIDOS]', hint: 'REPRODUCE UNA MUESTRA CON LOS AJUSTES ACTUALES' },
             { kind: 'action', id: 'haptics', label: 'VIBRACIÓN', hint: 'PULSO TÁCTIL AL TOCAR' },

@@ -1,4 +1,5 @@
 import { getAudio, noiseBuffer } from './context';
+import { currentGain } from './mix';
 
 export type AmbientMood = 'calm' | 'alert';
 
@@ -7,6 +8,9 @@ interface Running
     nodes: AudioScheduledSourceNode[];
     gain: GainNode;
     hum: GainNode;
+    humMix: GainNode;
+    airGain: GainNode;
+    hissGain: GainNode;
     throb: GainNode;
     timers: Set<number>;
 }
@@ -17,6 +21,8 @@ let mood: AmbientMood = 'calm';
 
 const HUM = { calm: 0.22, alert: 0.34 };
 const PULSE = { calm: 0, alert: 0.12 };
+const AIR = 0.05;
+const HISS = 0.025;
 
 /** Room tone of a ship's computer deck: a mains hum with a slow beat, air in the ducts, far relays, a sensor sweep and bursts of data. */
 export function startAmbient()
@@ -47,7 +53,9 @@ export function startAmbient()
     h2.frequency.value = 110.7;
     h1.connect(humFilter);
     h2.connect(humFilter);
-    humFilter.connect(hum).connect(pulse).connect(gain);
+    const humMix = ctx.createGain();
+    humMix.gain.value = currentGain('ambHum');
+    humFilter.connect(hum).connect(pulse).connect(humMix).connect(gain);
 
     // LFOs: the throb on alert, and the drift of the air
     const throb = ctx.createOscillator();
@@ -65,7 +73,7 @@ export function startAmbient()
     airFilter.frequency.value = 420;
     airFilter.Q.value = 0.7;
     const airGain = ctx.createGain();
-    airGain.gain.value = 0.05;
+    airGain.gain.value = AIR * currentGain('ambAir');
     const drift = ctx.createOscillator();
     drift.frequency.value = 0.07;
     const driftDepth = ctx.createGain();
@@ -82,7 +90,7 @@ export function startAmbient()
     hissFilter.frequency.value = 3200;
     hissFilter.Q.value = 0.6;
     const hissGain = ctx.createGain();
-    hissGain.gain.value = 0.025;
+    hissGain.gain.value = HISS * currentGain('ambHiss');
     hiss.connect(hissFilter).connect(hissGain).connect(gain);
 
     const nodes: AudioScheduledSourceNode[] = [h1, h2, throb, air, drift, hiss];
@@ -103,7 +111,7 @@ export function startAmbient()
     later(() =>
     {
         const count = 2 + Math.floor(Math.random() * 5);
-        for (let i = 0; i < count; i++) tone(900 + Math.floor(Math.random() * 8) * 220, 0.05, 0.03, i * 0.07, 'square');
+        for (let i = 0; i < count; i++) tone(900 + Math.floor(Math.random() * 8) * 220, 0.05, 0.03 * currentGain('ambData'), i * 0.07, 'square');
     }, 3000, 9000);
 
     // a relay closing somewhere else on the deck
@@ -118,7 +126,7 @@ export function startAmbient()
         f.frequency.value = 900 + Math.random() * 600;
         const g = c.ctx.createGain();
         const t = c.ctx.currentTime;
-        g.gain.setValueAtTime(0.18, t);
+        g.gain.setValueAtTime(0.18 * currentGain('ambRelay'), t);
         g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
         src.connect(f).connect(g).connect(running.gain);
         g.connect(c.reverb);
@@ -127,9 +135,9 @@ export function startAmbient()
     }, 9000, 25000);
 
     // a slow sensor ping, low and far away
-    later(() => tone(330 + Math.floor(Math.random() * 3) * 110, 0.35, 0.05, 0, 'sine', true), 14000, 30000);
+    later(() => tone(330 + Math.floor(Math.random() * 3) * 110, 0.35, 0.05 * currentGain('ambPing'), 0, 'sine', true), 14000, 30000);
 
-    running = { nodes, gain, hum, throb: throbDepth, timers };
+    running = { nodes, gain, hum, humMix, airGain, hissGain, throb: throbDepth, timers };
 
     function tone(freq: number, dur: number, vol: number, delay: number, type: OscillatorType, wet = false)
     {
@@ -147,6 +155,17 @@ export function startAmbient()
         osc.start(t);
         osc.stop(t + dur + 0.02);
     }
+}
+
+/** The user's levels for the continuous layers changed (the one-shots read them when they play). */
+export function applyAmbientMix()
+{
+    const a = getAudio('ambient');
+    if (!running || !a) return;
+    const t = a.ctx.currentTime;
+    running.humMix.gain.setTargetAtTime(currentGain('ambHum'), t, 0.1);
+    running.airGain.gain.setTargetAtTime(AIR * currentGain('ambAir'), t, 0.1);
+    running.hissGain.gain.setTargetAtTime(HISS * currentGain('ambHiss'), t, 0.1);
 }
 
 /** 0..1 share of the ambient layers (the sound profile sets it). */
@@ -181,4 +200,44 @@ export function stopAmbient()
         for (const n of nodes) { try { n.stop(); } catch { /* already stopped */ } }
         gain.disconnect();
     }, 1200);
+}
+
+/** [▶] in the mixer: one sample of a one-shot layer, straight to the ambient channel (it needs no running hum). */
+export function previewAmbient(layer: string)
+{
+    const c = getAudio('ambient');
+    if (!c) return;
+    const { ctx, out, reverb } = c;
+    const t = ctx.currentTime;
+    const tone = (freq: number, dur: number, vol: number, delay: number, type: OscillatorType, wet = false) =>
+    {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(Math.max(vol, 0.0001), t + delay);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + delay + dur);
+        osc.connect(g).connect(out);
+        if (wet) g.connect(reverb);
+        osc.start(t + delay);
+        osc.stop(t + delay + dur + 0.02);
+    };
+
+    if (layer === 'ambData') for (let i = 0; i < 4; i++) tone(900 + i * 440, 0.05, 0.03 * currentGain('ambData'), i * 0.07, 'square');
+    else if (layer === 'ambPing') tone(440, 0.35, 0.05 * currentGain('ambPing'), 0, 'sine', true);
+    else if (layer === 'ambRelay')
+    {
+        const src = ctx.createBufferSource();
+        src.buffer = noiseBuffer(ctx);
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = 1200;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(Math.max(0.18 * currentGain('ambRelay'), 0.0001), t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+        src.connect(f).connect(g).connect(out);
+        g.connect(reverb);
+        src.start(t);
+        src.stop(t + 0.06);
+    }
 }
