@@ -2,12 +2,14 @@
 import { useNow } from '@vueuse/core';
 import type { Tab } from '@/stores/useSettingsStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
+import { useSoundStore } from '@/stores/useSoundStore';
 import { formatClock, formatDateTui } from '@/utils/tui';
 
 defineProps<{ tab: Tab }>();
 defineEmits<{ (e: 'open-settings'): void; (e: 'select-tab', tab: Tab): void; (e: 'open-notifications'): void }>();
 
 const notifications = useNotificationsStore();
+const sound = useSoundStore();
 
 const now = useNow({ interval: 1000 });
 
@@ -22,7 +24,7 @@ const TABS: { id: Tab; label: string }[] = [
     <div class="top-bar">
         <span class="date">{{ formatDateTui(now) }}</span>
         <span class="tabs">
-            <span v-for="t in TABS" :key="t.id" class="tab" :class="{ active: tab === t.id }" @click="$emit('select-tab', t.id)">{{ tab === t.id ? `[${t.label}]` : ` ${t.label} ` }}</span>
+            <span v-for="t in TABS" :key="t.id" class="tab" :class="{ active: tab === t.id }" @click="tab !== t.id && sound.play('tab'); $emit('select-tab', t.id)">{{ tab === t.id ? `[${t.label}]` : ` ${t.label} ` }}</span>
         </span>
         <span v-if="notifications.alerts" class="alerts" @click="$emit('open-notifications')">!{{ notifications.alerts }}</span>
         <span class="time">{{ formatClock(now) }}</span>

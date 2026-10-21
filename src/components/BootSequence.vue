@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useAnimStore } from '@/stores/useAnimStore';
+import { useSoundStore } from '@/stores/useSoundStore';
 import { useTubeStore } from '@/stores/useTubeStore';
 import { BOOT_STEP_MS, bootFrame, bootLines, bootScreen, bootScript, bootScriptMs } from '@/utils/boot';
 
@@ -30,8 +31,11 @@ function finish()
 }
 
 // requestAnimationFrame and the clock, so the typing follows the display's refresh rate
+const sound = useSoundStore();
+
 onMounted(() =>
 {
+    sound.play('boot');
     if (anim.transitions) tube.startUp();
     const started = performance.now();
     const frame = (t: number) =>

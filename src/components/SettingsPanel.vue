@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useAnimStore } from '@/stores/useAnimStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
+import { useSoundStore } from '@/stores/useSoundStore';
 import { useTubeStore } from '@/stores/useTubeStore';
 import { useMotherStore } from '@/stores/useMotherStore';
 import { useProtocolsStore } from '@/stores/useProtocolsStore';
@@ -28,6 +29,7 @@ const settings = useSettingsStore();
 const anim = useAnimStore();
 const toggles = useTogglesStore();
 const tube = useTubeStore();
+const sound = useSoundStore();
 const mother = useMotherStore();
 const protocols = useProtocolsStore();
 const view = useSettingsViewStore();
@@ -68,6 +70,7 @@ function toggle(row: SettingRow & { kind: 'toggle' })
 {
     touch(row);
     store[row.key] = !store[row.key];
+    sound.play(store[row.key] ? 'toggleOn' : 'toggleOff');
 }
 
 const sliderValue = (row: SettingRow & { kind: 'slider' }) => row.fraction ? Math.round(Number(store[row.key]) * 100) : Number(store[row.key]);
@@ -89,6 +92,7 @@ function actionValue(id: ActionId)
         case 'haptics': return canVibrate() ? onOff(settings.haptics) : 'NO DISPONIBLE';
         case 'clearBurn': return `${Math.round(settings.burnMinutes / 60)} H`;
         case 'resetPanels': return 'P1-P4';
+        case 'soundTest': return '▶';
         default: return '';
     }
 }
@@ -99,6 +103,7 @@ function runAction(row: SettingRow & { kind: 'action' })
     switch (row.id)
     {
         case 'degauss': tube.degauss(); break;
+        case 'soundTest': sound.test(); break;
         case 'clearBurn': settings.burnMinutes = 0; break;
         // the value only changes once Bridge sends the event back
         case 'bridgeButton': toggles.bridgeButtonVisibility = bridgeButtonShown.value ? 'hidden' : 'shown'; break;

@@ -2,10 +2,12 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { BridgeNotification } from "@/types/bridge-fork";
 import { bridgeHas } from "@/utils/bridgeHas";
-import { alertCount, appLabelFor, splitNotifications, uniquePackages, visibleNotifications } from "@/utils/notifications";
+import { alertCount, notifyTone, appLabelFor, splitNotifications, uniquePackages, visibleNotifications } from "@/utils/notifications";
 import { useAppsStore } from "./useAppsStore";
 import { useBridgeEventStore } from "./useBridgeEventStore";
 import { useLogStore } from "./useLogStore";
+import { useSettingsStore } from "./useSettingsStore";
+import { useSoundStore } from "./useSoundStore";
 
 /** Notifications from the fork, kept by key. Without the fork (or without access) the list stays empty. */
 export const useNotificationsStore = defineStore('notifications', () =>
@@ -13,6 +15,9 @@ export const useNotificationsStore = defineStore('notifications', () =>
     const bridgeEvents = useBridgeEventStore();
     const log = useLogStore();
     const appsStore = useAppsStore();
+    const settings = useSettingsStore();
+    const sound = useSoundStore();
+    let lastTone = 0;
 
     const supported = bridgeHas('getNotificationsURL') && bridgeHas('getCanReadNotifications');
     const canRead = ref(false);
@@ -54,7 +59,15 @@ export const useNotificationsStore = defineStore('notifications', () =>
             sync();
         else if (ev.name === 'notificationPosted')
         {
+            const known = items.value.has(ev.notification.key);
             items.value.set(ev.notification.key, ev.notification);
+            // a new one gets a tone, one per burst; updates of a notification we already had stay silent
+            const tone = notifyTone(ev.notification);
+            if (!known && tone && settings.soundNotify && Date.now() - lastTone > 1500)
+            {
+                lastTone = Date.now();
+                sound.play(tone);
+            }
             if (!ev.notification.isMedia)
                 log.push('NTF', `${appLabelFor(ev.notification.packageName, appsStore.apps).toUpperCase()}: ${ev.notification.title ?? ''}`.trim());
         }

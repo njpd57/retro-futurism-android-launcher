@@ -66,7 +66,7 @@ describe('settings schema', () =>
         expect(summary('phosphor', { phosphor: 'amber', bloom: 0.7 })).toBe('ÁMBAR · 70%');
         expect(summary('tube', { scanlines: true, flicker: false, vignette: true, sweep: true, curvature: false })).toBe('3/5 EFECTOS');
         expect(summary('sound', { soundUi: false, soundAmbient: false, volume: 0.5 })).toBe('SILENCIO');
-        expect(summary('sound', { soundUi: true, volume: 0.5 })).toBe('VOL 50%');
+        expect(summary('sound', { soundUi: true, volume: 0.5, soundProfile: 'rele' })).toBe('RELÉ · 50%');
         expect(summary('apps', { folderBoxes: true, appsLayout: 'deck' })).toBe('CUBIERTAS');
         expect(summary('apps', { folderBoxes: false })).toBe('LISTA');
         expect(summary('mother', { motherKey: false })).toBe('SIN CLAVE');

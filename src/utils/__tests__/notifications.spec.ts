@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BridgeNotification } from '@/types/bridge-fork';
-import { alertCount, appLabelFor, clearableKeys, groupByApp, splitNotifications, uniquePackages, visibleNotifications } from '../notifications';
+import { alertCount, appLabelFor, clearableKeys, groupByApp, notifyTone, splitNotifications, uniquePackages, visibleNotifications } from '../notifications';
 import { formatAgo } from '../tui';
 
 const n = (key: string, packageName: string, postTime: number, extra: Partial<BridgeNotification> = {}): BridgeNotification => ({
@@ -78,5 +78,24 @@ describe('notifications', () =>
     {
         const list = [n('ok', 'a', 1), n('pinned', 'a', 2, { isClearable: false }), n('run', 'a', 3, { isOngoing: true })];
         expect(clearableKeys(list)).toEqual(['ok']);
+    });
+});
+
+describe('notifyTone', () =>
+{
+    const base = { category: null, isOngoing: false, isMedia: false, isGroupSummary: false };
+
+    it('picks a tone by category', () =>
+    {
+        expect(notifyTone(base)).toBe('notify');
+        expect(notifyTone({ ...base, category: 'call' })).toBe('notifyCall');
+        expect(notifyTone({ ...base, category: 'sys' })).toBe('notifySys');
+    });
+
+    it('stays silent for ongoing, media and group summaries', () =>
+    {
+        expect(notifyTone({ ...base, isOngoing: true })).toBeNull();
+        expect(notifyTone({ ...base, isMedia: true })).toBeNull();
+        expect(notifyTone({ ...base, isGroupSummary: true })).toBeNull();
     });
 });
