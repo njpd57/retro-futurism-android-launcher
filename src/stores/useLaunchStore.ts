@@ -30,7 +30,7 @@ export const useLaunchStore = defineStore('launch', () =>
     /** Opens the app with no gate: for the gate itself, once the user has authorized it. */
     function launchNow(packageName: string, label?: string)
     {
-        tube.collapseThen(() => Bridge.requestLaunchApp(packageName));
+        tube.collapseThen(() => Bridge.requestLaunchApp(packageName), label ?? packageName);
         recents.value = recordLaunch(recents.value, packageName, MAX_RECENTS);
         log.push('RUN', (label ?? packageName).toUpperCase());
     }

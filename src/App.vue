@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, type ComponentPublicInstance } from 'vue';
 import { useOwnStatusBar } from '@/composables/useOwnStatusBar';
 import { useMotherStore } from '@/stores/useMotherStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
@@ -7,6 +7,8 @@ import { useAppsStore, type InstalledAppInfo } from '@/stores/useAppsStore';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useAnimStore } from '@/stores/useAnimStore';
+import { TRANSITION_MS } from '@/utils/anim';
 import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { useUsageStore } from '@/stores/useUsageStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
@@ -26,6 +28,7 @@ import SettingsPanel from '@/components/SettingsPanel.vue';
 import TermMenu from '@/components/TermMenu.vue';
 import TopBar from '@/components/TopBar.vue';
 import AlertStrip from '@/components/AlertStrip.vue';
+import TypedText from '@/components/TypedText.vue';
 import QuarantineGate from '@/components/QuarantineGate.vue';
 import QuarantineMenu from '@/components/QuarantineMenu.vue';
 import { useQuarantineStore } from '@/stores/useQuarantineStore';
@@ -156,6 +159,29 @@ watch(query, q =>
 
 const TAB_ORDER: Tab[] = ['panel', 'apps', 'mother'];
 const screenEl = ref<HTMLElement | null>(null);
+
+// changing tab: the new content shows at once under a curtain that a bright scan line pulls down, top to bottom.
+// Only transform moves, so it follows the display's refresh rate; it covers the area between the top bar and the keys
+const anim = useAnimStore();
+const topBarEl = ref<ComponentPublicInstance | null>(null);
+const softKeysEl = ref<ComponentPublicInstance | null>(null);
+const wipe = ref<{ top: number; bottom: number; height: number } | null>(null);
+let wipeTimer = 0;
+
+// runs before the DOM update, so the curtain is drawn in the same frame as the new tab
+watch(() => settings.activeTab, () =>
+{
+    if (!anim.transitions || !screenEl.value || !topBarEl.value || !softKeysEl.value) return;
+    const screen = screenEl.value.getBoundingClientRect();
+    const top = topBarEl.value.$el.getBoundingClientRect().bottom - screen.top;
+    const bottom = screen.bottom - softKeysEl.value.$el.getBoundingClientRect().top;
+    const height = screen.height - top - bottom;
+    if (height <= 0) return;
+    window.clearTimeout(wipeTimer);
+    wipe.value = { top, bottom, height };
+    wipeTimer = window.setTimeout(() => { wipe.value = null; }, TRANSITION_MS.wipe);
+});
+onUnmounted(() => window.clearTimeout(wipeTimer));
 const swipe = useSwipe(screenEl, kind =>
 {
     if (kind === 'pull-down') { openStatusBar(); return; }
@@ -332,14 +358,14 @@ onUnmounted(() =>
             class="screen"
             :style="{ 'padding-top': px(insetTop), 'padding-bottom': px(insetBottom) }">
             <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
-            <TopBar :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" @open-notifications="notificationsOpen = true" />
+            <TopBar ref="topBarEl" :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="settings.activeTab = $event" @open-notifications="notificationsOpen = true" />
             <AlertStrip />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
             <MotherTerminal v-else-if="settings.activeTab === 'mother'" @sessions="sessionsOpen = true" />
             <CommandList v-else-if="showCommandList" :commands="COMMANDS.console" @pick="pickCommand" />
             <template v-else>
                 <div v-if="commandConsole.command.value" class="console" :class="{ bare: !isCommandInput(query) }">
-                    <div v-for="line in commandConsole.lines.value" :key="line">» {{ line }}</div>
+                    <div v-for="line in commandConsole.lines.value" :key="(commandConsole.fresh.value ? 'r:' : '') + line">» <TypedText :text="line" :animate="commandConsole.fresh.value" :cps="90" /></div>
                 </div>
                 <CommandList v-else-if="commandMatches.length" compact :commands="commandMatches" @pick="pickCommand" />
                 <AppList v-if="!isCommandInput(query)" :apps="results" :searching="query.length > 0" :highlight-first="query.length > 0" @launch="launch" @menu="menuApp = $event" @mother="organizer.show()" @images="imagesStore.show()" @new-folder="folderApp = $event">
@@ -347,7 +373,11 @@ onUnmounted(() =>
                 </AppList>
             </template>
             <PromptBar v-if="settings.activeTab !== 'mother'" ref="prompt" v-model="query" @submit="launchFirst" @focus="promptFocused = $event" />
-            <SoftKeys :keys="softKeys" />
+            <SoftKeys ref="softKeysEl" :keys="softKeys" />
+            <div v-if="wipe" class="tab-wipe" aria-hidden="true" :style="{ top: wipe.top + 'px', bottom: wipe.bottom + 'px', '--wipe-h': wipe.height + 'px' }">
+                <div class="curtain" />
+                <div class="line" />
+            </div>
         </div>
 
         <BootSequence v-if="booting" @done="booting = false" />
@@ -389,11 +419,54 @@ onUnmounted(() =>
 
 <style scoped lang="scss">
 .screen {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
 
     > .console { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px; }
     > .console.bare { flex: none; max-height: 30%; border-bottom: 1px solid var(--ph-dim); }
+}
+
+.tab-wipe {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    overflow: hidden;
+    pointer-events: none;
+
+    > .curtain {
+        position: absolute;
+        inset: 0;
+        background: var(--ph-bg);
+        transform-origin: bottom;
+        animation: wipe-curtain 0.24s linear forwards;
+    }
+
+    > .line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 3px;
+        background: var(--ph);
+        @include box-glow;
+        animation: wipe-line 0.24s linear forwards;
+    }
+}
+
+@keyframes wipe-curtain {
+    from { transform: scaleY(1); }
+    to { transform: scaleY(0); }
+}
+
+@keyframes wipe-line {
+    from { transform: translateY(0); }
+    to { transform: translateY(var(--wipe-h)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tab-wipe { display: none; }
 }
 </style>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useLocalStorage } from '@vueuse/core';
 import TermInput from '../TermInput.vue';
 import { usePausableInterval } from '@/composables/usePausableInterval';
+import { useAnimStore } from '@/stores/useAnimStore';
+import { tweenValue } from '@/utils/anim';
 import { DEFAULT_HOST, latencyStats, normalizeHost, pushSample, TIMEOUT_MS, type Sample } from '@/utils/telemetry';
 import Sparkline from '../gauges/Sparkline.vue';
 
@@ -11,6 +13,25 @@ const props = defineProps<{ id: string }>();
 const host = useLocalStorage(`widget.telemetry.${props.id}`, DEFAULT_HOST);
 const history = ref<Sample[]>([]);
 const stats = computed(() => latencyStats(history.value));
+
+// a new reading counts up or down to its value instead of jumping (requestAnimationFrame and the clock)
+const anim = useAnimStore();
+const TWEEN_MS = 400;
+const shownMs = ref<number | null>(null);
+let tweenFrame = 0;
+watch(() => stats.value.last, (to, from) =>
+{
+    cancelAnimationFrame(tweenFrame);
+    if (to === null || from === null || from === undefined || !anim.ambient) { shownMs.value = to; return; }
+    const start = performance.now();
+    const step = (t: number) =>
+    {
+        shownMs.value = tweenValue(from, to, t - start, TWEEN_MS);
+        if (t - start < TWEEN_MS) tweenFrame = requestAnimationFrame(step);
+    };
+    tweenFrame = requestAnimationFrame(step);
+}, { immediate: true });
+onBeforeUnmount(() => cancelAnimationFrame(tweenFrame));
 
 const editing = ref(false);
 const draft = ref('');
@@ -71,7 +92,7 @@ const hostLabel = computed(() => { try { return new URL(host.value).hostname.toU
         </template>
         <template v-else>
             <div class="dim pressable" @click="edit">{{ hostLabel }} ›</div>
-            <div class="big">{{ stats.last === null ? (history.length ? 'PERDIDO' : '…') : `${stats.last} MS` }}</div>
+            <div class="big">{{ stats.last === null ? (history.length ? 'PERDIDO' : '…') : `${shownMs ?? stats.last} MS` }}</div>
             <Sparkline v-if="history.length > 1" :values="history" :min="0" :max="TIMEOUT_MS" />
             <div class="dim">MED {{ stats.avg ?? '--' }} · MÁX {{ stats.max ?? '--' }} · PÉRD {{ stats.lossPct }}%</div>
         </template>

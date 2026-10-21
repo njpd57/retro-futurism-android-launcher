@@ -32,6 +32,10 @@ export const useSettingsStore = defineStore('settings', () =>
     // phosphor persistence: a barely visible ghost of the fixed frame lines that grows with the hours of use
     const phosphorBurn = useLocalStorage('settings.phosphorBurn', false);
     const burnMinutes = useLocalStorage('settings.burnMinutes', 0);
+    // animation categories (all off under prefers-reduced-motion, see useAnimStore)
+    const animText = useLocalStorage('settings.animText', true);
+    const animTransitions = useLocalStorage('settings.animTransitions', true);
+    const animAmbient = useLocalStorage('settings.animAmbient', true);
     const curvature = useLocalStorage('settings.curvature', false);
     // curvature tuning, all 0..100: SVG bend, corner radius and edge darkness
     const curvatureBend = useLocalStorage('settings.curvatureBend', 50);
@@ -102,5 +106,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import type { InstalledAppInfo } from '@/stores/useAppsStore';
 import { MAX_PANELS, SIZE_CELLS, activePanel, addPanel, addWidgetToActive, cycleSize, moveWidget, removeActivePanel, removeWidget, selectPanel, sizeOf, toggleMinimized } from '@/utils/dashboardLayout';
@@ -10,6 +10,13 @@ import WidgetCatalog from './WidgetCatalog.vue';
 
 defineProps<{ editing: boolean }>();
 defineEmits<{ (e: 'menu', app: InstalledAppInfo): void }>();
+
+// windows that appear once the dashboard has settled (a widget added, another panel selected) unfold; the first
+// render stays still because the tab wipe already covers it
+const settled = ref(false);
+let settleTimer = 0;
+onMounted(() => { settleTimer = window.setTimeout(() => { settled.value = true; }, 400); });
+onBeforeUnmount(() => window.clearTimeout(settleTimer));
 
 const settings = useSettingsStore();
 const adding = ref(false);
@@ -76,6 +83,7 @@ async function reveal(id: string | undefined)
                 :title="WIDGETS[item.kind].title"
                 :data-widget-id="item.id"
                 fill
+                :pop="settled"
                 :style="placement(item)"
                 :class="{ flash: flashing === item.id }"
                 :minimized="item.minimized"

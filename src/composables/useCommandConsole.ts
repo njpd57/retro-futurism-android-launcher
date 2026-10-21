@@ -183,5 +183,8 @@ export function useCommandConsole(options: {
         return isCommandInput(before) || options.query.value !== before || c.type === 'weather';
     }
 
-    return { command, lines, run };
+    /** The lines are the result of a command that was run (not the live preview of what is being typed). */
+    const fresh = computed(() => !!feedback.value && feedback.value.forQuery === options.query.value);
+
+    return { command, lines, fresh, run };
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
 import AssistedInput from './AssistedInput.vue';
+import TypedText from './TypedText.vue';
 import { useIsolationStore } from '@/stores/useIsolationStore';
 import { useOrganizerStore } from '@/stores/useOrganizerStore';
 import { parseSlash } from '@/mother/slash';
@@ -31,6 +32,11 @@ function submit(value: string)
     mother.send(value);
 }
 
+// answers that arrive while the terminal is open are typed out; the ones already there (a loaded session) are not.
+// The baseline moves up whenever the history is replaced rather than extended.
+const typedFrom = ref(mother.history.length);
+watch(() => mother.history.length, (n, was) => { if (n < was || n - was > 2) typedFrom.value = n; });
+
 watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.content, mother.status], scrollToEnd, { flush: 'post' });
 </script>
 
@@ -44,7 +50,7 @@ watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.c
             </div>
             <div v-for="(m, i) in mother.history" :key="i" class="msg" :class="m.role">
                 <template v-if="m.role === 'user'">&gt; {{ m.content }}</template>
-                <template v-else>MOTHER: {{ m.content }}<span v-if="mother.busy && i === mother.history.length - 1" class="cursor" /></template>
+                <template v-else>MOTHER: <TypedText :text="m.content" :animate="i >= typedFrom" :busy="mother.busy && i === mother.history.length - 1" @progress="scrollToEnd" /></template>
             </div>
             <div v-if="mother.status === 'waiting'" class="dim processing">PROCESANDO</div>
             <div v-for="p in mother.pending" :key="p.id" class="action-box">
@@ -90,16 +96,6 @@ watch(() => [mother.history.length, mother.history[mother.history.length - 1]?.c
     .error { color: var(--ph); animation: blink 1s steps(2) infinite; }
 
     .processing::after { content: ''; animation: dots 1.2s steps(4) infinite; }
-
-    .cursor {
-        display: inline-block;
-        width: 0.6em;
-        height: 1em;
-        margin-left: 2px;
-        vertical-align: text-bottom;
-        background: var(--ph);
-        animation: blink $dur-cursor steps(2) infinite;
-    }
 }
 
 @keyframes blink { 50% { opacity: 0; } }

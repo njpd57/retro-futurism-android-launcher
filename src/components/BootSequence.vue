@@ -1,38 +1,54 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { BOOT_STEP_MS, bootLines, visibleBootLines } from '@/utils/boot';
+import { useAnimStore } from '@/stores/useAnimStore';
+import { useTubeStore } from '@/stores/useTubeStore';
+import { BOOT_STEP_MS, bootFrame, bootLines, bootScreen, bootScript, bootScriptMs } from '@/utils/boot';
 
 const emit = defineEmits<{ (e: 'done'): void }>();
 
-const lines = bootLines();
-const started = Date.now();
+const anim = useAnimStore();
+const tube = useTubeStore();
 const elapsed = ref(0);
-const shown = computed(() => visibleBootLines(lines.length, elapsed.value));
+// with text animation on: the long boot (typed lines, a memory test that counts, a bar that fills);
+// off: every line appears whole in its step, as it always did
+const long = anim.text;
+const script = bootScript();
+const lines = bootLines();
+const total = long ? bootScriptMs(script) : lines.length * BOOT_STEP_MS;
+const shown = computed(() => long ? bootScreen(script, elapsed.value) : bootFrame(lines, elapsed.value, false));
 
 const HOLD_MS = 500;
-let timer: number | undefined;
+let raf = 0;
+let finished = false;
 
 function finish()
 {
-    window.clearInterval(timer);
+    if (finished) return;
+    finished = true;
+    cancelAnimationFrame(raf);
     emit('done');
 }
 
+// requestAnimationFrame and the clock, so the typing follows the display's refresh rate
 onMounted(() =>
 {
-    timer = window.setInterval(() =>
+    if (anim.transitions) tube.startUp();
+    const started = performance.now();
+    const frame = (t: number) =>
     {
-        elapsed.value = Date.now() - started;
-        if (elapsed.value >= lines.length * BOOT_STEP_MS + HOLD_MS) finish();
-    }, 40);
+        elapsed.value = t - started;
+        if (elapsed.value >= total + HOLD_MS) finish();
+        else raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
 });
 
-onUnmounted(() => window.clearInterval(timer));
+onUnmounted(() => cancelAnimationFrame(raf));
 </script>
 
 <template>
     <div class="boot" @click="finish">
-        <div v-for="(line, i) in lines.slice(0, shown)" :key="i" class="line">{{ line || ' ' }}</div>
+        <div v-for="(line, i) in shown" :key="i" class="line">{{ line || ' ' }}</div>
         <div class="cursor">█</div>
         <div class="skip">TOCA PARA OMITIR</div>
     </div>

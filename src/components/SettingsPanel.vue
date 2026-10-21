@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useAnimStore } from '@/stores/useAnimStore';
 import { useTogglesStore } from '@/stores/useTogglesStore';
 import { useTubeStore } from '@/stores/useTubeStore';
 import { useMotherStore } from '@/stores/useMotherStore';
@@ -24,6 +25,7 @@ import TermChoice from './settings/TermChoice.vue';
 const emit = defineEmits<{ (e: 'close'): void }>();
 
 const settings = useSettingsStore();
+const anim = useAnimStore();
 const toggles = useTogglesStore();
 const tube = useTubeStore();
 const mother = useMotherStore();
@@ -131,7 +133,7 @@ const peek = ref(false);
 </script>
 
 <template>
-    <div class="settings-page" :class="{ peek }">
+    <div class="settings-page" :class="{ peek, opening: anim.transitions }">
         <TuiWindow class="window" :title="title" fill :minimizable="false" closable @close="emit('close')">
             <div class="content">
                 <template v-if="!section">
@@ -203,6 +205,18 @@ const peek = ref(false);
     &.peek { opacity: 0; }
 
     > .window { flex: 1; }
+
+    // opening: the window draws open from a line (transform and opacity only)
+    &.opening > .window { animation: settings-open 0.16s linear both; transform-origin: center; }
+}
+
+@keyframes settings-open {
+    from { transform: scale(1, 0.03); opacity: 0.5; }
+    to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .settings-page.opening > .window { animation: none; }
 }
 
 .content {

@@ -3,16 +3,20 @@ import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
 import { useElementSize } from '@vueuse/core';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSoundStore } from '@/stores/useSoundStore';
+import { useAnimStore } from '@/stores/useAnimStore';
+import { pressHoldLeft } from '@/utils/anim';
 import { useTubeStore } from '@/stores/useTubeStore';
 import { tick } from '@/utils/haptics';
 import { bendK as bendCoef, bendOffset, correctPoint } from '@/utils/curvature';
 import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { nextDegaussMinutes } from '@/utils/degauss';
+import { HANDOFF_MS, handoffFrame, handoffText } from '@/utils/handoff';
 import { burnBands, burnOpacity, type BurnBand } from '@/utils/burnIn';
 import { usePausableInterval } from '@/composables/usePausableInterval';
 
 const settings = useSettingsStore();
 const sound = useSoundStore();
+const anim = useAnimStore();
 const tube = useTubeStore();
 
 // the colour and bloom the tube shows: the night shift and the active protocols laid over the user's own choice
@@ -94,10 +98,33 @@ function playDegauss()
     degaussFrame = requestAnimationFrame(frame);
 }
 
+// the handoff before leaving for an app: MOTHER types the transfer inside the tube (so it folds with the picture).
+// Only the typed text is driven per frame; the bar is CSS
+const handoffMs = ref(0);
+let handoffFrameId = 0;
+const handoffLines = computed(() => tube.handoff ? handoffText(tube.handoff.label) : null);
+const handoffNow = computed(() => handoffLines.value ? handoffFrame(handoffLines.value, handoffMs.value) : null);
+
+function playHandoff()
+{
+    cancelAnimationFrame(handoffFrameId);
+    handoffMs.value = 0;
+    if (!tube.handoff) return;
+    sound.play('chirp');
+    const start = performance.now();
+    const frame = (t: number) =>
+    {
+        handoffMs.value = Math.min(HANDOFF_MS, t - start);
+        if (handoffMs.value < HANDOFF_MS) handoffFrameId = requestAnimationFrame(frame);
+    };
+    handoffFrameId = requestAnimationFrame(frame);
+}
+
 watch(() => tube.degaussPulse, playDegauss);
+watch(() => tube.handoff?.id, playHandoff);
 // a new phosphor is a new tube colour: degauss it (the first value is not a change)
 watch(phosphor, () => tube.degauss());
-onBeforeUnmount(() => cancelAnimationFrame(degaussFrame));
+onBeforeUnmount(() => { cancelAnimationFrame(degaussFrame); cancelAnimationFrame(handoffFrameId); });
 
 const tubeStyle = computed(() => degaussing.value
     ? { filter: `${settings.curvature && bendMap.value ? 'url(#crt-bend) ' : ''}url(#crt-degauss) brightness(${degaussFlash.value.toFixed(3)})` }
@@ -173,12 +200,39 @@ function onClickCapture(e: MouseEvent)
     if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.focus();
 }
 
+// a pressed control is lit (data-pressed, styled in base.scss) while the finger is down and for at least PRESS_MIN_MS,
+// so a quick tap is seen; a touch that turns into a scroll (pointercancel) drops it at once. A data attribute, not a
+// class, because Vue rewrites the class of an element whenever its bindings change
+let pressed: { el: Element; at: number } | null = null;
+let releaseTimer = 0;
+
+function unpress()
+{
+    window.clearTimeout(releaseTimer);
+    pressed?.el.removeAttribute('data-pressed');
+    pressed = null;
+}
+
 function onPointerDown(e: PointerEvent)
 {
-    if (!elementUnder(e)?.closest?.(PRESSABLE)) return;
+    const el = elementUnder(e)?.closest?.(PRESSABLE);
+    if (!el) return;
     sound.play('select');
     if (settings.haptics) tick();
+    if (!anim.transitions) return;
+    unpress();
+    el.setAttribute('data-pressed', '');
+    pressed = { el, at: performance.now() };
 }
+
+function onPointerUp()
+{
+    if (!pressed) return;
+    window.clearTimeout(releaseTimer);
+    releaseTimer = window.setTimeout(unpress, pressHoldLeft(pressed.at, performance.now()));
+}
+
+onBeforeUnmount(unpress);
 
 function onInput(e: Event)
 {
@@ -193,6 +247,8 @@ function onInput(e: Event)
         :data-phosphor="phosphor"
         :style="{ '--bloom': bloom, '--tube-radius-vmin': 2 + settings.curvatureCorners / 100 * 14, '--shade-k': settings.curvatureShade / 50 }"
         @pointerdown.capture="onPointerDown"
+        @pointerup.capture="onPointerUp"
+        @pointercancel.capture="unpress"
         @click.capture="onClickCapture"
         @input.capture="onInput">
 
@@ -210,7 +266,17 @@ function onInput(e: Event)
             </filter>
         </svg>
 
-        <div ref="tubeEl" class="tube" :class="{ 'tube-off': tube.power === 'off', 'tube-on': tube.power === 'warming' }" :style="tubeStyle"><slot /></div>
+        <div ref="tubeEl" class="tube" :class="{ 'tube-off': tube.power === 'off', 'tube-on': tube.power === 'warming' }" :style="tubeStyle">
+            <slot />
+            <div v-if="tube.handoff && handoffLines && handoffNow" class="handoff" aria-hidden="true">
+                <div class="handoff-box">
+                    <div class="handoff-title">MU-TH-UR 6000 · ENLACE</div>
+                    <div class="handoff-line">{{ handoffLines.link.slice(0, handoffNow.link) }}<span v-if="!handoffNow.transfer" class="cursor">█</span></div>
+                    <div class="handoff-line">{{ handoffLines.transfer.slice(0, handoffNow.transfer) }}<span v-if="handoffNow.transfer" class="cursor">█</span></div>
+                    <div class="handoff-bar"><div class="fill" /></div>
+                </div>
+            </div>
+        </div>
 
         <div v-if="burnOn" class="burn" aria-hidden="true" :style="{ opacity: burn }">
             <div v-for="b in bands" :key="b.top" class="band" :style="{ top: b.top + 'px', height: b.height + 'px' }" />
@@ -341,6 +407,64 @@ function onInput(e: Event)
     to { opacity: 0.045; }
 }
 
+// the handoff: drawn inside .tube, so the fold takes it with the picture
+.handoff {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+}
+
+.handoff-box {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(86%, 22em);
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--ph);
+    background: var(--ph-bg);
+    @include box-glow;
+    @include glow;
+}
+
+.handoff-title {
+    @include inverse;
+    padding: 0 0.4em;
+}
+
+.handoff-line {
+    min-height: 1.1em;
+    padding: 0 0.4em;
+    white-space: pre;
+    overflow: hidden;
+}
+
+.handoff .cursor { animation: handoff-cursor 0.3s steps(1) infinite; }
+
+// the bar fills smoothly (transform only) and ends just before the fold
+.handoff-bar {
+    margin: 0.3em 0.4em 0.45em;
+    height: 0.55em;
+    border: 1px solid var(--ph);
+    padding: 2px;
+
+    .fill {
+        height: 100%;
+        background: var(--ph);
+        transform-origin: left center;
+        animation: handoff-bar 0.42s linear 0.17s both;
+    }
+}
+
+@keyframes handoff-bar {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes handoff-cursor {
+    50% { opacity: 0; }
+}
+
 // the tube switching off: the picture folds to a line, then to a dot, in a few steps
 .tube-off {
     animation: tube-off 0.45s steps(6) forwards;
@@ -365,6 +489,6 @@ function onInput(e: Event)
 @media (prefers-reduced-motion: reduce) {
     .crt-overlay.flicker::after,
     .crt-overlay > .sweep { animation: none; }
-    .tube-off, .tube-on { animation: none; }
+    .tube-off, .tube-on, .handoff .cursor, .handoff-bar .fill { animation: none; }
 }
 </style>

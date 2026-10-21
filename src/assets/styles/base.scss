@@ -18,4 +18,7 @@
         margin: 0;
         -webkit-tap-highlight-color: transparent;
     }
+
+    // a control that was just pressed stays in inverse video for a moment (CrtScreen sets the attribute)
+    [data-pressed] { @include inverse; }
 }

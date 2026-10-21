@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
+import { useAnimStore } from '@/stores/useAnimStore';
+import { TRANSITION_MS, noiseParams } from '@/utils/anim';
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
     title: string;
     minimized?: boolean;
     minimizable?: boolean;
@@ -10,9 +12,35 @@ withDefaults(defineProps<{
     resizable?: boolean;
     /** Fill the height the parent gives (a dashboard cell) instead of growing with the content. */
     fill?: boolean;
-}>(), { minimized: false, minimizable: true, closable: false, movable: false, resizable: false, fill: false });
+    /** Play the unfold when the window first appears (the dashboard sets it for windows added after it opened). */
+    pop?: boolean;
+}>(), { minimized: false, minimizable: true, closable: false, movable: false, resizable: false, fill: false, pop: false });
 
 defineEmits<{ (e: 'toggle'): void; (e: 'close'): void; (e: 'move', delta: -1 | 1): void; (e: 'resize'): void }>();
+
+const anim = useAnimStore();
+const attrs = useAttrs();
+
+// now and then a thin line of interference crosses the window; where and how often is fixed per window
+const noise = computed(() =>
+{
+    const n = noiseParams(String(attrs['data-widget-id'] ?? props.title));
+    return { '--noise-y': `${n.y}%`, '--noise-dur': `${n.durS}s`, '--noise-delay': `${n.delayS}s` };
+});
+
+// the frame unfolds from the title bar when the window appears or is restored from minimized
+const unfolding = ref(props.pop && anim.transitions);
+let unfoldTimer = 0;
+
+function unfold()
+{
+    if (!anim.transitions) return;
+    window.clearTimeout(unfoldTimer);
+    unfolding.value = true;
+    unfoldTimer = window.setTimeout(() => { unfolding.value = false; }, TRANSITION_MS.unfold);
+}
+
+watch(() => props.minimized, (min, was) => { if (was && !min) unfold(); });
 
 const body = ref<HTMLElement | null>(null);
 const scrollable = ref(false);
@@ -34,6 +62,7 @@ let observer: ResizeObserver | null = null;
 
 onMounted(() =>
 {
+    if (unfolding.value) unfoldTimer = window.setTimeout(() => { unfolding.value = false; }, TRANSITION_MS.unfold);
     sync();
     if (body.value)
     {
@@ -42,11 +71,11 @@ onMounted(() =>
     }
 });
 
-onBeforeUnmount(() => observer?.disconnect());
+onBeforeUnmount(() => { observer?.disconnect(); window.clearTimeout(unfoldTimer); });
 </script>
 
 <template>
-    <section class="tui-window" :class="{ fill, minimized }">
+    <section class="tui-window" :class="{ fill, minimized, ambient: anim.ambient }" :style="anim.ambient ? noise : undefined">
         <header class="title-bar">
             <span v-if="minimizable" class="btn" @click.stop="$emit('toggle')">{{ minimized ? '▣' : '□' }}</span>
             <span class="title">{{ title }}</span>
@@ -56,7 +85,7 @@ onBeforeUnmount(() => observer?.disconnect());
             <span v-if="closable" class="btn" @click.stop="$emit('close')">✕</span>
         </header>
 
-        <div v-show="!minimized" class="frame">
+        <div v-show="!minimized" class="frame" :class="{ unfold: unfolding }">
             <div ref="body" class="body" @scroll.passive="sync">
                 <slot />
             </div>
@@ -73,6 +102,7 @@ onBeforeUnmount(() => observer?.disconnect());
 
 <style scoped lang="scss">
 .tui-window {
+    position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -102,6 +132,27 @@ onBeforeUnmount(() => observer?.disconnect());
         > .btn { padding: 2px 4px; }
     }
 
+    // interference: a 1px line that flashes for under a second every 13-27 s (opacity and transform only)
+    &.ambient::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: var(--noise-y);
+        height: 1px;
+        background: var(--ph);
+        box-shadow: 0 0 calc(6px * var(--bloom)) var(--ph-glow);
+        opacity: 0;
+        pointer-events: none;
+        animation: window-noise var(--noise-dur) linear var(--noise-delay) infinite;
+    }
+
+    // transform and opacity only, so it runs on the compositor at the display's refresh rate
+    > .frame.unfold {
+        transform-origin: top center;
+        animation: tui-unfold 0.18s linear both;
+    }
+
     > .frame {
         display: flex;
         flex: 1;
@@ -123,5 +174,23 @@ onBeforeUnmount(() => observer?.disconnect());
             > .rail > .thumb { position: absolute; left: 20%; right: 20%; background: var(--ph); min-height: 4px; }
         }
     }
+}
+
+@keyframes tui-unfold {
+    from { transform: scaleY(0.02); opacity: 0.35; }
+    to { transform: none; opacity: 1; }
+}
+
+@keyframes window-noise {
+    0%, 95.5% { opacity: 0; transform: none; }
+    96% { opacity: 0.55; transform: translateX(-4%); }
+    97% { opacity: 0.2; transform: translateX(3%); }
+    98% { opacity: 0.5; transform: translateX(-1%); }
+    98.8%, 100% { opacity: 0; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tui-window.ambient::after { animation: none; }
+    .tui-window > .frame.unfold { animation: none; }
 }
 </style>
