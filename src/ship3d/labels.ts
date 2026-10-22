@@ -14,12 +14,12 @@ export const STENCIL_PLATES = 16;
 
 /** The rooms that have a stencil on their wall, and what it says. */
 export const STENCILS: readonly { room: string; text: string }[] = [
-    { room: 'hub', text: 'C0 NÚCLEO' },
+    { room: 'comedor', text: 'C0 COMEDOR' },
     { room: 'puente', text: 'C1 PUENTE' },
     { room: 'comms', text: 'C2 COMMS' },
     { room: 'enfermeria', text: 'C3 ENFERMERÍA' },
     { room: 'bodega', text: 'C4 BODEGA' },
-    { room: 'comedor', text: 'C5 COMEDOR' },
+    { room: 'camarotes', text: 'C5 CAMAROTES' },
     { room: 'hipersueno', text: 'C6 HIPERSUEÑO' },
     { room: 'motor', text: 'C7 MOTOR' },
     { room: 'hangar', text: 'C8 HANGAR' },

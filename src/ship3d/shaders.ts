@@ -11,6 +11,12 @@ const F = (n: number) => n.toFixed(1);
  * uv (metres), the lamps and monitors light the rooms, and distance fades into the background like fog.
  */
 
+/** Far plane in metres; the depth written for the outlines is the distance over this. */
+export const FAR_PLANE = 90;
+
+/** Details of the surfaces: how many metres one repeat of each texture covers. */
+const TILE = { wall: 2.0, floor: 2.0, ceiling: 2.0, prop: 1.5 };
+
 export const VERTEX = `#version 300 es
 precision highp float;
 in vec3 aPos;
@@ -18,6 +24,10 @@ in vec3 aNormal;
 in vec2 aUv;
 in float aMat;
 in float aEmit;
+// the occlusion and the lamp light baked into the vertex, and the way the light comes (see bake.ts)
+in float aAo;
+in float aLit;
+in vec3 aDir;
 uniform mat4 uViewProj;
 uniform float uDoor[16];
 out vec3 vPos;
@@ -26,6 +36,9 @@ out vec2 vUv;
 out float vMat;
 out float vStyle;
 out float vEmit;
+out float vAo;
+out float vLit;
+out vec3 vDir;
 void main()
 {
     // the material number carries the room's surface style: mat + 16 * style
@@ -46,6 +59,9 @@ void main()
     vMat = mat;
     vStyle = style;
     vEmit = emit;
+    vAo = aAo;
+    vLit = aLit;
+    vDir = aDir;
     gl_Position = uViewProj * vec4(p, 1.0);
 }`;
 
@@ -57,88 +73,69 @@ in vec2 vUv;
 in float vMat;
 in float vStyle;
 in float vEmit;
+in float vAo;
+in float vLit;
+in vec3 vDir;
 uniform vec3 uEye;
 uniform vec3 uPh;
 uniform vec3 uBg;
 uniform vec4 uLights[${MAX_LIGHTS}];
 uniform sampler2D uAtlas;
+// the detail of each kind of surface: brightness in red, the normal's x and y in green and blue
+uniform sampler2D uWall;
+uniform sampler2D uFloor;
+uniform sampler2D uCeil;
+uniform sampler2D uProp;
 uniform float uTime;
 uniform float uBlink;
 // how fast the crew's scan lines climb; 0 holds them still
 uniform float uHolo;
 // where the scan band is along the ship (plan y), or far away when it is off
 uniform float uSweep;
-out vec4 outColor;
+layout(location = 0) out vec4 outColor;
+// for the outlines: the distance in three bytes and the kind of surface
+layout(location = 1) out vec4 outNd;
 
-// an anti-aliased line every \`period\` units, \`width\` wide (in units)
-float lines(float x, float period, float width)
+vec3 pack24(float v)
 {
-    float t = x / period;
-    float d = abs(fract(t - 0.5) - 0.5) * period;
-    float aa = fwidth(x);
-    return 1.0 - smoothstep(width - aa, width + aa, d);
+    v = clamp(v, 0.0, 0.9999999);
+    vec3 enc = fract(v * vec3(1.0, 255.0, 65025.0));
+    enc -= enc.yzz * vec3(1.0 / 255.0, 1.0 / 255.0, 0.0);
+    return enc;
 }
 
-float panel(vec2 uv, vec2 period, float width)
+// the frame that takes a normal from texture space to the world, from the derivatives of the position and the uv;
+// they are constant over a face, so unlike a pattern computed per pixel this does not shimmer
+mat3 cotangentFrame(vec3 n, vec3 p, vec2 uv)
 {
-    return max(lines(uv.x, period.x, width), lines(uv.y, period.y, width));
+    vec3 dp1 = dFdx(p);
+    vec3 dp2 = dFdy(p);
+    vec2 duv1 = dFdx(uv);
+    vec2 duv2 = dFdy(uv);
+    vec3 dp2perp = cross(dp2, n);
+    vec3 dp1perp = cross(n, dp1);
+    vec3 t = dp2perp * duv1.x + dp1perp * duv2.x;
+    vec3 b = dp2perp * duv1.y + dp1perp * duv2.y;
+    float invmax = inversesqrt(max(max(dot(t, t), dot(b, b)), 1e-12));
+    return mat3(t * invmax, b * invmax, n);
 }
 
-// a round rivet at every crossing of a seam grid
-float rivets(vec2 uv, vec2 period, float r)
+// reads a detail texture: returns its brightness and bends \`n\` by its normal
+float detail(sampler2D tex, float tile, float strength, inout vec3 n)
 {
-    vec2 v = (fract(uv / period + 0.5) - 0.5) * period;
-    float aa = fwidth(uv.x) + fwidth(uv.y);
-    return 1.0 - smoothstep(r - aa, r + aa, length(v));
+    vec3 t = texture(tex, vUv / tile).rgb;
+    vec2 xy = (t.gb * 2.0 - 1.0) * strength;
+    vec3 tn = vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy))));
+    n = normalize(cotangentFrame(n, vPos, vUv / tile) * tn);
+    return t.r * 2.0;
 }
 
-// hexagons of width \`size\`: the cell outlines
-float hexLines(vec2 uv, float size, float width)
+// How bright a room's walls are.
+float wallBase(int st)
 {
-    vec2 p = uv / size;
-    const vec2 s = vec2(1.0, 1.7320508);
-    vec4 hc = floor(vec4(p, p - vec2(1.0, 1.5)) / s.xyxy) + 0.5;
-    vec4 h = vec4(p - hc.xy * s, p - (hc.zw + 0.5) * s);
-    vec2 q = dot(h.xy, h.xy) < dot(h.zw, h.zw) ? h.xy : h.zw;
-    q = abs(q);
-    float edge = 0.5 - max(dot(q, vec2(0.5, 0.8660254)), q.x);
-    float aa = fwidth(p.x) + fwidth(p.y);
-    return 1.0 - smoothstep(width / size - aa, width / size + aa, edge);
-}
-
-// the pattern of a wall, floor or ceiling in room style \`st\`: how much of the surface is seam (0..1+)
-float surface(int kind, int st, vec2 uv)
-{
-    if (kind == 0)
-    {
-        // wall
-        if (st == 1) return 0.55 * panel(uv, vec2(1.0, 0.9), 0.012) + 0.5 * rivets(uv, vec2(1.0, 0.9), 0.035);
-        if (st == 2) return 0.5 * panel(uv, vec2(2.0, 1.2), 0.018) + 0.6 * lines(uv.y, 2.4, 0.05);
-        if (st == 3) return 0.5 * panel(uv, vec2(2.0, 1.4), 0.018) + 0.7 * lines(uv.x, 3.0, 0.05);
-        if (st == 4) return 0.4 * panel(uv, vec2(4.0, 2.0), 0.012);
-        if (st == 5) return 0.7 * hexLines(uv, 0.55, 0.018);
-        if (st == 6) return 0.5 * lines(uv.y, 0.7, 0.012) + 0.5 * lines(uv.x, 6.0, 0.03);
-        return 0.6 * panel(uv, vec2(2.0, 1.4), 0.018);
-    }
-    if (kind == 1)
-    {
-        // floor (uv is the plan)
-        if (st == 1) return 0.4 * panel(uv, vec2(0.5), 0.008) + 0.4 * panel(uv, vec2(4.0), 0.02);
-        if (st == 2)
-        {
-            vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70711;
-            return 0.55 * panel(r, vec2(0.5), 0.02) + 0.3 * panel(uv, vec2(4.0), 0.03);
-        }
-        if (st == 3) return 0.5 * panel(uv, vec2(2.0), 0.02) + 0.4 * panel(uv, vec2(4.0), 0.035);
-        if (st == 4) return 0.2 * panel(uv, vec2(2.0), 0.01);
-        if (st == 5) return 0.6 * hexLines(uv, 0.9, 0.015);
-        if (st == 6) return 0.25 * panel(uv, vec2(0.25), 0.02) + 0.4 * panel(uv, vec2(4.0), 0.02);
-        return 0.4 * panel(uv, vec2(1.0), 0.012) + 0.4 * panel(uv, vec2(4.0), 0.02);
-    }
-    // ceiling
-    if (st == 5) return 0.4 * hexLines(uv, 1.1, 0.03);
-    if (st == 6) return 0.4 * lines(uv.x + uv.y, 1.0, 0.03);
-    return 0.35 * panel(uv, vec2(3.0), 0.04);
+    if (st == 2) return 0.1;    // the engine room is dim
+    if (st == 4) return 0.15;   // the sickbay is clean and bright
+    return 0.12;
 }
 
 void main()
@@ -150,30 +147,36 @@ void main()
     float emit = vEmit;
     float extra = 0.0;
     vec3 tint = uPh;
-    // surfaces that get their seams lifted into the light
-    bool bump = false;
+    // how shiny the surface is: the sharpness of its highlight and its strength
+    float shin = 8.0;
+    float ks = 0.0;
+
+    outNd = vec4(pack24((1.0 / gl_FragCoord.w) / ${F(FAR_PLANE)}), mat / 16.0);
 
     if (mat < ${F(MAT.wall)} + 0.5)
     {
-        // wall: seams, a darker skirting and a bright rail
-        albedo = (st == 4 ? 0.075 : 0.05) + surface(0, st, vUv);
-        albedo *= mix(0.55, 1.0, smoothstep(0.25, 0.35, vUv.y));
-        albedo += 0.6 * (1.0 - smoothstep(0.0, 0.03, abs(vUv.y - 1.05)));
-        bump = true;
+        albedo = wallBase(st) * detail(uWall, ${F(TILE.wall)}, 1.0, n);
+        albedo *= mix(0.6, 1.0, smoothstep(0.0, 0.6, vUv.y));
+        shin = 8.0;
+        ks = 0.25;
     }
     else if (mat < ${F(MAT.floor)} + 0.5)
     {
-        albedo = (st == 4 ? 0.05 : 0.035) + surface(1, st, vUv);
-        bump = true;
+        albedo = 0.09 * detail(uFloor, ${F(TILE.floor)}, 1.0, n);
+        shin = 14.0;
+        ks = 0.5;
     }
     else if (mat < ${F(MAT.ceiling)} + 0.5)
     {
-        albedo = 0.02 + surface(2, st, vUv);
+        albedo = 0.05 * detail(uCeil, ${F(TILE.ceiling)}, 1.0, n);
+        shin = 6.0;
+        ks = 0.15;
     }
     else if (mat < ${F(MAT.prop)} + 0.5)
     {
-        albedo = 0.07 + 0.6 * panel(vUv, vec2(1.0, 0.8), 0.014);
-        bump = true;
+        albedo = 0.14 * detail(uProp, ${F(TILE.prop)}, 1.0, n);
+        shin = 10.0;
+        ks = 0.35;
     }
     else if (mat < ${F(MAT.screen)} + 0.5)
     {
@@ -184,7 +187,9 @@ void main()
         c *= 1.0 + 0.06 * vec2(c.y * c.y, c.x * c.x);
         if (max(abs(c.x), abs(c.y)) > 1.0) { outColor = vec4(uBg, 1.0); return; }
         vec3 pic = texture(uAtlas, origin + (c * 0.5 + 0.5) / grid).rgb;
-        float scan = 0.94 + 0.06 * sin(vUv.y * 900.0 + uTime * 6.0);
+        // the picture's own scan lines fade out as they get finer than a pixel, or they would crawl
+        float amp = 0.06 * (1.0 - smoothstep(1.0, 3.0, fwidth(vUv.y * 900.0)));
+        float scan = 1.0 - amp + amp * sin(vUv.y * 900.0 + uTime * 6.0);
         float vig = 1.0 - 0.4 * pow(max(abs(c.x), abs(c.y)), 4.0);
         outColor = vec4(pic * scan * vig * 1.15, 1.0);
         return;
@@ -194,25 +199,30 @@ void main()
         // a name plate or a wall stencil: only its letters, floating; the emit slot says how strong
         vec4 t = texture(uAtlas, vUv);
         if (t.a < 0.35) discard;
-        float fog = exp(-length(uEye - vPos) * 0.02);
+        float fog = exp(-length(uEye - vPos) * 0.03);
         outColor = vec4(mix(uBg, t.rgb, t.a * vEmit * fog), 1.0);
         return;
     }
     else if (mat > ${F(MAT.hazard)} - 0.5)
     {
-        // chevrons on the floor: diagonal stripes, framed
-        float stripe = step(0.5, fract((vPos.x + vPos.z) / 0.7));
-        albedo = 0.04 + 0.5 * stripe;
-        bump = true;
+        // chevrons on the floor: diagonal stripes that melt into an even tone when they get finer than a pixel
+        float t = (vPos.x + vPos.z) / 0.7;
+        float s = abs(fract(t) - 0.5) * 2.0;
+        float fw = fwidth(t) * 2.0;
+        float stripe = mix(smoothstep(0.5 - fw, 0.5 + fw, s), 0.5, smoothstep(0.3, 0.6, fw));
+        albedo = 0.05 + 0.2 * stripe;
+        ks = 0.2;
     }
     else if (mat < ${F(MAT.glow)} + 0.5)
     {
-        albedo = 0.3;
-        emit = max(emit, 0.85);
+        // things that shine: lamps, columns of light, capsules, engines
+        albedo = 0.25;
+        emit *= 0.85;
     }
     else if (mat < ${F(MAT.frame)} + 0.5)
     {
-        albedo = 0.22;
+        albedo = 0.14 * detail(uProp, ${F(TILE.prop)}, 1.0, n);
+        ks = 0.3;
     }
     else if (mat < ${F(MAT.crew)} + 0.5)
     {
@@ -224,47 +234,50 @@ void main()
         float rim = pow(1.0 - abs(dot(n, view)), 2.5);
         vec2 e = min(vUv, 1.0 - vUv) / max(fwidth(vUv), vec2(1e-4));
         float edge = 1.0 - smoothstep(0.6, 1.6, min(e.x, e.y));
-        float scan = step(0.6, fract(vPos.y * 14.0 - uTime * uHolo));
+        float climb = vPos.y * 14.0 - uTime * uHolo;
+        float scan = smoothstep(0.55, 0.7, fract(climb)) * (1.0 - smoothstep(0.5, 1.5, fwidth(climb)));
         extra = edge * 0.95 + rim * 0.55 + scan * 0.12 * (0.4 + rim);
         // a crew member whose app is busy blinks with the urgent monitors
         if (vEmit > 0.5) extra *= 0.35 + 1.3 * uBlink;
     }
     else
     {
-        // door leaf: a panel with a bright seam round the edge
-        albedo = 0.12 + 0.5 * panel(vUv, vec2(1.5, 1.3), 0.02);
+        // door leaf
+        albedo = 0.1 * detail(uProp, ${F(TILE.prop)}, 1.0, n);
+        ks = 0.3;
     }
 
-    // fake relief: the seams are grooves, so they catch the lamps at their edges
-    if (bump)
-    {
-        vec3 sx = dFdx(vPos);
-        vec3 sy = dFdy(vPos);
-        vec3 r1 = cross(sy, n);
-        vec3 r2 = cross(n, sx);
-        float det = dot(sx, r1);
-        vec3 grad = sign(det) * (dFdx(albedo * 0.012) * r1 + dFdy(albedo * 0.012) * r2);
-        n = normalize(abs(det) * n - grad);
-    }
-
-    // light: lamps and monitors, with a wrap so surfaces turned away are not black
-    float light = 0.03;
+    // light: what the lamps of the room gave this vertex, turned by the surface's own relief (the baked direction
+    // makes a normal map answer to light that was never computed this frame), plus a share of the nearest lights of the
+    // frame, which is what makes a room that wants attention shine brighter or blink
+    vec3 view = normalize(uEye - vPos);
+    float lit = 0.03 + vLit * (0.15 + 0.85 * max(dot(n, vDir), 0.0));
+    float spec = vLit * pow(max(dot(n, normalize(vDir + view)), 0.0), shin);
+    float live = 0.0;
+    float liveSpec = 0.0;
     for (int i = 0; i < ${MAX_LIGHTS}; i++)
     {
         vec4 l = uLights[i];
         if (l.w <= 0.0) continue;
         vec3 to = l.xyz - vPos;
         float d2 = dot(to, to);
-        float ndl = max(dot(n, to * inversesqrt(d2)), 0.0) * 0.8 + 0.2;
-        light += l.w * ndl / (1.0 + 0.2 * d2);
+        vec3 ld = to * inversesqrt(d2);
+        float att = l.w / (1.0 + 0.3 * d2);
+        live += att * (max(dot(n, ld), 0.0) * 0.8 + 0.2);
+        liveSpec += att * pow(max(dot(n, normalize(ld + view)), 0.0), shin);
     }
+    lit += 0.4 * live;
+    spec += 0.4 * liveSpec;
 
-    float level = albedo * light * 2.6 + emit + extra;
+    // the baked occlusion darkens corners and the foot of everything
+    float level = (albedo * lit * 4.0 + ks * spec * 0.5) * vAo + emit + extra;
     // the scan band: a soft line of light sweeping the length of the ship
-    level += 0.35 * exp(-pow((vPos.z - uSweep) / 1.4, 2.0)) * smoothstep(0.0, 0.04, albedo);
+    level += 0.2 * exp(-pow((vPos.z - uSweep) / 1.4, 2.0)) * smoothstep(0.0, 0.04, albedo);
     float dist = length(uEye - vPos);
-    level *= exp(-dist * 0.02);
+    level *= exp(-dist * 0.03);
     level = 1.0 - exp(-level * 1.35);
+    // a little contrast: the lit parts stand out and the corners go properly dark
+    level = pow(level, 1.35);
 
     vec3 col = mix(uBg, tint, clamp(level, 0.0, 1.0));
     outColor = vec4(col, 1.0);
@@ -327,18 +340,67 @@ void main()
     outColor = vec4(vec3(s), 1.0);
 }`;
 
-/** the frame plus its glow, screen-blended so it saturates at the phosphor instead of clipping */
+/**
+ * The frame, its outlines, its glow and a little grain. Outlines are found in the depth the scene pass wrote: where
+ * 1 / depth stops being a straight line across the screen there is an edge (a silhouette, or a crease where two
+ * planes meet), so they are drawn per pixel, one pixel thick, and never crawl like a pattern on a surface would.
+ */
 export const COMPOSITE_FRAGMENT = `#version 300 es
-precision mediump float;
+// high precision: the distance is packed in three bytes and must come back whole
+precision highp float;
+precision highp sampler2D;
 in vec2 vUv;
 uniform sampler2D uScene;
+uniform sampler2D uNd;
 uniform sampler2D uBloom;
 uniform float uGain;
+uniform vec2 uTexel;
+// how strong the outlines are and how much grain, 0 for none
+uniform float uEdge;
+uniform float uGrain;
 ${LEVEL}
 out vec4 outColor;
+
+// the inverse of the distance at a pixel, and the kind of surface there
+vec2 lookup(vec2 uv)
+{
+    vec4 t = texture(uNd, uv);
+    float z = dot(t.rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0)) * ${F(FAR_PLANE)};
+    return vec2(1.0 / max(z, 0.05), t.a);
+}
+
+float interleavedNoise(vec2 p)
+{
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+
 void main()
 {
-    float l = levelOf(texelFetch(uScene, ivec2(gl_FragCoord.xy), 0).rgb);
+    ivec2 px = ivec2(gl_FragCoord.xy);
+    float l = levelOf(texelFetch(uScene, px, 0).rgb);
     float g = clamp(texture(uBloom, vUv).r * uGain, 0.0, 1.0);
-    outColor = vec4(mix(uBg, uPh, l + g * (1.0 - l)), 1.0);
+    l = l + g * (1.0 - l);
+
+    if (uEdge > 0.0)
+    {
+        vec2 c = lookup(vUv);
+        vec2 o = uTexel * 1.5;
+        vec2 a = lookup(vUv + vec2(o.x, 0.0));
+        vec2 b = lookup(vUv - vec2(o.x, 0.0));
+        vec2 u = lookup(vUv + vec2(0.0, o.y));
+        vec2 d = lookup(vUv - vec2(0.0, o.y));
+        // the second difference of 1 / depth along each axis: zero across a plane, large at an edge
+        float bend = abs(a.x + b.x - 2.0 * c.x) + abs(u.x + d.x - 2.0 * c.x);
+        float edge = smoothstep(0.012, 0.04, bend / c.x);
+        // a change of surface kind (a door in its wall) is an edge too
+        float kind = max(max(abs(a.y - c.y), abs(b.y - c.y)), max(abs(u.y - c.y), abs(d.y - c.y)));
+        edge = max(edge, step(0.03, kind));
+        // far ones fade with the fog, so the room's outline is strongest near you
+        float strength = edge * (0.3 + 0.7 * exp(-1.0 / c.x * 0.04)) * uEdge;
+        l = l + strength * 0.8 * (1.0 - l);
+    }
+
+    // grain: noise that stays fixed on the glass, enough to break the banding of a smooth gradient
+    l += (interleavedNoise(gl_FragCoord.xy) - 0.5) * uGrain;
+    outColor = vec4(mix(uBg, uPh, clamp(l, 0.0, 1.0)), 1.0);
 }`;

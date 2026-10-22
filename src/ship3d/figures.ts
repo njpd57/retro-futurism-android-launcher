@@ -1,9 +1,9 @@
 import type { Agent } from './crew';
 import { SHUTTLE_PLATES } from './labels';
-import { poseCat, posePerson, type Part } from './pose';
+import { birdTilt, poseBird, poseCat, posePerson, poseSeated, type Part } from './pose';
 import type { V3 } from './math';
 import { Builder, extrude, MAT, plate } from './mesh';
-import type { Bay, V2 } from './world';
+import { BIRD, ROOMS, TABLE_TOP, type Bay, type V2 } from './world';
 
 type Basis = { r: [number, number]; f: [number, number] };
 
@@ -77,6 +77,8 @@ export function figureVertices(agents: readonly Agent[], time: number, moving: R
         const lift = walking ? Math.abs(Math.sin(phase)) * (a.kind === 'cat' ? 0.02 : 0.025) : 0;
         const parts = a.kind === 'cat'
             ? poseCat(phase, walking, time)
+            : a.seated
+            ? poseSeated({ time, seed: seedOf(a.id), headYaw: look.headYaw?.get(a.id) ?? 0 })
             : posePerson({
                 phase,
                 gesture: walking ? 'walk' : a.kind === 'signal' ? 'typing' : 'idle',
@@ -87,6 +89,17 @@ export function figureVertices(agents: readonly Agent[], time: number, moving: R
             });
         place(b, parts, a.x, a.y, a.yaw, lift, look.alert?.has(a.id) ?? false);
     }
+    return new Float32Array(b.data);
+}
+
+/** A fixed offset per crew member, so the table doesn't move in step. */
+const seedOf = (id: string) => [...id].reduce((h, c) => (h * 17 + c.charCodeAt(0)) % 997, 3) * 0.37;
+
+/** The drinking bird on the mess table, dipping into its glass; `time` 0 keeps it upright. */
+export function birdVertices(time: number): Float32Array
+{
+    const b = new Builder();
+    place(b, poseBird(birdTilt(time)), BIRD.x, BIRD.y, BIRD.yaw, TABLE_TOP, false);
     return new Float32Array(b.data);
 }
 
@@ -101,7 +114,7 @@ export function plateVertices(agents: readonly Agent[], camYaw: number): Float32
     const right: V3 = [Math.cos(camYaw), 0, Math.sin(camYaw)];
     const n: V3 = [-Math.sin(camYaw), 0, Math.cos(camYaw)];
     for (const a of agents)
-        if (a.plate !== undefined) plate(b, [a.x, a.kind === 'android' ? 2.5 : 2.05, a.y], right, HEAD_PLATE_W, n, a.plate);
+        if (a.plate !== undefined) plate(b, [a.x, a.kind === 'android' ? 2.5 : a.seated ? 1.7 : 2.05, a.y], right, HEAD_PLATE_W, n, a.plate);
     return new Float32Array(b.data);
 }
 
@@ -118,6 +131,8 @@ const HY = 1.5;
 export function shuttleVertices(bays: readonly Bay[]): Float32Array
 {
     const b = new Builder();
+    // they stand in the hangar and get its baked light and occlusion like any crate
+    b.room = ROOMS.find(r => r.id === 'hangar') ?? null;
     bays.forEach((bay, i) =>
     {
         const { x, y, nx } = bay;

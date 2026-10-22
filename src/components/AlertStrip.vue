@@ -10,7 +10,7 @@ const more = computed(() => store.alerts.length - 1);
 </script>
 
 <template>
-    <div v-if="first" :key="first.id" class="alert-strip pressable" :class="{ critical: first.kind === 'battery', glitch: anim.transitions }" @click="store.dismiss(first)">
+    <div v-if="first" :key="first.id" class="alert-strip pressable" :class="{ critical: first.kind === 'battery' || first.kind === 'site', glitch: anim.transitions }" @click="store.dismiss(first)">
         <span class="text">! {{ first.text }}</span>
         <span v-if="more > 0" class="more">+{{ more }}</span>
         <span class="close">[X]</span>

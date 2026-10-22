@@ -11,6 +11,7 @@ export const CARDS: Readonly<Record<RoomId, readonly CardWidget[]>> = {
     bodega: [{ kind: 'storage', rows: 1 }, { kind: 'screentime', rows: 1 }],
     hipersueno: [{ kind: 'alarm', rows: 1 }, { kind: 'agenda', rows: 2 }, { kind: 'reminders', rows: 2 }],
     comedor: [{ kind: 'media', rows: 2 }, { kind: 'contacts', rows: 2 }],
+    camarotes: [{ kind: 'notes', rows: 2 }, { kind: 'protocol', rows: 2 }],
     enfermeria: [{ kind: 'log', rows: 2 }],
     hangar: [{ kind: 'favorites', rows: 2 }, { kind: 'recent', rows: 1 }],
 };

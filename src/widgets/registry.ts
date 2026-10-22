@@ -20,6 +20,7 @@ import StorageWidget from '@/components/widgets/StorageWidget.vue';
 import RerouteWidget from '@/components/widgets/RerouteWidget.vue';
 import CompassWidget from '@/components/widgets/CompassWidget.vue';
 import ForecastWidget from '@/components/widgets/ForecastWidget.vue';
+import SentinelWidget from '@/components/widgets/SentinelWidget.vue';
 import TelemetryWidget from '@/components/widgets/TelemetryWidget.vue';
 import CountdownWidget from '@/components/widgets/CountdownWidget.vue';
 import MoonWidget from '@/components/widgets/MoonWidget.vue';
@@ -73,6 +74,7 @@ export const WIDGETS: Record<string, WidgetDef> = {
     moon: { title: 'FASE LUNAR', component: MoonWidget, sizes: ['s', 't', 'l'], category: 'entorno', description: 'FASE ACTUAL DE LA LUNA', preview: ['  ▄██▄', '  ▀██▀  62%'] },
     forecast: { title: 'CLIMA 7 DÍAS', component: ForecastWidget, sizes: ['t', 'l', 'w'], category: 'entorno', description: 'PREVISIÓN DE LA SEMANA', preview: ['LUN ▃ 19°', 'MAR ▅ 21°'] },
     telemetry: { title: 'TELEMETRÍA', component: TelemetryWidget, sizes: ['s', 'w'], category: 'sistema', description: 'LATENCIA HACIA UN SERVIDOR', preview: ['▂▃▂▅▃▂▃', '42 MS'] },
+    sentinel: { title: 'CENTINELA', component: SentinelWidget, sizes: ['w', 'l', 's'], category: 'sistema', description: 'VIGILA SI TUS SITIOS RESPONDEN', preview: ['▓ ▓ ▓ ░', '3/4 EN LÍNEA'] },
     compass: { title: 'RUMBO', component: CompassWidget, sizes: ['s', 't', 'l'], category: 'entorno', description: 'BRÚJULA DEL DISPOSITIVO', preview: ['  N', 'O + E', '  S'] },
     timer: { title: 'TEMPORIZADOR', component: TimerWidget, sizes: ['s', 'w'], category: 'tiempo', description: 'TEMPORIZADOR Y CRONÓMETRO', preview: ['05:00', '[INICIAR]'] },
     tracker: { title: 'DETECTOR', component: TrackerWidget, sizes: ['l', 'w'], category: 'juegos', description: 'MINIJUEGO: DETECTOR DE MOVIMIENTO', preview: ['· ◉ ·  ·', '   ·   ▒  3.2M'] },

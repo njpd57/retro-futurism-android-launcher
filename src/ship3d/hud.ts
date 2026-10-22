@@ -16,9 +16,9 @@ const KEY_SCREENS: Readonly<Record<Zone, readonly string[]>> = {
     bodega: ['bodega.almacen'],
     enfermeria: ['enfermeria.sistema'],
     hipersueno: ['hipersueno.alarma'],
-    comedor: ['comedor.pista'],
+    comedor: ['comedor.rancho', 'comedor.pista'],
+    camarotes: ['camarotes.tripulacion'],
     hangar: ['hangar.flota'],
-    hub: [],
     pasillo: [],
 };
 
@@ -34,7 +34,7 @@ export function hudLine(readings: Readonly<Record<string, ScreenReading>>, zone:
 }
 
 /** The rooms in the order a tie is broken: the ship's data rooms as `ROOMS` lists them. */
-const ORDER: readonly RoomId[] = ROOMS.map(r => r.zone).filter((z): z is RoomId => z !== 'hub' && z !== 'pasillo');
+const ORDER: readonly RoomId[] = ROOMS.map(r => r.zone).filter((z): z is RoomId => z !== 'pasillo');
 
 export interface AlertRoom { zone: RoomId; name: string; level: Exclude<Level, 'idle'> }
 

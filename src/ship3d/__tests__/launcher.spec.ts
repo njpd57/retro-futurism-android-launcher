@@ -10,7 +10,7 @@ import { EYE_HEIGHT } from '../math';
 import { MAT, STRIDE } from '../mesh';
 import { pickScreen, pickShuttle } from '../pick';
 import { roomReadings, type ShipInput } from '../readings';
-import { collisionSegments, hangarBays, inside, MAX_BAYS, PROPS, roomAt, ROOMS, screenById, screenNormal, SCREENS } from '../world';
+import { collisionSegments, hangarBays, inside, MAX_BAYS, PROPS, roomAt, ROOMS, screenById, screenNormal, SCREENS, TABLE_R } from '../world';
 
 const INPUT: ShipInput = {
     now: new Date(2026, 9, 22, 14, 32).getTime(), heading: null, weather: { temperature: 18, code: 0 }, protocol: null,
@@ -27,7 +27,7 @@ describe('hud', () =>
         expect(hudLine(readings, 'puente')).toBe('PUENTE · 14:32 · 18 °C');
         expect(hudLine(readings, 'comms')).toBe('COMMS · 2 SEÑALES');
         expect(hudLine(readings, 'pasillo')).toBe('PASILLO');
-        expect(hudLine(readings, 'hub')).toBe('CONCENTRADOR');
+        expect(hudLine(readings, 'camarotes')).toMatch(/^CAMAROTES · \d+ TRIPULANTES?$/);
         expect(hudLine(readings, undefined)).toBe('EXTERIOR');
     });
 
@@ -41,8 +41,8 @@ describe('hud', () =>
 
     it('says which way to turn to face a room', () =>
     {
-        const [x, y] = STANDS.hub;
-        // the bridge is north of the hub
+        const [x, y] = STANDS.comedor;
+        // the bridge is north of the mess
         expect(turnToward(x, y, 0, 'puente')).toBe('ahead');
         expect(turnToward(x, y, Math.PI / 2, 'puente')).toBe('left');
         expect(turnToward(x, y, -Math.PI / 2, 'puente')).toBe('right');
@@ -152,17 +152,20 @@ describe('hangar bays', () =>
     });
 });
 
-describe('hub terminal', () =>
+describe('the ship\'s terminal', () =>
 {
-    it('has the search and MOTHER monitors facing into the hub over their consoles', () =>
+    it('has the search and MOTHER monitors on the crown over the mess table, out of the way of heads', () =>
     {
         for (const id of ['hub.buscar', 'hub.mother'])
         {
             const s = screenById(id)!;
             expect(s.zone).toBe('hub');
+            expect(s.hung).toBe(true);
             const [nx, ny] = screenNormal(s);
-            expect(roomAt(s.x + nx * 1.2, s.y + ny * 1.2)?.zone).toBe('hub');
-            expect(collides(collisionSegments(), s.x + nx * 0.5, s.y + ny * 0.5, 0.25)).toBe(true);
+            expect(roomAt(s.x + nx * 1.2, s.y + ny * 1.2)?.zone).toBe('comedor');
+            // over the table, which nobody walks on, and above anyone's head
+            expect(Math.hypot(s.x, s.y)).toBeLessThan(TABLE_R);
+            expect(s.z - s.h / 2).toBeGreaterThan(2.5);
         }
         expect(roomReadings(INPUT)['hub.buscar'].lines).toEqual(['TERMINAL', '> BUSCAR APP']);
     });

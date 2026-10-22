@@ -108,6 +108,7 @@ export const useSettingsStore = defineStore('settings', () =>
     const alertsEvent = useLocalStorage('settings.alertsEvent', true);
     const alertsBattery = useLocalStorage('settings.alertsBattery', true);
     const alertsAlarm = useLocalStorage('settings.alertsAlarm', true);
+    const alertsSites = useLocalStorage('settings.alertsSites', true);
     const alertsKlaxon = useLocalStorage('settings.alertsKlaxon', false);
     const activeTab = useLocalStorage<Tab>('settings.activeTab', 'panel');
     const imageFilter = useLocalStorage<ImageFilter>('settings.imageFilter', 'phosphor');
@@ -136,5 +137,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, shipPanel, shipFps, shipBloom, shipStart, shipRoomSound, shipLabels, shipLook, shipInvertY, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsSites, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, shipPanel, shipFps, shipBloom, shipStart, shipRoomSound, shipLabels, shipLook, shipInvertY, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

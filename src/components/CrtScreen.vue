@@ -341,7 +341,7 @@ function onInput(e: Event)
     z-index: 100;
 
     &.scanlines {
-        background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.28) 3px);
+        background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, var(--scan-alpha, 0.28)) 3px);
     }
 
     // same box as the tube; the shadows bulge the glass
@@ -358,7 +358,7 @@ function onInput(e: Event)
     &.curved.scanlines {
         background-image:
             radial-gradient(ellipse at 25% 15%, color-mix(in srgb, var(--ph-glow) 8%, transparent) 0, transparent 55%),
-            repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.28) 3px);
+            repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, var(--scan-alpha, 0.28)) 3px);
     }
 
     &.curved.vignette::before {

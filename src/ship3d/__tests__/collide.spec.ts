@@ -46,12 +46,12 @@ describe('the ship', () =>
 {
     const segs = collisionSegments();
 
-    it('lets the camera walk from the bridge to the hub through the corridor', () =>
+    it('lets the camera walk from the bridge to the mess through the corridor', () =>
     {
         let p = { x: START.x, y: START.y };
-        // straight south along the axis: dome, door, corridor, door, hub
+        // straight south along the axis: dome, door, corridor, door, the mess (up to its table)
         for (let i = 0; i < 200; i++) p = moveCircle(segs, p.x, p.y, 0, 0.1, 0.3);
-        expect(roomAt(p.x, p.y)?.id === 'hub' || p.y > 4).toBe(true);
+        expect(roomAt(p.x, p.y)?.id).toBe('comedor');
     });
 
     it('keeps the camera inside the ship whatever the push', () =>
@@ -68,9 +68,9 @@ describe('the ship', () =>
 
     it('stops at a column', () =>
     {
-        // the reactor core stands at (0, 39.6): walk into it from the north
-        let p = { x: 0, y: 34 };
+        // the reactor core stands at (0, 42): walk into it from the north
+        let p = { x: 0, y: 36.4 };
         for (let i = 0; i < 100; i++) p = moveCircle(segs, p.x, p.y, 0, 0.1, 0.3);
-        expect(p.y).toBeLessThan(39.6 - 2.2);
+        expect(p.y).toBeLessThan(42 - 2.2);
     });
 });

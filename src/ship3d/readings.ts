@@ -1,6 +1,7 @@
 import { compassPoint, normalizeDegrees } from '../utils/compass';
 import { bar, formatBytes, formatClock, formatDateTui } from '../utils/tui';
 import { weatherText } from '../utils/weather';
+import { mealAt, nextMeal } from './mess';
 import { SCREENS } from './world';
 
 /** How loudly a monitor asks for attention. */
@@ -120,11 +121,18 @@ export function roomReadings(i: ShipInput): Record<string, ScreenReading>
     put(i.media
         ? idle('comedor.pista', i.media.playing ? '» SONANDO' : '▌▌ PAUSA', i.media.title, i.media.artist)
         : idle('comedor.pista', 'SIN SEÑAL', 'DE AUDIO'));
-    put(idle('comedor.tripulacion', i.crew === 1 ? '1 TRIPULANTE' : `${i.crew} TRIPULANTES`));
+    const meal = mealAt(new Date(i.now));
+    if (meal) put(idle('comedor.rancho', 'RANCHO', `${meal.name} SERVIDO`));
+    else
+    {
+        const next = nextMeal(new Date(i.now));
+        put(idle('comedor.rancho', 'RANCHO', `${next.meal.name} ${formatClock(next.at)}`));
+    }
+    put(idle('camarotes.tripulacion', i.crew === 1 ? '1 TRIPULANTE' : `${i.crew} TRIPULANTES`));
 
     put(idle('hangar.flota', i.shuttles === 1 ? '1 LANZADERA' : `${i.shuttles} LANZADERAS`));
 
-    // the hub's terminal: a tap searches the apps or talks to MOTHER
+    // the ship's terminal on the crown over the mess table: a tap searches the apps or talks to MOTHER
     put(idle('hub.buscar', 'TERMINAL', '> BUSCAR APP'));
     put(idle('hub.mother', 'MOTHER', '> CONSULTAR'));
 

@@ -23,7 +23,7 @@ describe('low power', () =>
 
     it('draws no more than one device pixel per CSS pixel', () =>
     {
-        expect(renderScale(3, false)).toBe(1.5);
+        expect(renderScale(3, false)).toBe(2);
         expect(renderScale(3, true)).toBe(1);
         expect(renderScale(1, true)).toBe(1);
         expect(renderScale(0, false)).toBe(1);

@@ -16,10 +16,10 @@ describe('rooms', () =>
         }
     });
 
-    it('include the eight rooms the data lives in', () =>
+    it('include the nine rooms the data lives in', () =>
     {
         const zones = new Set(ROOMS.map(r => r.zone));
-        for (const z of ['puente', 'comms', 'motor', 'bodega', 'enfermeria', 'hipersueno', 'comedor', 'hangar']) expect(zones.has(z as never), z).toBe(true);
+        for (const z of ['puente', 'comms', 'motor', 'bodega', 'enfermeria', 'hipersueno', 'comedor', 'camarotes', 'hangar']) expect(zones.has(z as never), z).toBe(true);
     });
 
     it('do not overlap', () =>
@@ -64,12 +64,15 @@ describe('doors', () =>
 
 describe('screens', () =>
 {
+    /** the rooms a screen may stand in: the ship's terminal (`hub`) hangs in the mess */
+    const roomsOf = (s: (typeof SCREENS)[number]) => ROOMS.filter(r => r.zone === (s.zone === 'hub' ? 'comedor' : s.zone));
+
     it('have unique ids, sit on a wall of a room of their zone and face into it', () =>
     {
         expect(new Set(SCREENS.map(s => s.id)).size).toBe(SCREENS.length);
-        for (const s of SCREENS)
+        for (const s of SCREENS.filter(q => !q.hung))
         {
-            const rooms = ROOMS.filter(r => r.zone === s.zone);
+            const rooms = roomsOf(s);
             const [nx, ny] = screenNormal(s);
             // a little in front of the screen is inside the room, a little behind it is not
             expect(rooms.some(r => inside(r.poly, s.x + nx * 0.3, s.y + ny * 0.3)), s.id).toBe(true);
@@ -78,12 +81,27 @@ describe('screens', () =>
         }
     });
 
+    it('hang over the mess table on its crown, facing out, below the ceiling and above the heads', () =>
+    {
+        const hung = SCREENS.filter(s => s.hung);
+        expect(hung).toHaveLength(4);
+        for (const s of hung)
+        {
+            const [nx, ny] = screenNormal(s);
+            expect(roomAt(s.x, s.y)?.zone, s.id).toBe('comedor');
+            // facing away from the middle
+            expect(s.x * nx + s.y * ny, s.id).toBeGreaterThan(1);
+            expect(s.z - s.h / 2, s.id).toBeGreaterThan(2.5);
+            expect(s.z + s.h / 2, s.id).toBeLessThan(roomAt(s.x, s.y)!.height);
+        }
+    });
+
     it('hang flush on a real wall: a few centimetres off it, not buried or floating', () =>
     {
-        for (const s of SCREENS)
+        for (const s of SCREENS.filter(q => !q.hung))
         {
             let nearest = Infinity;
-            for (const r of ROOMS.filter(q => q.zone === s.zone))
+            for (const r of roomsOf(s))
                 for (let i = 0; i < r.poly.length; i++)
                 {
                     const e = splitEdge(r, i);
@@ -99,7 +117,7 @@ describe('screens', () =>
 
     it('cover every id the readings produce', () =>
     {
-        expect(SCREENS).toHaveLength(19);
+        expect(SCREENS).toHaveLength(20);
     });
 });
 

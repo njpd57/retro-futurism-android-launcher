@@ -7,6 +7,7 @@ import { useAlarmStore } from "./useAlarmStore";
 import { useCalendarStore } from "./useCalendarStore";
 import { useLogStore } from "./useLogStore";
 import { useRemindersStore } from "./useRemindersStore";
+import { useSentinelStore } from "./useSentinelStore";
 import { useSettingsStore } from "./useSettingsStore";
 import { useShipClockStore } from "./useShipClockStore";
 import { useSoundStore } from "./useSoundStore";
@@ -23,6 +24,7 @@ export const useAlertsStore = defineStore('alerts', () =>
     const clock = useShipClockStore();
     const sound = useSoundStore();
     const log = useLogStore();
+    const sentinel = useSentinelStore();
 
     const saved = useLocalStorage<{ day: string; ids: string[] }>('widget.alerts.dismissed', { day: '', ids: [] });
     const dismissed = computed(() => new Set(saved.value && saved.value.day === dayKey(clock.now) && Array.isArray(saved.value.ids) ? saved.value.ids : []));
@@ -33,11 +35,12 @@ export const useAlertsStore = defineStore('alerts', () =>
         battery: system.battery,
         nextAlarm: alarm.nextAlarm?.triggerTime ?? null,
         reminders: reminders.items,
+        sitesDown: sentinel.down,
     }));
 
     const alerts = computed(() => pendingAlerts(
         context.value,
-        { event: settings.alertsEvent, battery: settings.alertsBattery, alarm: settings.alertsAlarm },
+        { event: settings.alertsEvent, battery: settings.alertsBattery, alarm: settings.alertsAlarm, site: settings.alertsSites },
         dismissed.value,
     ));
 

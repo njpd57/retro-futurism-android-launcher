@@ -26,7 +26,7 @@ describe('stepWalk', () =>
 
     it('is no faster on a diagonal and slower backwards', () =>
     {
-        const diag = run(walker(2, 3, 0), { forward: 1, strafe: 1 }, 0.5);
+        const diag = run(walker(0, 64, 0), { forward: 1, strafe: 1 }, 0.5);
         expect(Math.hypot(diag.vx, diag.vy)).toBeLessThanOrEqual(WALK.speed + 1e-6);
         const back = run(walker(0, -7, 0), { forward: -1 }, 0.6);
         expect(Math.hypot(back.vx, back.vy)).toBeCloseTo(WALK.back, 1);
@@ -34,8 +34,8 @@ describe('stepWalk', () =>
 
     it('strafes to the right of where it looks', () =>
     {
-        const w = run(walker(2, 2, Math.PI / 2), { strafe: 1 }, 0.4);
-        expect(w.y).toBeGreaterThan(2.3);
+        const w = run(walker(0, 64, Math.PI / 2), { strafe: 1 }, 0.4);
+        expect(w.y).toBeGreaterThan(64.3);
     });
 
     it('speeds up and slows down smoothly, never jumping', () =>
@@ -64,17 +64,18 @@ describe('stepWalk', () =>
     it('slides along a wall instead of stopping dead', () =>
     {
         // on the bridge's east side the dome slopes: walking east into it still moves along it
-        const w = run(walker(4, -12, Math.PI / 2), { forward: 1 }, 1.5);
+        const w = run(walker(4, -14.4, Math.PI / 2), { forward: 1 }, 1.5);
         expect(w.x).toBeLessThan(9);
-        expect(Math.hypot(w.x - 4, w.y + 12)).toBeGreaterThan(0.5);
+        expect(Math.hypot(w.x - 4, w.y + 14.4)).toBeGreaterThan(0.5);
     });
 
-    it('walks through the doors to the hub and the hangar', () =>
+    it('walks through the doors into the mess and stops at its table', () =>
     {
-        // south from the bridge: dome, door, corridor, door, hub centre column is at 0,0 so veer a little
-        let w = walker(1, -11.8, Math.PI);
+        // south from the bridge: dome, door, corridor, door, and the table in the middle of the mess
+        let w = walker(1, -14.2, Math.PI);
         w = run(w, { forward: 1 }, 8);
-        expect(w.y).toBeGreaterThan(4);
+        expect(w.y).toBeGreaterThan(-7);
+        expect(Math.hypot(w.x, w.y)).toBeGreaterThan(2.5);
     });
 });
 

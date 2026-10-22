@@ -4,6 +4,7 @@ import { STRIDE, type Mesh } from './mesh';
 import { fovYFor, multiply, perspective, viewMatrix, type V3 } from './math';
 import { MAX_LIGHTS } from './lights';
 import { ATLAS_H, ATLAS_W } from './atlas';
+import { FAR_PLANE } from './shaders';
 
 /** Everything one frame needs. */
 export interface GLFrame
@@ -23,9 +24,20 @@ export interface GLFrame
     blink?: boolean;
     /** how fast the crew's scan lines climb, 0 for still */
     holo?: number;
+    /** strength of the outlines, 0 for none (default 1) */
+    edge?: number;
+    /** amount of grain over the picture, 0 for none (default 0.04) */
+    grain?: number;
 }
 
 export interface Palette { ph: [number, number, number]; bg: [number, number, number] }
+
+/** The surfaces that carry a detail texture. */
+export type DetailName = 'wall' | 'floor' | 'ceiling' | 'prop';
+
+/** Texture unit of each detail texture in the scene pass (0 is the monitors' atlas). */
+const DETAIL_UNITS: Readonly<Record<DetailName, number>> = { wall: 1, floor: 2, ceiling: 3, prop: 4 };
+const DETAIL_UNIFORMS: Readonly<Record<DetailName, string>> = { wall: 'uWall', floor: 'uFloor', ceiling: 'uCeil', prop: 'uProp' };
 
 export interface ShipGL
 {
@@ -33,10 +45,12 @@ export interface ShipGL
     resize(scale: number): boolean;
     render(frame: GLFrame): void;
     setAtlas(source: HTMLCanvasElement): void;
+    /** the picture of a kind of surface: brightness, and the normal's x and y (see `scripts/pack_ship_textures.py`) */
+    setDetail(name: DetailName, source: TexImageSource): void;
     /** the people and Jones, rebuilt every frame: triangles in the same layout as the ship */
     setCrew(data: Float32Array): void;
     setPalette(p: Palette): void;
-    /** how strongly the bright parts glow; 0 draws straight to the screen, as without bloom */
+    /** how strongly the bright parts glow; 0 skips the glow passes */
     setBloom(gain: number): void;
     /** the context was lost (the phone was busy elsewhere); frames are skipped until it comes back */
     readonly lost: boolean;
@@ -44,7 +58,6 @@ export interface ShipGL
 }
 
 const NEAR = 0.08;
-const FAR = 90;
 
 function compile(gl: WebGL2RenderingContext, type: number, source: string)
 {
@@ -72,20 +85,19 @@ type Pass = ReturnType<typeof link>;
 /** a texture to draw into, with its framebuffer */
 interface Target { fbo: WebGLFramebuffer; tex: WebGLTexture }
 
-/** the offscreen buffers of the bloom, sized to the canvas */
-interface BloomBuffers
+/** The frame is drawn here first: the picture, and the distance of every pixel for the outlines. */
+interface Scene
 {
     w: number;
     h: number;
-    /** multisampled frame, resolved into `scene`; null when the device has no multisampling */
-    ms: { fbo: WebGLFramebuffer; color: WebGLRenderbuffer; depth: WebGLRenderbuffer } | null;
-    scene: Target;
-    /** depth for `scene` when there is no `ms` */
-    depth: WebGLRenderbuffer | null;
-    half: [Target, Target];
-    hw: number;
-    hh: number;
+    fbo: WebGLFramebuffer;
+    color: WebGLTexture;
+    nd: WebGLTexture;
+    depth: WebGLRenderbuffer;
 }
+
+/** The half-size buffers of the glow. */
+interface Glow { w: number; h: number; half: [Target, Target]; hw: number; hh: number }
 
 const WEIGHTS = blurWeights();
 /** blur taps spaced a little more than a texel apart (the linear filter fills the gaps), for a wider halo */
@@ -94,12 +106,14 @@ const SPREAD = 1.5;
 /** Null when the device has no WebGL2. */
 export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | null
 {
-    const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
+    // no multisampling: the scene is drawn into our own buffers at the canvas size, which is already twice the CSS size
+    const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
     if (!gl) return null;
 
     let lost = false;
     let palette: Palette = { ph: [1, 0.69, 0], bg: [0.02, 0.015, 0] };
     let atlasSource: HTMLCanvasElement | null = null;
+    const detailSources = new Map<DetailName, TexImageSource>();
     let crewData = new Float32Array(0);
 
     // resources, rebuilt after a lost context
@@ -109,12 +123,32 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
     let crewVao: WebGLVertexArrayObject;
     let crewBuffer: WebGLBuffer;
     let texture: WebGLTexture;
+    const details = new Map<DetailName, WebGLTexture>();
+    let black: WebGLTexture;
     let uniforms: Record<string, WebGLUniformLocation | null> = {};
     let post: { bright: Pass; blur: Pass; composite: Pass } | null = null;
     let gain = 0;
-    let bloom: BloomBuffers | null = null;
-    // a device whose framebuffers won't complete just goes without bloom
-    let bloomBroken = false;
+    let scene: Scene | null = null;
+    let glow: Glow | null = null;
+    // a device whose framebuffers won't complete just draws straight to the screen, without outlines
+    let sceneBroken = false;
+    let glowBroken = false;
+
+    const anisotropy = () => gl!.getExtension('EXT_texture_filter_anisotropic');
+
+    /** a texture with mipmaps, repeating, filtered as sharply as the device allows */
+    function surfaceTexture(wrap: number, aniso: number): WebGLTexture
+    {
+        const t = gl!.createTexture()!;
+        gl!.bindTexture(gl!.TEXTURE_2D, t);
+        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR_MIPMAP_LINEAR);
+        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
+        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, wrap);
+        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, wrap);
+        const ext = anisotropy();
+        if (ext) gl!.texParameterf(gl!.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, aniso);
+        return t;
+    }
 
     function build()
     {
@@ -123,22 +157,22 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         gl!.attachShader(program, compile(gl!, gl!.FRAGMENT_SHADER, FRAGMENT));
         gl!.linkProgram(program);
         if (!gl!.getProgramParameter(program, gl!.LINK_STATUS)) throw new Error(gl!.getProgramInfoLog(program) ?? 'link failed');
-        // the bloom passes are extra: if they don't build, the ship is drawn without them
+        // the post passes are extra: if they don't build, the ship is drawn straight to the screen
         try
         {
             post = {
                 bright: link(gl!, QUAD_VERTEX, BRIGHT_FRAGMENT, ['uSrc', 'uThreshold', 'uPh', 'uBg']),
                 blur: link(gl!, QUAD_VERTEX, BLUR_FRAGMENT, ['uSrc', 'uStep', 'uWeights']),
-                composite: link(gl!, QUAD_VERTEX, COMPOSITE_FRAGMENT, ['uScene', 'uBloom', 'uGain', 'uPh', 'uBg']),
+                composite: link(gl!, QUAD_VERTEX, COMPOSITE_FRAGMENT, ['uScene', 'uNd', 'uBloom', 'uGain', 'uTexel', 'uEdge', 'uGrain', 'uPh', 'uBg']),
             };
         }
         catch (e)
         {
-            console.error('ship GL: bloom', e);
+            console.error('ship GL: post', e);
             post = null;
         }
 
-        const layout: [string, number, number][] = [['aPos', 3, 0], ['aNormal', 3, 3], ['aUv', 2, 6], ['aMat', 1, 8], ['aEmit', 1, 9]];
+        const layout: [string, number, number][] = [['aPos', 3, 0], ['aNormal', 3, 3], ['aUv', 2, 6], ['aMat', 1, 8], ['aEmit', 1, 9], ['aAo', 1, 10], ['aLit', 1, 11], ['aDir', 3, 12]];
         const attach = (buf: WebGLBuffer) =>
         {
             const v = gl!.createVertexArray()!;
@@ -161,26 +195,48 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         gl!.bindBuffer(gl!.ARRAY_BUFFER, crewBuffer);
         gl!.bufferData(gl!.ARRAY_BUFFER, crewData, gl!.DYNAMIC_DRAW);
 
-        texture = gl!.createTexture()!;
-        gl!.bindTexture(gl!.TEXTURE_2D, texture);
+        texture = surfaceTexture(gl!.CLAMP_TO_EDGE, 4);
         gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, ATLAS_W, ATLAS_H, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, null);
-        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR_MIPMAP_LINEAR);
-        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
-        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, gl!.CLAMP_TO_EDGE);
-        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE);
-        const aniso = gl!.getExtension('EXT_texture_filter_anisotropic');
-        if (aniso) gl!.texParameterf(gl!.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4);
+
+        // until a detail texture arrives: flat, average brightness (0.5 is "as bright as average")
+        details.clear();
+        for (const name of Object.keys(DETAIL_UNITS) as DetailName[])
+        {
+            const t = surfaceTexture(gl!.REPEAT, 8);
+            gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, 1, 1, 0, gl!.RGB, gl!.UNSIGNED_BYTE, new Uint8Array([128, 128, 128]));
+            details.set(name, t);
+        }
+
+        black = gl!.createTexture()!;
+        gl!.bindTexture(gl!.TEXTURE_2D, black);
+        gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, 1, 1, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.NEAREST);
+        gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.NEAREST);
 
         uniforms = {};
-        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep'])
+        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', ...Object.values(DETAIL_UNIFORMS)])
             uniforms[name] = gl!.getUniformLocation(program, name);
         if (atlasSource) upload(atlasSource);
+        for (const [name, src] of detailSources) uploadDetail(name, src);
     }
 
     function upload(source: HTMLCanvasElement)
     {
         gl!.bindTexture(gl!.TEXTURE_2D, texture);
         gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, gl!.RGBA, gl!.UNSIGNED_BYTE, source);
+        gl!.generateMipmap(gl!.TEXTURE_2D);
+    }
+
+    function uploadDetail(name: DetailName, source: TexImageSource)
+    {
+        const t = details.get(name);
+        if (!t) return;
+        gl!.bindTexture(gl!.TEXTURE_2D, t);
+        // the picture holds data, not colour: no premultiplying, no colour conversion
+        gl!.pixelStorei(gl!.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+        gl!.pixelStorei(gl!.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl!.NONE);
+        gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, gl!.RGB, gl!.UNSIGNED_BYTE, source);
+        gl!.pixelStorei(gl!.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl!.BROWSER_DEFAULT_WEBGL);
         gl!.generateMipmap(gl!.TEXTURE_2D);
     }
 
@@ -199,83 +255,96 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         return { fbo, tex };
     }
 
-    function renderbuffer(samples: number, format: number, w: number, h: number)
+    function freeScene()
     {
-        const rb = gl!.createRenderbuffer()!;
-        gl!.bindRenderbuffer(gl!.RENDERBUFFER, rb);
-        if (samples > 0) gl!.renderbufferStorageMultisample(gl!.RENDERBUFFER, samples, format, w, h);
-        else gl!.renderbufferStorage(gl!.RENDERBUFFER, format, w, h);
-        return rb;
-    }
-
-    function freeBloom()
-    {
-        if (!bloom) return;
+        if (!scene) return;
         if (!gl!.isContextLost())
         {
-            if (bloom.ms)
-            {
-                gl!.deleteFramebuffer(bloom.ms.fbo);
-                gl!.deleteRenderbuffer(bloom.ms.color);
-                gl!.deleteRenderbuffer(bloom.ms.depth);
-            }
-            if (bloom.depth) gl!.deleteRenderbuffer(bloom.depth);
-            for (const t of [bloom.scene, ...bloom.half])
+            gl!.deleteFramebuffer(scene.fbo);
+            gl!.deleteTexture(scene.color);
+            gl!.deleteTexture(scene.nd);
+            gl!.deleteRenderbuffer(scene.depth);
+        }
+        scene = null;
+    }
+
+    function freeGlow()
+    {
+        if (!glow) return;
+        if (!gl!.isContextLost())
+            for (const t of glow.half)
             {
                 gl!.deleteFramebuffer(t.fbo);
                 gl!.deleteTexture(t.tex);
             }
-        }
-        bloom = null;
+        glow = null;
     }
 
-    /** buffers for the canvas's current size, made the first time and again after a resize; false if they can't be */
-    function ensureBloom(): boolean
+    /** the scene buffers for the canvas's current size, made the first time and again after a resize; false if they can't be */
+    function ensureScene(): boolean
     {
         const w = canvas.width;
         const h = canvas.height;
-        if (bloom && bloom.w === w && bloom.h === h) return true;
-        freeBloom();
-        const complete = () => gl!.checkFramebufferStatus(gl!.FRAMEBUFFER) === gl!.FRAMEBUFFER_COMPLETE;
-        let ok = true;
+        if (scene && scene.w === w && scene.h === h) return true;
+        freeScene();
 
-        const samples = Math.min(4, gl!.getParameter(gl!.MAX_SAMPLES) as number);
-        const scene = target(w, h);
-        let depth: WebGLRenderbuffer | null = null;
-        let ms: BloomBuffers['ms'] = null;
-        if (samples > 0)
+        const make = () =>
         {
-            ok &&= complete();
-            const color = renderbuffer(samples, gl!.RGBA8, w, h);
-            const msDepth = renderbuffer(samples, gl!.DEPTH_COMPONENT24, w, h);
-            const fbo = gl!.createFramebuffer()!;
-            gl!.bindFramebuffer(gl!.FRAMEBUFFER, fbo);
-            gl!.framebufferRenderbuffer(gl!.FRAMEBUFFER, gl!.COLOR_ATTACHMENT0, gl!.RENDERBUFFER, color);
-            gl!.framebufferRenderbuffer(gl!.FRAMEBUFFER, gl!.DEPTH_ATTACHMENT, gl!.RENDERBUFFER, msDepth);
-            ok &&= complete();
-            ms = { fbo, color, depth: msDepth };
-        }
-        else
-        {
-            depth = renderbuffer(0, gl!.DEPTH_COMPONENT24, w, h);
-            gl!.framebufferRenderbuffer(gl!.FRAMEBUFFER, gl!.DEPTH_ATTACHMENT, gl!.RENDERBUFFER, depth);
-            ok &&= complete();
-        }
-        const [hw, hh] = bloomSize(w, h);
-        const a = target(hw, hh);
-        ok &&= complete();
-        const b = target(hw, hh);
-        ok &&= complete();
-
+            const t = gl!.createTexture()!;
+            gl!.bindTexture(gl!.TEXTURE_2D, t);
+            gl!.texStorage2D(gl!.TEXTURE_2D, 1, gl!.RGBA8, w, h);
+            // sampled at exactly one texel per pixel: the outlines need the true neighbours, not a blend
+            gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.NEAREST);
+            gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.NEAREST);
+            gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, gl!.CLAMP_TO_EDGE);
+            gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE);
+            return t;
+        };
+        const color = make();
+        const nd = make();
+        const depth = gl!.createRenderbuffer()!;
+        gl!.bindRenderbuffer(gl!.RENDERBUFFER, depth);
+        gl!.renderbufferStorage(gl!.RENDERBUFFER, gl!.DEPTH_COMPONENT24, w, h);
+        const fbo = gl!.createFramebuffer()!;
+        gl!.bindFramebuffer(gl!.FRAMEBUFFER, fbo);
+        gl!.framebufferTexture2D(gl!.FRAMEBUFFER, gl!.COLOR_ATTACHMENT0, gl!.TEXTURE_2D, color, 0);
+        gl!.framebufferTexture2D(gl!.FRAMEBUFFER, gl!.COLOR_ATTACHMENT1, gl!.TEXTURE_2D, nd, 0);
+        gl!.framebufferRenderbuffer(gl!.FRAMEBUFFER, gl!.DEPTH_ATTACHMENT, gl!.RENDERBUFFER, depth);
+        gl!.drawBuffers([gl!.COLOR_ATTACHMENT0, gl!.COLOR_ATTACHMENT1]);
+        const ok = gl!.checkFramebufferStatus(gl!.FRAMEBUFFER) === gl!.FRAMEBUFFER_COMPLETE;
         gl!.bindFramebuffer(gl!.FRAMEBUFFER, null);
-        bloom = { w, h, ms, scene, depth, half: [a, b], hw, hh };
+        scene = { w, h, fbo, color, nd, depth };
         if (!ok)
         {
-            console.error('ship GL: bloom framebuffers incomplete, going without');
-            freeBloom();
-            bloomBroken = true;
+            console.error('ship GL: scene framebuffer incomplete, drawing straight to the screen');
+            freeScene();
+            sceneBroken = true;
         }
         return ok;
+    }
+
+    /** the half-size buffers of the glow; false if they can't be made */
+    function ensureGlow(): boolean
+    {
+        const w = canvas.width;
+        const h = canvas.height;
+        if (glow && glow.w === w && glow.h === h) return true;
+        freeGlow();
+        const [hw, hh] = bloomSize(w, h);
+        const a = target(hw, hh);
+        const aOk = gl!.checkFramebufferStatus(gl!.FRAMEBUFFER) === gl!.FRAMEBUFFER_COMPLETE;
+        const b = target(hw, hh);
+        const bOk = gl!.checkFramebufferStatus(gl!.FRAMEBUFFER) === gl!.FRAMEBUFFER_COMPLETE;
+        gl!.bindFramebuffer(gl!.FRAMEBUFFER, null);
+        glow = { w, h, half: [a, b], hw, hh };
+        if (!aOk || !bOk)
+        {
+            console.error('ship GL: glow framebuffers incomplete, going without');
+            freeGlow();
+            glowBroken = true;
+            return false;
+        }
+        return true;
     }
 
     /** a full-screen pass from `src` into `into` (null for the screen) */
@@ -290,50 +359,55 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
 
     function draw() { gl!.drawArrays(gl!.TRIANGLES, 0, 3); }
 
-    /** cut out the bright parts, blur them both ways at half size and add them over the frame on screen */
-    function postBloom(b: BloomBuffers)
+    /** cut out the bright parts of the scene, blur them both ways at half size; the result is in `glow.half[0]` */
+    function glowPasses(s: Scene, g: Glow)
     {
-        const { bright, blur, composite } = post!;
-        if (b.ms)
-        {
-            gl!.bindFramebuffer(gl!.READ_FRAMEBUFFER, b.ms.fbo);
-            gl!.bindFramebuffer(gl!.DRAW_FRAMEBUFFER, b.scene.fbo);
-            gl!.blitFramebuffer(0, 0, b.w, b.h, 0, 0, b.w, b.h, gl!.COLOR_BUFFER_BIT, gl!.NEAREST);
-            gl!.bindFramebuffer(gl!.READ_FRAMEBUFFER, null);
-        }
-        gl!.disable(gl!.DEPTH_TEST);
-        gl!.bindVertexArray(null);
-
-        pass(bright, b.half[0].fbo, b.hw, b.hh, b.scene.tex);
+        const { bright, blur } = post!;
+        pass(bright, g.half[0].fbo, g.hw, g.hh, s.color);
         gl!.uniform1i(bright.uniforms.uSrc, 0);
         gl!.uniform1f(bright.uniforms.uThreshold, BLOOM_THRESHOLD);
         gl!.uniform3fv(bright.uniforms.uPh, palette.ph);
         gl!.uniform3fv(bright.uniforms.uBg, palette.bg);
         draw();
 
-        pass(blur, b.half[1].fbo, b.hw, b.hh, b.half[0].tex);
+        pass(blur, g.half[1].fbo, g.hw, g.hh, g.half[0].tex);
         gl!.uniform1i(blur.uniforms.uSrc, 0);
         gl!.uniform1fv(blur.uniforms.uWeights, WEIGHTS);
-        gl!.uniform2f(blur.uniforms.uStep, SPREAD / b.hw, 0);
+        gl!.uniform2f(blur.uniforms.uStep, SPREAD / g.hw, 0);
         draw();
-        pass(blur, b.half[0].fbo, b.hw, b.hh, b.half[1].tex);
-        gl!.uniform2f(blur.uniforms.uStep, 0, SPREAD / b.hh);
+        pass(blur, g.half[0].fbo, g.hw, g.hh, g.half[1].tex);
+        gl!.uniform2f(blur.uniforms.uStep, 0, SPREAD / g.hh);
         draw();
+    }
 
-        pass(composite, null, b.w, b.h, b.scene.tex);
+    /** the scene, its outlines, its glow and its grain onto the screen */
+    function composite(s: Scene, g: Glow | null, f: GLFrame)
+    {
+        const { composite: c } = post!;
+        gl!.disable(gl!.DEPTH_TEST);
+        gl!.bindVertexArray(null);
+        if (g) glowPasses(s, g);
+
+        pass(c, null, s.w, s.h, s.color);
         gl!.activeTexture(gl!.TEXTURE1);
-        gl!.bindTexture(gl!.TEXTURE_2D, b.half[0].tex);
-        gl!.uniform1i(composite.uniforms.uScene, 0);
-        gl!.uniform1i(composite.uniforms.uBloom, 1);
-        gl!.uniform1f(composite.uniforms.uGain, gain);
-        gl!.uniform3fv(composite.uniforms.uPh, palette.ph);
-        gl!.uniform3fv(composite.uniforms.uBg, palette.bg);
+        gl!.bindTexture(gl!.TEXTURE_2D, s.nd);
+        gl!.activeTexture(gl!.TEXTURE2);
+        gl!.bindTexture(gl!.TEXTURE_2D, g ? g.half[0].tex : black);
+        gl!.uniform1i(c.uniforms.uScene, 0);
+        gl!.uniform1i(c.uniforms.uNd, 1);
+        gl!.uniform1i(c.uniforms.uBloom, 2);
+        gl!.uniform1f(c.uniforms.uGain, g ? gain : 0);
+        gl!.uniform2f(c.uniforms.uTexel, 1 / s.w, 1 / s.h);
+        gl!.uniform1f(c.uniforms.uEdge, f.edge ?? 1);
+        gl!.uniform1f(c.uniforms.uGrain, f.grain ?? 0.04);
+        gl!.uniform3fv(c.uniforms.uPh, palette.ph);
+        gl!.uniform3fv(c.uniforms.uBg, palette.bg);
         draw();
         gl!.activeTexture(gl!.TEXTURE0);
     }
 
     // a lost context takes every buffer with it; they are made again on the next frame that wants them
-    function onLost(e: Event) { e.preventDefault(); lost = true; bloom = null; }
+    function onLost(e: Event) { e.preventDefault(); lost = true; scene = null; glow = null; }
     function onRestored() { build(); lost = false; }
     canvas.addEventListener('webglcontextlost', onLost);
     canvas.addEventListener('webglcontextrestored', onRestored);
@@ -363,15 +437,30 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         render(f)
         {
             if (lost || gl.isContextLost()) return;
-            const glow = gain > 0 && post && !bloomBroken && ensureBloom() ? bloom : null;
-            gl.bindFramebuffer(gl.FRAMEBUFFER, glow ? glow.ms?.fbo ?? glow.scene.fbo : null);
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            gl.clearColor(palette.bg[0], palette.bg[1], palette.bg[2], 1);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            const target = post && !sceneBroken && ensureScene() ? scene : null;
+            const g = target && gain > 0 && !glowBroken && ensureGlow() ? glow : null;
+
+            if (target)
+            {
+                gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+                gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.clearBufferfv(gl.COLOR, 0, [palette.bg[0], palette.bg[1], palette.bg[2], 1]);
+                // beyond the far plane, and no kind of surface
+                gl.clearBufferfv(gl.COLOR, 1, [1, 1, 1, 0]);
+                gl.clearBufferfv(gl.DEPTH, 0, [1]);
+            }
+            else
+            {
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.clearColor(palette.bg[0], palette.bg[1], palette.bg[2], 1);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            }
             gl.enable(gl.DEPTH_TEST);
             gl.disable(gl.CULL_FACE);
 
-            const viewProj = multiply(perspective(fovYFor(canvas.width / canvas.height), canvas.width / canvas.height, NEAR, FAR), viewMatrix(f.eye, f.yaw, f.pitch));
+            const viewProj = multiply(perspective(fovYFor(canvas.width / canvas.height), canvas.width / canvas.height, NEAR, FAR_PLANE), viewMatrix(f.eye, f.yaw, f.pitch));
             gl.useProgram(program);
             gl.bindVertexArray(vao);
             gl.uniformMatrix4fv(uniforms.uViewProj, false, viewProj);
@@ -387,16 +476,25 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.uniform1i(uniforms.uAtlas, 0);
+            for (const [name, unit] of Object.entries(DETAIL_UNITS) as [DetailName, number][])
+            {
+                gl.activeTexture(gl.TEXTURE0 + unit);
+                gl.bindTexture(gl.TEXTURE_2D, details.get(name)!);
+                gl.uniform1i(uniforms[DETAIL_UNIFORMS[name]], unit);
+            }
+            gl.activeTexture(gl.TEXTURE0);
             gl.drawArrays(gl.TRIANGLES, 0, mesh.vertices);
             if (crewData.length)
             {
                 gl.bindVertexArray(crewVao);
                 gl.drawArrays(gl.TRIANGLES, 0, crewData.length / STRIDE);
             }
-            if (glow) postBloom(glow);
+            if (target) composite(target, g, f);
+            else gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         },
 
         setAtlas(source) { atlasSource = source; if (!lost) upload(source); },
+        setDetail(name, source) { detailSources.set(name, source); if (!lost) uploadDetail(name, source); },
         setCrew(data)
         {
             crewData = data;
@@ -408,14 +506,15 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         setBloom(g)
         {
             gain = g > 0 ? g : 0;
-            if (gain === 0) freeBloom();
+            if (gain === 0) freeGlow();
         },
 
         dispose()
         {
             canvas.removeEventListener('webglcontextlost', onLost);
             canvas.removeEventListener('webglcontextrestored', onRestored);
-            freeBloom();
+            freeScene();
+            freeGlow();
             if (!gl.isContextLost())
             {
                 if (post) for (const p of [post.bright, post.blur, post.composite]) gl.deleteProgram(p.program);
@@ -425,6 +524,8 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
                 gl.deleteVertexArray(vao);
                 gl.deleteVertexArray(crewVao);
                 gl.deleteTexture(texture);
+                gl.deleteTexture(black);
+                for (const t of details.values()) gl.deleteTexture(t);
             }
             gl.getExtension('WEBGL_lose_context')?.loseContext();
         },

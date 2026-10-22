@@ -1,9 +1,13 @@
 import { glideRoute, pointAt, routeLength, STANDS } from './glide';
 import { CONTACT_PLATES, SIGNAL_PLATES } from './labels';
-import type { V2 } from './world';
+import { yawOf } from './math';
+import { chairAt, CHAIRS, type V2 } from './world';
 
-/** Who is aboard: a crew member per app with notifications waiting, the starred contacts, Jones and the android. */
-export type AgentKind = 'signal' | 'contact' | 'cat' | 'android';
+/**
+ * Who is aboard: a crew member per app with notifications waiting, the starred contacts and the rest of the crew at
+ * the mess table, Jones and the android.
+ */
+export type AgentKind = 'signal' | 'contact' | 'diner' | 'cat' | 'android';
 
 export interface Agent
 {
@@ -14,6 +18,8 @@ export interface Agent
     yaw: number;
     /** the name plate floating over its head (see `labels.ts`), if it has one */
     plate?: number;
+    /** sits at the mess table, eating */
+    seated?: boolean;
 }
 
 interface Slot { x: number; y: number; yaw: number }
@@ -24,18 +30,32 @@ export const SIGNAL_SLOTS: readonly Slot[] = [
     { x: -19.2, y: -3.4, yaw: 0 }, { x: -17, y: -3.4, yaw: 0 }, { x: -14.8, y: -3.4, yaw: 0 },
 ];
 
-/** Where the starred contacts wait in the mess: at their bunks. */
-export const BUNK_SLOTS: readonly Slot[] = [
-    { x: -27.1, y: 15, yaw: Math.PI / 2 }, { x: -27.1, y: 18.6, yaw: Math.PI / 2 }, { x: -27.1, y: 22, yaw: Math.PI / 2 },
-    { x: -25.2, y: 22.4, yaw: Math.PI * 1.5 },
-];
+/**
+ * The chairs round the mess table in the order they fill: the far side from the south door first, so whoever walks in
+ * sees faces rather than backs. Each faces the middle of the table.
+ */
+export const SEATS: readonly Slot[] = [5, 6, 4, 7, 3, 0, 2, 1].slice(0, CHAIRS).map(k =>
+{
+    const c = chairAt(k);
+    return { x: c.x, y: c.y, yaw: yawOf(-c.x, -c.y) };
+});
 
-/** The ones that stay put: one per signal and per starred contact, as many as there are places for. */
-export function stationaryAgents(signals: number, contacts: number): Agent[]
+/** How many starred contacts get a seat (and a name plate). */
+export const CONTACT_SEATS = 4;
+
+/**
+ * The ones that stay put: one per signal in COMMS; at the table the starred contacts, then as many of the crew as
+ * `diners` asks for, as many as there are chairs.
+ */
+export function stationaryAgents(signals: number, contacts: number, diners = 0): Agent[]
 {
     const out: Agent[] = [];
     SIGNAL_SLOTS.slice(0, Math.max(0, signals)).forEach((s, i) => out.push({ id: `signal${i}`, kind: 'signal', ...s, plate: SIGNAL_PLATES + i }));
-    BUNK_SLOTS.slice(0, Math.max(0, contacts)).forEach((s, i) => out.push({ id: `contact${i}`, kind: 'contact', ...s, plate: CONTACT_PLATES + i }));
+    const named = Math.max(0, Math.min(CONTACT_SEATS, contacts));
+    const seated = Math.min(SEATS.length, Math.max(named, diners));
+    SEATS.slice(0, seated).forEach((s, i) => out.push(i < named
+        ? { id: `contact${i}`, kind: 'contact', ...s, plate: CONTACT_PLATES + i, seated: true }
+        : { id: `diner${i}`, kind: 'diner', ...s, seated: true }));
     return out;
 }
 
@@ -64,8 +84,8 @@ export function newRoamers(): Roamer[]
 {
     const at = (room: string) => ({ x: STANDS[room][0], y: STANDS[room][1] });
     return [
-        { id: 'jones', kind: 'cat', ...at('comedor'), yaw: 0, room: 'comedor', route: null, s: 0, length: 0, wait: 1, speed: 2.4, pool: ['comedor', 'hub', 'bodega', 'hipersueno', 'puente', 'enfermeria'] },
-        { id: 'ash', kind: 'android', ...at('hub'), yaw: 0, room: 'hub', route: null, s: 0, length: 0, wait: 3, speed: 1.7, pool: ['puente', 'hub', 'comms', 'enfermeria', 'bodega', 'motor', 'hangar'] },
+        { id: 'jones', kind: 'cat', ...at('comedor'), yaw: 0, room: 'comedor', route: null, s: 0, length: 0, wait: 1, speed: 2.4, pool: ['comedor', 'camarotes', 'bodega', 'hipersueno', 'puente', 'enfermeria'] },
+        { id: 'ash', kind: 'android', ...at('puente'), yaw: 0, room: 'puente', route: null, s: 0, length: 0, wait: 3, speed: 1.7, pool: ['puente', 'comedor', 'comms', 'enfermeria', 'bodega', 'motor', 'hangar'] },
     ];
 }
 

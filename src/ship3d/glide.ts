@@ -7,24 +7,25 @@ import { collisionSegments, PORTALS, ROOMS, roomAt, splitEdge, type Portal, type
  * doorways that keeps clear of crates, columns and walls. Pure.
  */
 
-/** Where the camera ends up in each room (the hub and the eight rooms the data lives in). */
+/** Where the camera ends up in each of the nine rooms the data lives in. */
 export const STANDS: Readonly<Record<string, V2>> = {
-    hub: [2, 2],
-    puente: [0, -12.5],
-    comms: [-15, 0],
-    enfermeria: [15, 0],
-    bodega: [0, 18.6],
-    comedor: [-19.5, 18.6],
-    hipersueno: [23, 18.6],
-    motor: [0, 35.4],
-    hangar: [0, 56],
+    comedor: [0, 4.6],
+    puente: [0, -14.9],
+    comms: [-17.4, 0],
+    enfermeria: [17.4, 0],
+    bodega: [0, 21],
+    camarotes: [-19.5, 21],
+    hipersueno: [23, 21],
+    motor: [0, 37.8],
+    hangar: [0, 58.4],
 };
 
 /** Points to route round what stands in the way of a straight leg inside a room. */
 const VIAS: Readonly<Record<string, readonly V2[]>> = {
-    hub: [[2.3, 2.3], [-2.3, 2.3], [2.3, -2.3], [-2.3, -2.3]],
-    bodega: [[0, 18.6]],
-    motor: [[-4.2, 39.6], [4.2, 39.6]],
+    // round the table: a ring of points between the chairs and the furniture on the walls
+    comedor: Array.from({ length: 8 }, (_, k): V2 => [Math.round(5 * Math.cos((k * Math.PI) / 4) * 1e4) / 1e4, Math.round(5 * Math.sin((k * Math.PI) / 4) * 1e4) / 1e4]),
+    bodega: [[0, 21]],
+    motor: [[-4.2, 42], [4.2, 42]],
 };
 
 /** Body radius used to judge a leg clear. */
@@ -86,12 +87,28 @@ export function roomPath(from: string, to: string): { portal: Portal; room: stri
     return null;
 }
 
-/** A leg inside one room from `a` to `b`, routed through a via point if the straight line is blocked. */
+const dist = (a: V2, b: V2) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+
+/**
+ * A leg inside one room from `a` to `b`: straight if it can, else through the via point (or the two, round something
+ * as wide as the mess table) that makes the shortest clear way.
+ */
 function leg(a: V2, b: V2, room: string): V2[]
 {
     if (clear(a, b)) return [b];
-    for (const v of VIAS[room] ?? []) if (clear(a, v) && clear(v, b)) return [v, b];
-    return [b];
+    const vias = VIAS[room] ?? [];
+    let best: V2[] | null = null;
+    let bestLen = Infinity;
+    for (const v of vias)
+        if (dist(a, v) + dist(v, b) < bestLen && clear(a, v) && clear(v, b)) { best = [v, b]; bestLen = dist(a, v) + dist(v, b); }
+    if (best) return best;
+    for (const v of vias)
+        for (const w of vias)
+        {
+            const len = dist(a, v) + dist(v, w) + dist(w, b);
+            if (v !== w && len < bestLen && clear(a, v) && clear(v, w) && clear(w, b)) { best = [v, w, b]; bestLen = len; }
+        }
+    return best ?? [b];
 }
 
 /** The waypoints from `(x, y)` to the stand of `target`, starting at the point itself; null if it can't be done. */

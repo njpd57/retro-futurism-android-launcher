@@ -33,11 +33,12 @@ export const VOICES: Readonly<Record<Zone, Voice>> = {
     enfermeria: { level: 0.35, tone: { freq: 1320, wave: 'sine', gain: 0.05 }, hush: { filter: 'highpass', freq: 6000, q: 0.7, gain: 0.2 } },
     // sleeping breath
     hipersueno: { level: 0.55, hush: { filter: 'bandpass', freq: 420, q: 1, gain: 0.7 }, wobble: { hz: 0.22, depth: 0.5 } },
-    // a cold store humming away
-    comedor: { level: 0.4, tone: { freq: 100, wave: 'sine', gain: 0.3 }, hush: { filter: 'lowpass', freq: 260, q: 0.7, gain: 0.3 } },
+    // a cold store humming away under the murmur of the crew at the table
+    comedor: { level: 0.45, tone: { freq: 100, wave: 'sine', gain: 0.25 }, hush: { filter: 'bandpass', freq: 520, q: 1.2, gain: 0.35 }, wobble: { hz: 0.6, depth: 0.25 } },
+    // quiet quarters: the ventilation and little else
+    camarotes: { level: 0.3, tone: { freq: 55, wave: 'sine', gain: 0.35 }, hush: { filter: 'lowpass', freq: 200, q: 0.7, gain: 0.2 } },
     // wind through the big doors
     hangar: { level: 0.7, tone: { freq: 60, wave: 'sine', gain: 0.25 }, hush: { filter: 'bandpass', freq: 700, q: 0.8, gain: 0.6 }, wobble: { hz: 0.1, depth: 0.4 } },
-    hub: { level: 0.4, tone: { freq: 55, wave: 'sine', gain: 0.4 } },
     // the corridor you stand in: air in the ducts
     pasillo: { level: 0.5, hush: { filter: 'bandpass', freq: 220, q: 0.9, gain: 0.7 } },
 };

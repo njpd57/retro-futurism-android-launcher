@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { pendingAlerts, type AlertContext } from '../alerts';
 
 const MIN = 60_000;
-const on = { event: true, battery: true, alarm: true };
-const base = (over: Partial<AlertContext> = {}): AlertContext => ({ now: new Date(2026, 9, 19, 12, 0), events: [], battery: null, nextAlarm: null, reminders: [], ...over });
+const on = { event: true, battery: true, alarm: true, site: true };
+const base = (over: Partial<AlertContext> = {}): AlertContext => ({ now: new Date(2026, 9, 19, 12, 0), events: [], battery: null, nextAlarm: null, reminders: [], sitesDown: [], ...over });
 const none = new Set<string>();
 
 describe('event alerts', () =>
@@ -87,7 +87,26 @@ describe('reminder alerts', () =>
 
     it('come first and ignore the per-kind switches', () =>
     {
-        const out = pendingAlerts(base({ reminders: [{ id: 'a', at: 0, text: 'x', done: false }], battery: { level: 3, isCharging: false } }), { event: false, battery: true, alarm: false }, none);
+        const out = pendingAlerts(base({ reminders: [{ id: 'a', at: 0, text: 'x', done: false }], battery: { level: 3, isCharging: false } }), { event: false, battery: true, alarm: false, site: true }, none);
         expect(out.map(a => a.kind)).toEqual(['reminder', 'battery']);
+    });
+});
+
+describe('site alerts', () =>
+{
+    const down = [{ host: 'QUICKWARE.CL', since: new Date(2026, 9, 19, 11, 5).getTime() }];
+
+    it('warns of a site that is down, with the time it fell', () =>
+    {
+        const [a] = pendingAlerts(base({ sitesDown: down }), on, none);
+        expect(a.kind).toBe('site');
+        expect(a.text).toBe('SITIO CAÍDO: QUICKWARE.CL — DESDE 11:05');
+    });
+
+    it('is silent when switched off, and stays dismissed by id', () =>
+    {
+        expect(pendingAlerts(base({ sitesDown: down }), { ...on, site: false }, none)).toEqual([]);
+        const [a] = pendingAlerts(base({ sitesDown: down }), on, none);
+        expect(pendingAlerts(base({ sitesDown: down }), on, new Set([a.id]))).toEqual([]);
     });
 });

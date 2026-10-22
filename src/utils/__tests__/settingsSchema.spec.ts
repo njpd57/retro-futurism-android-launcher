@@ -39,7 +39,7 @@ describe('settings schema', () =>
             'phosphor', 'bloom', 'scanlines', 'flicker', 'vignette', 'sweep', 'curvature', 'curvatureBend', 'curvatureCorners',
             'curvatureShade', 'tubePower', 'autoDegauss', 'phosphorBurn', 'clearBurn', 'imageFilter', 'showIcons', 'labelCase',
             'soundUi', 'soundAmbient', 'volume', 'haptics', 'bootSequence', 'idleMinutes', 'nightShift', 'hypersleep', 'protocols',
-            'alertsEvent', 'alertsBattery', 'alertsAlarm', 'alertsKlaxon', 'showType', 'folderBoxes', 'appsLayout', 'bridgeButton',
+            'alertsEvent', 'alertsBattery', 'alertsAlarm', 'alertsSites', 'alertsKlaxon', 'showType', 'folderBoxes', 'appsLayout', 'bridgeButton',
             'ownStatusBar', 'resetPanels', 'hidden', 'permissions', 'backup', 'diagnostic',
         ])
             expect(rows.has(k), k).toBe(true);

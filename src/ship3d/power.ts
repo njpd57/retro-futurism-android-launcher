@@ -19,8 +19,8 @@ export function frameWait(mode: FpsMode, active: boolean, low: boolean): number
     return active ? (low ? fps30 : fps60) : 100;
 }
 
-/** Device pixels drawn per CSS pixel. */
-export const renderScale = (dpr: number, low: boolean): number => Math.min(dpr || 1, low ? 1 : 1.5);
+/** Device pixels drawn per CSS pixel: a sharp picture is what keeps thin edges from crawling, so 2 unless the battery is low. */
+export const renderScale = (dpr: number, low: boolean): number => Math.min(dpr || 1, low ? 1 : 2);
 
 export const LOOK_MIN = 50;
 export const LOOK_MAX = 200;

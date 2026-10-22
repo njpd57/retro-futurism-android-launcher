@@ -17,7 +17,7 @@ const level = (zone: string) => roomLevel(props.readings, zone);
 <template>
     <div class="minimap" data-no-swipe>
         <svg :width="map.w" :height="map.h" :viewBox="`0 0 ${map.w} ${map.h}`">
-            <polygon v-for="r in map.rooms" :key="r.id" class="room" :class="[r.zone === 'pasillo' || r.zone === 'hub' ? 'hall' : level(r.zone), { go: r.id in STANDS }]"
+            <polygon v-for="r in map.rooms" :key="r.id" class="room" :class="[r.zone === 'pasillo' ? 'hall' : level(r.zone), { go: r.id in STANDS }]"
                 :points="r.points" @click.stop="r.id in STANDS && emit('go', r.id)" />
             <polygon class="you" :points="map.you" />
         </svg>

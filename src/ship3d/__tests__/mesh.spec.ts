@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ATLAS_H, ATLAS_W, COLS, ROWS, SLOT, slotRect, slotUv } from '../atlas';
 import { nearestLights, packLights } from '../lights';
-import { buildMesh, MAT, MAT_STYLE, screenFrame, STRIDE, STYLE, stencilSpot } from '../mesh';
+import { buildMesh, CELL, MAT, MAT_STYLE, screenFrame, STRIDE, STYLE, stencilSpot, tessellate } from '../mesh';
 import { STENCIL_PLATES, STENCILS } from '../labels';
 import { bounds, LIGHTS, PORTALS, ROOMS, roomAt, SCREENS } from '../world';
 
@@ -45,10 +45,22 @@ describe('buildMesh', () =>
         }
     });
 
-    it('stays near the budget of the plain ship, with the details of phase 3', () =>
+    it('stays within a vertex budget: the big surfaces are cut into cells, which is what holds the baked light', () =>
     {
-        // 6810 vertices before the details; they may add at most 40 %
-        expect(mesh.vertices).toBeLessThan(6810 * 1.4);
+        expect(mesh.vertices).toBeGreaterThan(20000);
+        expect(mesh.vertices).toBeLessThan(70000);
+    });
+
+    it('carries a baked occlusion between 0 and 1 and a lamp light that is not negative', () =>
+    {
+        for (let i = 0; i < mesh.vertices; i++)
+        {
+            const [ao, lit] = [mesh.data[i * STRIDE + 10], mesh.data[i * STRIDE + 11]];
+            expect(ao).toBeGreaterThan(0);
+            expect(ao).toBeLessThanOrEqual(1);
+            expect(lit).toBeGreaterThanOrEqual(0);
+            expect(Number.isFinite(lit)).toBe(true);
+        }
     });
 
     it('carries each room style in its walls, floors and ceilings', () =>
@@ -156,5 +168,31 @@ describe('stencils', () =>
             for (const sc of SCREENS) expect(Math.hypot(sc.x - spot.x, sc.y - spot.y), `${s.room} near ${sc.id}`).toBeGreaterThan(1.8);
             expect(STENCIL_PLATES + i).toBeLessThan(28);
         }
+    });
+});
+
+describe('tessellate', () =>
+{
+    const area = (p: readonly [number, number][]) => Math.abs(p.reduce((a, q, i) => a + q[0] * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * q[1], 0)) / 2;
+
+    it('keeps the whole floor: the pieces add up to the room, each inside one cell', () =>
+    {
+        for (const room of ROOMS)
+        {
+            const pieces = tessellate(room.poly);
+            expect(pieces.reduce((a, p) => a + area(p), 0), room.id).toBeCloseTo(area(room.poly), 4);
+            for (const p of pieces)
+            {
+                const [xs, ys] = [p.map(q => q[0]), p.map(q => q[1])];
+                expect(Math.max(...xs) - Math.min(...xs)).toBeLessThanOrEqual(CELL + 1e-9);
+                expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(CELL + 1e-9);
+            }
+        }
+    });
+
+    it('cuts a big room into many cells and leaves a cell-sized one whole', () =>
+    {
+        expect(tessellate([[0, 0], [4, 0], [4, 3], [0, 3]])).toHaveLength(12);
+        expect(tessellate([[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]])).toHaveLength(1);
     });
 });

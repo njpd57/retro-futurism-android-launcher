@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { collides } from '../collide';
-import { agentsOf, BUNK_SLOTS, newRoamers, SIGNAL_SLOTS, stationaryAgents, stepRoamer } from '../crew';
+import { agentsOf, CONTACT_SEATS, newRoamers, SEATS, SIGNAL_SLOTS, stationaryAgents, stepRoamer } from '../crew';
 import { DOOR_RANGE, shutDoors, stepDoors } from '../doors';
 import { figureVertices } from '../figures';
 import { buildMesh, MAT, STRIDE } from '../mesh';
 import { pickAgent } from '../pick';
-import { collisionSegments, inside, PORTALS, ROOMS, roomAt } from '../world';
+import { collisionSegments, inside, PORTALS, ROOMS, roomAt, TABLE_R } from '../world';
 import { EYE_HEIGHT } from '../math';
 
 const segs = collisionSegments();
@@ -63,10 +63,13 @@ describe('stationary crew', () =>
             expect(roomAt(s.x, s.y)?.id).toBe('comms');
             expect(collides(segs, s.x, s.y, 0.25)).toBe(false);
         }
-        for (const s of BUNK_SLOTS)
+        // at the mess table: on a chair (solid, so not walked into), facing the middle, between the table and the wall
+        for (const s of SEATS)
         {
             expect(roomAt(s.x, s.y)?.id).toBe('comedor');
-            expect(collides(segs, s.x, s.y, 0.25)).toBe(false);
+            expect(Math.hypot(s.x, s.y)).toBeGreaterThan(TABLE_R + 0.3);
+            const ahead = [s.x + Math.sin(s.yaw), s.y - Math.cos(s.yaw)];
+            expect(Math.hypot(ahead[0], ahead[1])).toBeCloseTo(Math.hypot(s.x, s.y) - 1, 5);
         }
     });
 
@@ -74,7 +77,17 @@ describe('stationary crew', () =>
     {
         expect(stationaryAgents(0, 0)).toHaveLength(0);
         expect(stationaryAgents(3, 2).map(a => a.kind)).toEqual(['signal', 'signal', 'signal', 'contact', 'contact']);
-        expect(stationaryAgents(99, 99)).toHaveLength(SIGNAL_SLOTS.length + BUNK_SLOTS.length);
+        expect(stationaryAgents(99, 99)).toHaveLength(SIGNAL_SLOTS.length + CONTACT_SEATS);
+        expect(stationaryAgents(99, 99, 99)).toHaveLength(SIGNAL_SLOTS.length + SEATS.length);
+    });
+
+    it('fill the table with the starred contacts first, then the rest of the crew, all seated', () =>
+    {
+        const table = stationaryAgents(0, 2, 5);
+        expect(table.map(a => a.kind)).toEqual(['contact', 'contact', 'diner', 'diner', 'diner']);
+        expect(table.every(a => a.seated)).toBe(true);
+        expect(table.filter(a => a.plate !== undefined)).toHaveLength(2);
+        expect(new Set(table.map(a => `${a.x},${a.y}`)).size).toBe(5);
         expect(stationaryAgents(-2, -2)).toHaveLength(0);
     });
 });

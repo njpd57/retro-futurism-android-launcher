@@ -22,9 +22,9 @@ describe('roomPath', () =>
 {
     it('is empty in the same room and goes door by door otherwise', () =>
     {
-        expect(roomPath('hub', 'hub')).toEqual([]);
-        expect(roomPath('puente', 'hub')?.map(p => p.room)).toEqual(['p-puente', 'hub']);
-        expect(roomPath('hangar', 'puente')?.map(p => p.room)).toEqual(['p-hangar', 'motor', 'p-motor', 'bodega', 'p-bodega', 'hub', 'p-puente', 'puente']);
+        expect(roomPath('comedor', 'comedor')).toEqual([]);
+        expect(roomPath('puente', 'comedor')?.map(p => p.room)).toEqual(['p-puente', 'comedor']);
+        expect(roomPath('hangar', 'puente')?.map(p => p.room)).toEqual(['p-hangar', 'motor', 'p-motor', 'bodega', 'p-bodega', 'comedor', 'p-puente', 'puente']);
     });
 });
 
@@ -58,7 +58,7 @@ describe('glideRoute', () =>
     {
         expect(glideRoute(0, -11.8, 'bodega')?.[0]).toEqual([0, -11.8]);
         expect(glideRoute(0, -11.8, 'nowhere')).toBeNull();
-        expect(glideRoute(500, 500, 'hub')).toBeNull();
+        expect(glideRoute(500, 500, 'comedor')).toBeNull();
     });
 });
 

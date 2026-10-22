@@ -11,7 +11,7 @@ describe('voices', () =>
 {
     it('define every zone and breathe within what a gain can take', () =>
     {
-        for (const z of ['puente', 'comms', 'motor', 'bodega', 'enfermeria', 'hipersueno', 'comedor', 'hangar', 'hub', 'pasillo'] as Zone[])
+        for (const z of ['puente', 'comms', 'motor', 'bodega', 'enfermeria', 'hipersueno', 'comedor', 'camarotes', 'hangar', 'pasillo'] as Zone[])
         {
             const v = VOICES[z];
             expect(v, z).toBeDefined();
@@ -36,7 +36,7 @@ describe('hearing the ship', () =>
 
     it('lets a neighbour through a doorway, more when it is open', () =>
     {
-        // in the hub, a few steps from the door to the sickbay
+        // in the mess, a few steps from the door to the sickbay
         const closed = hear(2, 0, 0, shut).enfermeria.gain;
         const wide = hear(2, 0, 0, open).enfermeria.gain;
         expect(closed).toBeGreaterThan(0);
@@ -52,7 +52,7 @@ describe('hearing the ship', () =>
 
     it('puts a sound on the side it comes from', () =>
     {
-        // standing in the hub facing north: the sickbay is east (right), COMMS west (left)
+        // standing in the mess facing north: the sickbay is east (right), COMMS west (left)
         const h = hear(0, 2, 0, open);
         expect(h.enfermeria.pan).toBeGreaterThan(0.3);
         expect(h.comms.pan).toBeLessThan(-0.3);
@@ -64,8 +64,8 @@ describe('hearing the ship', () =>
 
     it('always hears the corridor it stands in, and only that one', () =>
     {
-        expect(hear(0, -7, 0, shut).pasillo.gain).toBe(1);
-        expect(hear(0, -7, 0, shut).hub.gain).toBeGreaterThan(0);
+        expect(hear(0, -10, 0, shut).pasillo.gain).toBe(1);
+        expect(hear(0, -9, 0, shut).comedor.gain).toBeGreaterThan(0);
     });
 
     it('is silent outside the ship', () =>

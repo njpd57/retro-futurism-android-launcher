@@ -114,6 +114,7 @@ export const SETTINGS_SECTIONS: SettingSection[] = [
             { kind: 'toggle', key: 'alertsEvent', label: 'ALERTA: EVENTO PRÓXIMO', hint: 'AVISO ANTES DE UN EVENTO DEL CALENDARIO' },
             { kind: 'toggle', key: 'alertsBattery', label: 'ALERTA: BATERÍA CRÍTICA', hint: 'AVISO CON LA BATERÍA BAJA' },
             { kind: 'toggle', key: 'alertsAlarm', label: 'ALERTA: ALARMA DE NOCHE', hint: 'DE NOCHE, AVISA CUANDO LA ALARMA ESTÁ CERCA' },
+            { kind: 'toggle', key: 'alertsSites', label: 'ALERTA: SITIO CAÍDO', hint: 'AVISO CUANDO UN SITIO DE CENTINELA DEJA DE RESPONDER' },
             { kind: 'toggle', key: 'alertsKlaxon', label: 'KLAXON DE ALERTA', hint: 'SIRENA AL SALTAR UNA ALERTA (CON SONIDO ACTIVO)' },
         ],
     },
@@ -180,7 +181,7 @@ export function summary(sectionId: string, values: SettingValues): string
         case 'tube': return `${count(values, ['scanlines', 'flicker', 'vignette', 'sweep', 'curvature'])}/5 EFECTOS`;
         case 'sound': return values.soundUi || values.soundAmbient ? `${choiceLabel(findRow('sound', 'soundProfile'), values.soundProfile)} · ${pct(values.volume)}` : 'SILENCIO';
         case 'apps': return values.folderBoxes ? choiceLabel(findRow('apps', 'appsLayout'), values.appsLayout) : 'LISTA';
-        case 'shift': return `${count(values, ['alertsEvent', 'alertsBattery', 'alertsAlarm'])}/3 ALERTAS`;
+        case 'shift': return `${count(values, ['alertsEvent', 'alertsBattery', 'alertsAlarm', 'alertsSites'])}/4 ALERTAS`;
         case 'mother': return values.motherKey ? 'EN LÍNEA' : 'SIN CLAVE';
         default: return '';
     }

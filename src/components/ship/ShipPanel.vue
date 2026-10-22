@@ -14,6 +14,7 @@ import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useSystemStatusStore } from '@/stores/useSystemStatusStore';
 import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useShipClockStore } from '@/stores/useShipClockStore';
 import { useShipStore } from '@/stores/useShipStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import { ATLAS_H, ATLAS_W, drawAtlas, drawLabels } from '@/ship3d/atlas';
@@ -23,14 +24,15 @@ import { nearestLights, packLights } from '@/ship3d/lights';
 import { buildMesh } from '@/ship3d/mesh';
 import { roomLevel, roomReadings, type Level } from '@/ship3d/readings';
 import { eyeHeight, stepWalk, walker, type Walker } from '@/ship3d/walk';
-import { agentsOf, BUNK_SLOTS, newRoamers, SIGNAL_SLOTS, stationaryAgents, stepRoamer, type Agent } from '@/ship3d/crew';
+import { agentsOf, CONTACT_SEATS, newRoamers, SIGNAL_SLOTS, stationaryAgents, stepRoamer, type Agent } from '@/ship3d/crew';
 import { stepKind } from '@/ship3d/acoustics';
 import { frameWait, lookScale, lowPower, renderScale } from '@/ship3d/power';
 import { shutDoors, stepDoors } from '@/ship3d/doors';
-import { figureVertices, plateVertices, shuttleVertices, type CrewLook } from '@/ship3d/figures';
+import { birdVertices, figureVertices, plateVertices, shuttleVertices, type CrewLook } from '@/ship3d/figures';
 import { headTurn } from '@/ship3d/pose';
 import { hudLine, nextAlertRoom, turnToward } from '@/ship3d/hud';
 import { CONTACT_PLATES, plateTexts, SIGNAL_PLATES, withStencils } from '@/ship3d/labels';
+import { dinerLine, dinersAt } from '@/ship3d/mess';
 import { glideRoute, GLIDE_SPEED, pointAt, routeLength } from '@/ship3d/glide';
 import { pickAgent, pickScreen, pickShuttle, REACH } from '@/ship3d/pick';
 import { wrapAngle } from '@/ship3d/math';
@@ -50,6 +52,7 @@ const notifications = useNotificationsStore();
 const contacts = useContactsStore();
 const launcher = useLaunchStore();
 const system = useSystemStatusStore();
+const clock = useShipClockStore();
 /** the battery is low and not charging: 30 frames a second, a smaller picture and no bloom */
 const saving = computed(() => lowPower(system.battery));
 const input = useShipInput();
@@ -80,7 +83,7 @@ let backgrounded = false;
 // ---- what the crew and the shuttles stand for: the apps with signals, the starred contacts, the favourite apps
 const labelOf = (pkg: string) => appLabelFor(pkg, appsStore.apps);
 const signalApps = computed(() => radarContacts(notifications.visible, SIGNAL_SLOTS.length));
-const starred = computed(() => contacts.starred.slice(0, BUNK_SLOTS.length));
+const starred = computed(() => contacts.starred.slice(0, CONTACT_SEATS));
 const bays = computed(() => hangarBays(settings.favorites.length));
 const plates = computed(() =>
 {
@@ -103,7 +106,10 @@ let agents: Agent[] = [];
 const heads = new Map<string, number>();
 /** radians per second a head turns */
 const HEAD_SPEED = 2.5;
-const stay = computed(() => stationaryAgents(signalApps.value.length, starred.value.length));
+// the crew at the mess table: most of them at mealtimes
+const stay = computed(() => stationaryAgents(signalApps.value.length, starred.value.length, dinersAt(clock.now)));
+/** how many times the table has been talked to, so a diner doesn't repeat itself */
+let chats = 0;
 const lightZone = LIGHTS.map(l => roomAt(l.x, l.y)?.zone);
 const levels = computed(() => Object.fromEntries(ROOMS.map(r => [r.zone, roomLevel(readings.value, r.zone)])) as Record<string, Level>);
 const hull = bounds();
@@ -222,6 +228,7 @@ function frame(now: number)
     const blink = reducedMotion || Math.floor(now / BLINK_MS) % 2 === 0;
     gl.setCrew(joined(
         figureVertices(agents, reducedMotion ? 0 : now / 1000, new Set(roamers.filter(r => r.route).map(r => r.id)), crewLook(dt)),
+        birdVertices(reducedMotion ? 0 : now / 1000),
         settings.shipLabels ? plateVertices(agents, body.yaw) : new Float32Array(0),
         shuttles.value,
     ));
@@ -355,6 +362,7 @@ function onTap(clientX: number, clientY: number)
             const c = starred.value[(plate ?? CONTACT_PLATES) - CONTACT_PLATES];
             if (c) contacts.openContact(c); else ship.openCard('comedor');
         }
+        else if (kind === 'diner') say(`TRIPULANTE: ${dinerLine(person.agent.id, chats++)}`);
         else if (kind === 'cat') { sound.play('shipMeow'); say('JONES: MIAU'); }
         else { sound.play('shipAsh'); say(`ASH: ${readings.value['enfermeria.sistema']?.lines.join(' ') ?? 'NOMINAL'}`); }
         return;
@@ -437,17 +445,27 @@ onMounted(() =>
     if (!gl) { unsupported.value = true; return; }
     palette();
     paintAtlas(true);
+    // the detail of the surfaces: brightness and relief (see scripts/pack_ship_textures.py); flat until they arrive
+    for (const name of ['wall', 'floor', 'ceiling', 'prop'] as const)
+    {
+        const img = new Image();
+        img.onload = () => gl?.setDetail(name, img);
+        img.src = `${import.meta.env.BASE_URL}ship/${name}.png`;
+    }
     // the monitors' font may still be loading
     document.fonts?.ready.then(() => { atlasDirty = true; });
     raf = requestAnimationFrame(frame);
     bridgeEvents.addEventListener(onBridgeEvent);
     sound.setShip(true);
+    // the tube's scan lines are as strong over the ship as over text, and they beat against its edges: soften them here
+    document.documentElement.style.setProperty('--scan-alpha', '0.12');
 });
 
 onBeforeUnmount(() =>
 {
     cancelAnimationFrame(raf);
     sound.setShip(false);
+    document.documentElement.style.removeProperty('--scan-alpha');
     bridgeEvents.removeEventListener(onBridgeEvent);
     ship.pose = { x: body.x, y: body.y, yaw: body.yaw, pitch: body.pitch };
     clearTimeout(hintTimer);
