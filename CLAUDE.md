@@ -52,7 +52,6 @@ Keep `.claude/` (other agents' worktrees) out of commits.
 - **Target is our Bridge fork** ([njpd57/bridge-launcher](https://github.com/njpd57/bridge-launcher), at `~/Projects/bridge-launcher`), not stock Bridge. `BRIDGE_LAUNCHER_GUIDE.md` is the reference (stock API section 4, fork API section 5, extending the fork section 11); read it before building on `Bridge.*`.
 - **Fork methods are not in `@bridgelauncher/api`.** Keep three things in sync with the Kotlin name: the module augmentation in `src/types/bridge-fork.d.ts`, `ForkBridgeMock`, and the call behind `bridgeHas()` (`src/utils/bridgeHas.ts`) with a web fallback; also add it to `DIAGNOSTIC_METHODS` in `SettingsPanel`.
 - **Calling a method the installed Bridge lacks throws**, and inside a store setup that breaks the whole launcher. Guard with `bridgeHas()` anything not tried on the device. The older `useTogglesStore` and `useWindowInsetsStore` still call getters unguarded.
-- **Window insets** are only correct on the fork (it fixes swapped top/left and the event format); `statusBars` insets are 0 while the bar is hidden, use the `IgnoringVisibility` variants.
 - **The API can't** receive back-button events (use `history.pushState`), embed native widgets, or open intents beyond the guide's list. Notifications need the fork; app shortcuts need Bridge as default launcher. Don't design features that need more.
 
 ## Where to look

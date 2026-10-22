@@ -9,7 +9,7 @@ const props = defineProps<{ pose: ShipPose; readings: Record<string, ScreenReadi
 /** tapping a room takes the camera there */
 const emit = defineEmits<{ go: [room: string] }>();
 
-const SCALE = 1.7;
+const SCALE = 1.2;
 const map = computed(() => miniMap(props.pose, SCALE));
 const level = (zone: string) => roomLevel(props.readings, zone);
 </script>

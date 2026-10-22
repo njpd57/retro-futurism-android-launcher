@@ -7,16 +7,20 @@ export const LOW_BATTERY = 20;
 
 export const lowPower = (b: BatteryLike | null | undefined): boolean => !!b && !b.isCharging && b.level < LOW_BATTERY;
 
-export type FpsMode = 'eco' | '30' | '60';
+export type FpsMode = 'eco' | '30' | '60' | '120';
 
 /** Milliseconds between frames (a little under, so a frame doesn't slip a vsync). AHORRO draws 60 moving and 10 idle; low power caps everything at 30 moving. */
 export function frameWait(mode: FpsMode, active: boolean, low: boolean): number
 {
     const fps30 = 1000 / 30 - 2;
     const fps60 = 1000 / 60 - 2;
+    const fps120 = 1000 / 120 - 2;
+
     if (mode === '30') return fps30;
     if (mode === '60') return low ? fps30 : fps60;
-    return active ? (low ? fps30 : fps60) : 100;
+    if (mode === '120') return low ? fps30 : fps120;
+    if (mode === 'eco') return active ? (low ? fps30 : fps120) : 1000 / 10 - 2;
+    throw new Error(`Unknown FPS mode ${mode}`);
 }
 
 /** Device pixels drawn per CSS pixel: a sharp picture is what keeps thin edges from crawling, so 2 unless the battery is low. */

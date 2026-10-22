@@ -84,7 +84,7 @@ export const useSettingsStore = defineStore('settings', () =>
     const appsLayout = useLocalStorage<'boxes' | 'deck'>('settings.appsLayout', 'boxes');
     // PANEL as a first-person walk through the ship instead of the grid of windows, and how often it redraws
     const shipPanel = useLocalStorage('settings.shipPanel', false);
-    const shipFps = useLocalStorage<'eco' | '30' | '60'>('settings.shipFps', 'eco');
+    const shipFps = useLocalStorage<'eco' | '30' | '60' | '120'>('settings.shipFps', 'eco');
     // lamps and monitors glow in the ship (extra GPU passes, so off unless asked for)
     const shipBloom = useLocalStorage('settings.shipBloom', false);
     /** where Home leaves the camera: back on the bridge, or where it was */

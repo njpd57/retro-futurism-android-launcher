@@ -20,7 +20,7 @@ export interface WalkInput
 export const WALK = {
     radius: 0.3,
     /** metres per second */
-    speed: 20,
+    speed: 10,
     back: 4,
     strafe: 5.2,
     /** how quickly the speed follows what the stick asks (per second): short, so it feels direct but never jerks */
