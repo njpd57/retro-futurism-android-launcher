@@ -20,11 +20,20 @@ export function usePausableInterval(fn: () => void, ms: number)
         else if (ev.name === 'afterResume') begin();
     }
 
+    // Bridge's resume event can go missing (screen off, app returning), so the page's own visibility also drives it
+    function onVisibility()
+    {
+        if (document.hidden) clear();
+        else begin();
+    }
+
     bridgeEvents.addEventListener(onBridgeEvent);
+    document.addEventListener('visibilitychange', onVisibility);
     onBeforeUnmount(() =>
     {
         wanted = false;
         clear();
+        document.removeEventListener('visibilitychange', onVisibility);
         bridgeEvents.removeEventListener(onBridgeEvent);
     });
 
