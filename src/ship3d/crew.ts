@@ -1,10 +1,20 @@
 import { glideRoute, pointAt, routeLength, STANDS } from './glide';
+import { CONTACT_PLATES, SIGNAL_PLATES } from './labels';
 import type { V2 } from './world';
 
 /** Who is aboard: a crew member per app with notifications waiting, the starred contacts, Jones and the android. */
 export type AgentKind = 'signal' | 'contact' | 'cat' | 'android';
 
-export interface Agent { id: string; kind: AgentKind; x: number; y: number; yaw: number }
+export interface Agent
+{
+    id: string;
+    kind: AgentKind;
+    x: number;
+    y: number;
+    yaw: number;
+    /** the name plate floating over its head (see `labels.ts`), if it has one */
+    plate?: number;
+}
 
 interface Slot { x: number; y: number; yaw: number }
 
@@ -24,8 +34,8 @@ export const BUNK_SLOTS: readonly Slot[] = [
 export function stationaryAgents(signals: number, contacts: number): Agent[]
 {
     const out: Agent[] = [];
-    SIGNAL_SLOTS.slice(0, Math.max(0, signals)).forEach((s, i) => out.push({ id: `signal${i}`, kind: 'signal', ...s }));
-    BUNK_SLOTS.slice(0, Math.max(0, contacts)).forEach((s, i) => out.push({ id: `contact${i}`, kind: 'contact', ...s }));
+    SIGNAL_SLOTS.slice(0, Math.max(0, signals)).forEach((s, i) => out.push({ id: `signal${i}`, kind: 'signal', ...s, plate: SIGNAL_PLATES + i }));
+    BUNK_SLOTS.slice(0, Math.max(0, contacts)).forEach((s, i) => out.push({ id: `contact${i}`, kind: 'contact', ...s, plate: CONTACT_PLATES + i }));
     return out;
 }
 

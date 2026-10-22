@@ -124,6 +124,10 @@ export function roomReadings(i: ShipInput): Record<string, ScreenReading>
 
     put(idle('hangar.flota', i.shuttles === 1 ? '1 LANZADERA' : `${i.shuttles} LANZADERAS`));
 
+    // the hub's terminal: a tap searches the apps or talks to MOTHER
+    put(idle('hub.buscar', 'TERMINAL', '> BUSCAR APP'));
+    put(idle('hub.mother', 'MOTHER', '> CONSULTAR'));
+
     for (const s of SCREENS) out[s.id] ??= idle(s.id, 'SIN DATOS');
     return out;
 }

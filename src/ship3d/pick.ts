@@ -1,7 +1,7 @@
 import type { Agent } from './crew';
 import { rayCylinder, rayFromPixel, rayRect, type V3 } from './math';
 import { screenFrame } from './mesh';
-import { collisionSegments, ROOMS, SCREENS, type ScreenDef, type Seg } from './world';
+import { collisionSegments, ROOMS, SCREENS, type Bay, type ScreenDef, type Seg } from './world';
 
 /** Walls only (no props): a monitor can be seen over a crate, never through a wall. */
 const WALLS: readonly Seg[] = collisionSegments(ROOMS, []);
@@ -73,5 +73,22 @@ export function pickAgent(agents: readonly Agent[], eye: V3, yaw: number, pitch:
         if (t === null || t > wall + 0.05) continue;
         if (!best || t < best.distance) best = { agent: a, distance: t };
     }
+    return best;
+}
+
+export interface BayPick { index: number; distance: number }
+
+/** The nearest shuttle under pixel (px, py), by its index in `bays`, or null. */
+export function pickShuttle(bays: readonly Bay[], eye: V3, yaw: number, pitch: number, w: number, h: number, px: number, py: number): BayPick | null
+{
+    const ray = rayFromPixel(eye, yaw, pitch, w, h, px, py);
+    const wall = wallDistance(ray.o, ray.d);
+    let best: BayPick | null = null;
+    bays.forEach((bay, index) =>
+    {
+        const t = rayCylinder(ray, bay.x, bay.y, 1.7, 0, bay.prop.z0 + bay.prop.h + 0.6);
+        if (t === null || t > wall + 0.05) return;
+        if (!best || t < best.distance) best = { index, distance: t };
+    });
     return best;
 }

@@ -51,7 +51,8 @@ export interface Light { x: number; y: number; z: number; power: number }
 export interface ScreenDef
 {
     id: string;
-    zone: RoomId;
+    /** the room whose card it opens; the hub's terminal opens the search and MOTHER instead */
+    zone: RoomId | 'hub';
     x: number;
     y: number;
     /** height of its centre above the floor */
@@ -145,9 +146,20 @@ const pods = (cx: number, cy: number, radius: number): Prop[] =>
         return cyl(round(cx + radius * Math.cos(a)), round(cy + radius * Math.sin(a)), 1.4, 1.1, { glow: 0.55 });
     });
 
+/** The middle of the hub's diagonal side toward `(sx, sy)` (each ±1), its inward normal and the yaw along it. */
+function hubSide(sx: number, sy: number)
+{
+    const m = (HUB_A + HUB_A * Math.tan(Math.PI / 8)) / 2;
+    return { x: round(sx * m), y: round(sy * m), nx: -sx / Math.SQRT2, ny: -sy / Math.SQRT2, yaw: (-sx * sy * Math.PI) / 4 };
+}
+
+/** The hub's terminal: a console under each monitor on the two front diagonals (search on the right, MOTHER on the left). */
+const HUB_TERMINAL = [hubSide(1, -1), hubSide(-1, -1)];
+
 export const PROPS: readonly Prop[] = [
-    // hub: a column of light in the middle
+    // hub: a column of light in the middle and the terminal's two consoles
     cyl(0, 0, 1.2, 5, { glow: 0.5 }),
+    ...HUB_TERMINAL.map(h => box(round(h.x + h.nx * 0.45), round(h.y + h.ny * 0.45), 2.4, 0.6, 1, { yaw: h.yaw })),
     // bridge: three consoles under the dome, the middle of the floor left open
     box(-4.8, -13.8, 3, 1.2, 1, { yaw: -0.55 }),
     box(0, -15.6, 3.4, 1.2, 1),
@@ -169,15 +181,40 @@ export const PROPS: readonly Prop[] = [
     ...pods(23, 18.6, 3.6),
     // engine room: the reactor core
     cyl(0, 39.6, 4.4, 6, { glow: 0.55 }),
-    // hangar: three shuttles
-    box(-7, 62, 4, 7, 2.2), box(7, 62, 4, 7, 2.2), box(0, 66, 3.4, 3.4, 1.6),
+    // the hangar's shuttles are the favourite apps: see `hangarBays`
 ];
+
+/** A shuttle in the hangar: one per favourite app, in two rows facing the middle aisle. */
+export interface Bay
+{
+    x: number;
+    y: number;
+    /** unit plan normal of the side that faces the aisle, where its name is painted */
+    nx: number;
+    /** across x 3.4 m, along y 3 m */
+    prop: Prop;
+}
+
+export const MAX_BAYS = 6;
+const BAY_ROWS = [58.4, 63, 67.6];
+
+/** Where the first `n` favourite apps are parked: left then right, front row first, up to `MAX_BAYS`. */
+export function hangarBays(n: number): Bay[]
+{
+    return Array.from({ length: Math.max(0, Math.min(MAX_BAYS, n)) }, (_, i) =>
+    {
+        const side = i % 2 === 0 ? -1 : 1;
+        const x = side * 7.5;
+        const y = BAY_ROWS[Math.floor(i / 2)];
+        return { x, y, nx: -side, prop: box(x, y, 3.4, 3, 1.6, { z0: 0.3 }) };
+    });
+}
 
 /** The unit vector `(dx, dy)` of a wall side that faces `face`. */
 const NORMAL = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] } as const;
 
 /** A monitor standing off the wall at `(x, y)`, facing `(nx, ny)`. */
-function screenAt(id: string, zone: RoomId, x: number, y: number, nx: number, ny: number, w = 2.4, h = 1.3, z = 1.7): ScreenDef
+function screenAt(id: string, zone: ScreenDef['zone'], x: number, y: number, nx: number, ny: number, w = 2.4, h = 1.3, z = 1.7): ScreenDef
 {
     return { id, zone, x: round(x + nx * SCREEN_OFFSET), y: round(y + ny * SCREEN_OFFSET), z, w, h, yaw: yawOf(nx, ny) };
 }
@@ -212,6 +249,7 @@ export const SCREENS: readonly ScreenDef[] = [
     onWall('hipersueno.alarma', 'hipersueno', 21, 12.6, 'S'), onWall('hipersueno.agenda', 'hipersueno', 25, 12.6, 'S'),
     onWall('motor.reserva', 'motor', -8, 37, 'E'), onWall('motor.enlace', 'motor', 8, 37, 'W'),
     onWall('hangar.flota', 'hangar', 0, 70.6, 'N', 4, 2, 2),
+    ...HUB_TERMINAL.map((h, k) => screenAt(k === 0 ? 'hub.buscar' : 'hub.mother', 'hub', h.x, h.y, h.nx, h.ny, 2, 1.1)),
 ];
 
 export const roomById = (id: string): Room | undefined => ROOMS.find(r => r.id === id);

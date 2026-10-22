@@ -5,8 +5,15 @@ export const CELL_W = 256;
 export const CELL_H = 128;
 export const COLS = 4;
 export const ROWS = 5;
+/** Below the monitors, a band of name plates: the crew's apps and names and the shuttles' apps. */
+export const LABEL_W = 256;
+export const LABEL_H = 64;
+export const LABEL_COLS = 4;
+export const LABEL_ROWS = 4;
+export const LABEL_SLOTS = LABEL_COLS * LABEL_ROWS;
+const LABELS_Y = ROWS * CELL_H;
 export const ATLAS_W = COLS * CELL_W;
-export const ATLAS_H = ROWS * CELL_H;
+export const ATLAS_H = LABELS_Y + LABEL_ROWS * LABEL_H;
 
 /** Slot of each monitor, in `SCREENS` order. */
 export const SLOT: Readonly<Record<string, number>> = Object.fromEntries(SCREENS.map((s, i) => [s.id, i]));
@@ -19,12 +26,18 @@ export function slotRect(i: number): Rect
     return { x: (i % COLS) * CELL_W, y: Math.floor(i / COLS) * CELL_H, w: CELL_W, h: CELL_H };
 }
 
+const toUv = (r: Rect): [number, number, number, number] => [r.x / ATLAS_W, r.y / ATLAS_H, (r.x + r.w) / ATLAS_W, (r.y + r.h) / ATLAS_H];
+
 /** The cell of slot `i` as texture coordinates `[u0, v0, u1, v1]`, with `v` 0 at the top, as the canvas is uploaded. */
-export function slotUv(i: number): [number, number, number, number]
+export const slotUv = (i: number) => toUv(slotRect(i));
+
+/** The name plate `i` in pixels. */
+export function labelRect(i: number): Rect
 {
-    const r = slotRect(i);
-    return [r.x / ATLAS_W, r.y / ATLAS_H, (r.x + r.w) / ATLAS_W, (r.y + r.h) / ATLAS_H];
+    return { x: (i % LABEL_COLS) * LABEL_W, y: LABELS_Y + Math.floor(i / LABEL_COLS) * LABEL_H, w: LABEL_W, h: LABEL_H };
 }
+
+export const labelUv = (i: number) => toUv(labelRect(i));
 
 export interface AtlasScreen { id: string; lines: string[]; level: 'idle' | 'notice' | 'urgent' }
 
@@ -34,7 +47,7 @@ export interface AtlasScreen { id: string; lines: string[]; level: 'idle' | 'not
  */
 export function drawAtlas(ctx: CanvasRenderingContext2D, screens: readonly AtlasScreen[], ph: string, bg: string, font: string, blink: boolean)
 {
-    ctx.clearRect(0, 0, ATLAS_W, ATLAS_H);
+    ctx.clearRect(0, 0, ATLAS_W, LABELS_Y);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const s of screens)
@@ -57,4 +70,23 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, screens: readonly Atlas
         ctx.fillStyle = lit ? bg : ph;
         lines.forEach((text, k) => ctx.fillText(text, x + w / 2, y + h / 2 + (k - (lines.length - 1) / 2) * step, w - 40));
     }
+}
+
+/**
+ * Paints the name plates: phosphor text on nothing (the shader drops the empty texels, so it floats), `labels[i]` in
+ * plate `i`; a missing one is left empty.
+ */
+export function drawLabels(ctx: CanvasRenderingContext2D, labels: readonly (string | undefined)[], ph: string, font: string)
+{
+    ctx.clearRect(0, LABELS_Y, ATLAS_W, ATLAS_H - LABELS_Y);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `44px ${font}`;
+    ctx.fillStyle = ph;
+    labels.slice(0, LABEL_SLOTS).forEach((text, i) =>
+    {
+        if (!text) return;
+        const { x, y, w, h } = labelRect(i);
+        ctx.fillText(text, x + w / 2, y + h / 2, w - 12);
+    });
 }

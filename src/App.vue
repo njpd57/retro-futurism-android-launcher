@@ -20,6 +20,7 @@ import AppList from '@/components/AppList.vue';
 import CrtScreen from '@/components/CrtScreen.vue';
 import Dashboard from '@/components/Dashboard.vue';
 import ShipCard from '@/components/ship/ShipCard.vue';
+import SignalScanner from '@/components/SignalScanner.vue';
 import ShipPanel from '@/components/ship/ShipPanel.vue';
 import { useShipStore } from '@/stores/useShipStore';
 import MenuItem from '@/components/MenuItem.vue';
@@ -148,7 +149,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || quarantineApp.value !== null || quarantine.pending !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open || ship.card !== null);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || quarantineApp.value !== null || quarantine.pending !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open || ship.card !== null || ship.signals !== null);
 
 function launch(app: InstalledAppInfo)
 {
@@ -233,6 +234,9 @@ const promptFocused = ref(false);
 const showCommandList = computed(() => (promptFocused.value && !query.value.trim()) || commandConsole.command.value?.type === 'help');
 const commandMatches = computed(() => commandConsole.command.value ? [] : matchCommands(query.value, 'console'));
 
+// the hub's terminal in the ship asks for the search
+watch(() => ship.search, () => prompt.value?.focus());
+
 function pickCommand(def: CommandDef)
 {
     query.value = def.args ? `${def.name} ` : def.name;
@@ -272,6 +276,7 @@ function closeOverlays()
     isolation.close();
     marines.close();
     ship.closeCard();
+    ship.closeSignals();
 }
 
 function menuAction(action: (packageName: string) => void)
@@ -417,6 +422,7 @@ onUnmounted(() =>
         <IsolationGame v-if="isolation.open" />
         <MarinesGame v-if="marines.open" />
         <ShipCard v-if="ship.card" />
+        <SignalScanner v-if="ship.signals" :package-name="ship.signals" @close="ship.closeSignals()" />
         <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
         <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />

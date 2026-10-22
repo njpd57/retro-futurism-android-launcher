@@ -29,7 +29,7 @@ void main()
     vec3 p = aPos;
     float emit = aEmit;
     // a door leaf slides up into the lintel as its door opens; its emit slot only carries the door's number
-    if (aMat > ${F(MAT.door)} - 0.5)
+    if (abs(aMat - ${F(MAT.door)}) < 0.5)
     {
         int d = int(aEmit * 16.0 + 0.5);
         p.y += uDoor[d] * 2.45;
@@ -57,6 +57,8 @@ uniform vec4 uLights[${MAX_LIGHTS}];
 uniform sampler2D uAtlas;
 uniform float uTime;
 uniform float uBlink;
+// how fast the crew's scan lines climb; 0 holds them still
+uniform float uHolo;
 // where the scan band is along the ship (plan y), or far away when it is off
 uniform float uSweep;
 out vec4 outColor;
@@ -110,6 +112,14 @@ void main()
         outColor = vec4(pic * scan * 1.15, 1.0);
         return;
     }
+    else if (mat > ${F(MAT.label)} - 0.5)
+    {
+        // a name plate: only its letters, floating
+        vec4 t = texture(uAtlas, vUv);
+        if (t.a < 0.35) discard;
+        outColor = vec4(mix(uBg, t.rgb, t.a), 1.0);
+        return;
+    }
     else if (mat < ${F(MAT.glow)} + 0.5)
     {
         albedo = 0.3;
@@ -121,11 +131,18 @@ void main()
     }
     else if (mat < ${F(MAT.crew)} + 0.5)
     {
-        // people and Jones: dark bodies outlined by a rim of light
-        albedo = 0.1;
-        emit = 0.12;
+        // people and Jones: silhouettes of light. The body is nearly black, so it hides what is behind it; the edges
+        // of every box are traced in a thin line, the faces turned away glow at the rim, and scan lines climb it
+        albedo = 0.03;
+        emit = 0.04;
         vec3 view = normalize(uEye - vPos);
-        extra = pow(1.0 - abs(dot(n, view)), 2.0) * 0.75;
+        float rim = pow(1.0 - abs(dot(n, view)), 2.5);
+        vec2 e = min(vUv, 1.0 - vUv) / max(fwidth(vUv), vec2(1e-4));
+        float edge = 1.0 - smoothstep(0.6, 1.6, min(e.x, e.y));
+        float scan = step(0.6, fract(vPos.y * 14.0 - uTime * uHolo));
+        extra = edge * 0.95 + rim * 0.55 + scan * 0.12 * (0.4 + rim);
+        // a crew member whose app is busy blinks with the urgent monitors
+        if (vEmit > 0.5) extra *= 0.35 + 1.3 * uBlink;
     }
     else
     {

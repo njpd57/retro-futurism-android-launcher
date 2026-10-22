@@ -22,7 +22,7 @@ export const STANDS: Readonly<Record<string, V2>> = {
 
 /** Points to route round what stands in the way of a straight leg inside a room. */
 const VIAS: Readonly<Record<string, readonly V2[]>> = {
-    hub: [[2.5, 2.5], [-2.5, 2.5], [2.5, -2.5], [-2.5, -2.5]],
+    hub: [[2.3, 2.3], [-2.3, 2.3], [2.3, -2.3], [-2.3, -2.3]],
     bodega: [[0, 18.6]],
     motor: [[-4.2, 39.6], [4.2, 39.6]],
 };

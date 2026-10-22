@@ -99,7 +99,7 @@ describe('screens', () =>
 
     it('cover every id the readings produce', () =>
     {
-        expect(SCREENS).toHaveLength(17);
+        expect(SCREENS).toHaveLength(19);
     });
 });
 

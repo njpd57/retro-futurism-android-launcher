@@ -1,29 +1,39 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ShipControls from './ShipControls.vue';
+import ShipHud from './ShipHud.vue';
 import ShipMinimap from './ShipMinimap.vue';
 import { useShipInput } from '@/composables/useShipInput';
 import { prefersReducedMotion } from '@/composables/useReducedMotion';
 import { aimPixels } from '@/games/marines/aim';
+import { useAppsStore } from '@/stores/useAppsStore';
 import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
+import { useContactsStore } from '@/stores/useContactsStore';
+import { useLaunchStore } from '@/stores/useLaunchStore';
+import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useShipStore } from '@/stores/useShipStore';
 import { useSoundStore } from '@/stores/useSoundStore';
-import { ATLAS_H, ATLAS_W, drawAtlas } from '@/ship3d/atlas';
+import { ATLAS_H, ATLAS_W, drawAtlas, drawLabels } from '@/ship3d/atlas';
 import { bloomGain } from '@/ship3d/bloom';
 import { createShipGL, type ShipGL } from '@/ship3d/gl';
 import { nearestLights, packLights } from '@/ship3d/lights';
 import { buildMesh } from '@/ship3d/mesh';
 import { roomLevel, roomReadings, type Level } from '@/ship3d/readings';
 import { eyeHeight, stepWalk, walker, type Walker } from '@/ship3d/walk';
-import { agentsOf, newRoamers, stationaryAgents, stepRoamer, type Agent } from '@/ship3d/crew';
+import { agentsOf, BUNK_SLOTS, newRoamers, SIGNAL_SLOTS, stationaryAgents, stepRoamer, type Agent } from '@/ship3d/crew';
 import { shutDoors, stepDoors } from '@/ship3d/doors';
-import { figureVertices } from '@/ship3d/figures';
+import { figureVertices, plateVertices, shuttleVertices, type CrewLook } from '@/ship3d/figures';
+import { headTurn } from '@/ship3d/pose';
+import { hudLine, nextAlertRoom, turnToward } from '@/ship3d/hud';
+import { CONTACT_PLATES, plateTexts, SIGNAL_PLATES } from '@/ship3d/labels';
 import { glideRoute, GLIDE_SPEED, pointAt, routeLength } from '@/ship3d/glide';
-import { pickAgent, pickScreen, REACH } from '@/ship3d/pick';
+import { pickAgent, pickScreen, pickShuttle, REACH } from '@/ship3d/pick';
 import { wrapAngle } from '@/ship3d/math';
-import { bounds, collisionSegments, LIGHTS, roomAt, ROOMS, type V2 } from '@/ship3d/world';
+import { bounds, collisionSegments, hangarBays, LIGHTS, PROPS, roomAt, ROOMS, type V2 } from '@/ship3d/world';
+import { appLabelFor } from '@/utils/notifications';
+import { HEAVY_CONTACT, radarContacts } from '@/utils/radar';
 import { bendK, correctPoint } from '@/utils/curvature';
 import { parseColor, type Rgb } from '@/utils/crtFilter';
 
@@ -32,6 +42,10 @@ const effective = useEffectiveSettings();
 const ship = useShipStore();
 const sound = useSoundStore();
 const bridgeEvents = useBridgeEventStore();
+const appsStore = useAppsStore();
+const notifications = useNotificationsStore();
+const contacts = useContactsStore();
+const launcher = useLaunchStore();
 const input = useShipInput();
 const readings = computed(() => roomReadings(input.value));
 const reducedMotion = prefersReducedMotion();
@@ -43,6 +57,8 @@ const paused = ref(false);
 /** a line at the bottom for a moment (`ACÉRCATE...`) */
 const hint = ref('');
 let hintTimer = 0;
+/** a card or a crew member's signals cover the view: nothing is drawn and taps go to them */
+const covered = computed(() => ship.card !== null || ship.signals !== null);
 
 /** Radians of turn and tilt per pixel of drag. */
 const TURN_PER_PX = 0.0045;
@@ -57,13 +73,29 @@ let raf = 0;
 let last = 0;
 let lastSync = 0;
 let backgrounded = false;
-const segs = collisionSegments();
+// ---- what the crew and the shuttles stand for: the apps with signals, the starred contacts, the favourite apps
+const labelOf = (pkg: string) => appLabelFor(pkg, appsStore.apps);
+const signalApps = computed(() => radarContacts(notifications.visible, SIGNAL_SLOTS.length));
+const starred = computed(() => contacts.starred.slice(0, BUNK_SLOTS.length));
+const bays = computed(() => hangarBays(settings.favorites.length));
+const plates = computed(() => plateTexts({
+    signals: signalApps.value.map(c => ({ label: labelOf(c.packageName), count: c.notifications.length })),
+    contacts: starred.value.map(c => c.name),
+    shuttles: settings.favorites.slice(0, bays.value.length).map(labelOf),
+}));
+const shuttles = computed(() => shuttleVertices(bays.value));
+// the shuttles are walked round like any crate
+const segs = computed(() => collisionSegments(ROOMS, [...PROPS, ...bays.value.map(b => b.prop)]));
 // ---- life aboard: the doors, the crew that stays and the two that wander
 let doors = shutDoors();
 let lastStep = 0;
 let roamers = newRoamers();
 let agents: Agent[] = [];
-const stay = computed(() => stationaryAgents(input.value.signals, input.value.crew));
+/** where each standing crew member's head is turned now */
+const heads = new Map<string, number>();
+/** radians per second a head turns */
+const HEAD_SPEED = 2.5;
+const stay = computed(() => stationaryAgents(signalApps.value.length, starred.value.length));
 const lightZone = LIGHTS.map(l => roomAt(l.x, l.y)?.zone);
 const levels = computed(() => Object.fromEntries(ROOMS.map(r => [r.zone, roomLevel(readings.value, r.zone)])) as Record<string, Level>);
 const hull = bounds();
@@ -122,18 +154,19 @@ function paintAtlas(blink: boolean)
     if (!ctx || !gl) return;
     const { ph, bg, font } = palette();
     drawAtlas(ctx, Object.values(readings.value), ph, bg, font, blink);
+    drawLabels(ctx, plates.value, ph, font);
     gl.setAtlas(atlas);
     atlasDirty = false;
 }
 
-watch(readings, () => { atlasDirty = true; });
+watch([readings, plates], () => { atlasDirty = true; });
 // the palette changes in the DOM after this runs, so wait a tick
 watch(() => effective.phosphor, async () => { await nextTick(); atlasDirty = true; });
 
 function frame(now: number)
 {
     raf = requestAnimationFrame(frame);
-    if (backgrounded || paused.value || ship.card !== null || !gl || gl.lost) return;
+    if (backgrounded || paused.value || covered.value || !gl || gl.lost) return;
 
     const speed = Math.hypot(body.vx, body.vy);
     const active = strafe !== 0 || forward !== 0 || turnAcc !== 0 || tiltAcc !== 0 || speed > 0.01 || glide !== null;
@@ -151,7 +184,7 @@ function frame(now: number)
         body = { ...body, x: at.x, y: at.y, yaw, pitch: Math.max(-0.5, Math.min(0.5, body.pitch + tiltAcc)), vx: 0, vy: 0 };
         if (glide.s >= glide.length) glide = null;
     }
-    else body = stepWalk(body, { strafe, forward, turn: turnAcc, tilt: tiltAcc }, dt, segs);
+    else body = stepWalk(body, { strafe, forward, turn: turnAcc, tilt: tiltAcc }, dt, segs.value);
     turnAcc = 0;
     tiltAcc = 0;
     if (now - lastSync > POSE_SYNC_MS)
@@ -173,9 +206,13 @@ function frame(now: number)
     // Jones and the android wander; with reduced motion they keep still
     if (!reducedMotion) roamers = roamers.map(r => stepRoamer(r, dt, Math.random));
     agents = agentsOf(stay.value, roamers);
-    gl.setCrew(figureVertices(agents, now / 1000, new Set(roamers.filter(r => r.route).map(r => r.id))));
-
     const blink = reducedMotion || Math.floor(now / BLINK_MS) % 2 === 0;
+    gl.setCrew(joined(
+        figureVertices(agents, reducedMotion ? 0 : now / 1000, new Set(roamers.filter(r => r.route).map(r => r.id)), crewLook(dt)),
+        plateVertices(agents, body.yaw),
+        shuttles.value,
+    ));
+
     if (atlasDirty || (hasUrgent.value && blink !== blinkShown)) paintAtlas(blink);
     blinkShown = blink;
 
@@ -193,8 +230,36 @@ function frame(now: number)
         }),
         time: now / 1000,
         doors,
+        blink,
+        holo: reducedMotion ? 0 : 0.6,
         sweep: reducedMotion ? -1000 : hull.y0 - 3 + (((now / 1000) % SWEEP_S) / SWEEP_S) * (hull.y1 - hull.y0 + 6),
     });
+}
+
+/** The ones standing near turn their heads to the camera; the crew of a busy app blinks. */
+function crewLook(dt: number): CrewLook
+{
+    // heads turn at a steady rate, like a servo, not in a snap
+    for (const a of stay.value)
+    {
+        const want = headTurn(a.x, a.y, a.yaw, body.x, body.y);
+        const now = heads.get(a.id) ?? 0;
+        const step = reducedMotion ? Infinity : HEAD_SPEED * dt;
+        heads.set(a.id, now + Math.max(-step, Math.min(step, want - now)));
+    }
+    const alert = new Set<string>();
+    for (const a of stay.value)
+            if (a.kind === 'signal' && (signalApps.value[(a.plate ?? 0) - SIGNAL_PLATES]?.notifications.length ?? 0) >= HEAVY_CONTACT) alert.add(a.id);
+    return { headYaw: heads, alert };
+}
+
+/** The dynamic triangles of a frame in one buffer. */
+function joined(...parts: Float32Array[]): Float32Array
+{
+    const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const p of parts) { out.set(p, at); at += p.length; }
+    return out;
 }
 
 function say(text: string)
@@ -208,7 +273,7 @@ function say(text: string)
 function onTap(clientX: number, clientY: number)
 {
     const el = canvas.value;
-    if (!el || paused.value || ship.card !== null) return;
+    if (!el || paused.value || covered.value) return;
     // the curved glass moves what is painted but not the touch, so the point is corrected by hand
     const tube = settings.curvature ? el.closest('.tube') : null;
     const k = bendK(settings.curvatureBend);
@@ -218,25 +283,51 @@ function onTap(clientX: number, clientY: number)
     const [x, y] = [p.x - box.left, p.y - box.top];
     const person = pickAgent(agents, eye, body.yaw, body.pitch, box.width, box.height, x, y);
     const screen = pickScreen(eye, body.yaw, body.pitch, box.width, box.height, x, y);
+    const shuttle = pickShuttle(bays.value, eye, body.yaw, body.pitch, box.width, box.height, x, y);
     // whichever is in front
-    if (person && (!screen || person.distance < screen.distance))
+    const near = Math.min(person?.distance ?? Infinity, screen?.distance ?? Infinity, shuttle?.distance ?? Infinity);
+    if (near === Infinity) return;
+    if (near > REACH) { say(shuttle?.distance === near ? 'ACÉRCATE A LA LANZADERA' : screen?.distance === near ? 'ACÉRCATE AL MONITOR' : 'ACÉRCATE'); return; }
+
+    if (shuttle?.distance === near)
     {
-        if (person.distance > REACH) { say('ACÉRCATE'); return; }
-        const { kind } = person.agent;
-        if (kind === 'signal') ship.openCard('comms');
-        else if (kind === 'contact') ship.openCard('comedor');
+        const pkg = settings.favorites[shuttle.index];
+        if (pkg) launcher.launch(pkg, labelOf(pkg));
+        return;
+    }
+    if (person?.distance === near)
+    {
+        const { kind, plate } = person.agent;
+        if (kind === 'signal')
+        {
+            const app = signalApps.value[(plate ?? SIGNAL_PLATES) - SIGNAL_PLATES];
+            if (app) ship.openSignals(app.packageName); else ship.openCard('comms');
+        }
+        else if (kind === 'contact')
+        {
+            // the contact's card in the phone's contacts: never a call straight away
+            const c = starred.value[(plate ?? CONTACT_PLATES) - CONTACT_PLATES];
+            if (c) contacts.openContact(c); else ship.openCard('comedor');
+        }
         else if (kind === 'cat') say('JONES: MIAU');
         else say(`ASH: ${readings.value['enfermeria.sistema']?.lines.join(' ') ?? 'NOMINAL'}`);
         return;
     }
-    if (!screen) return;
-    if (screen.distance > REACH) say('ACÉRCATE AL MONITOR');
-    else ship.openCard(screen.screen.zone);
+    const zone = screen!.screen.zone;
+    if (zone !== 'hub') ship.openCard(zone);
+    else if (screen!.screen.id === 'hub.buscar') ship.askSearch();
+    else settings.activeTab = 'mother';
 }
+
+// ---- the strip at the top: the room you are in and the one that wants you
+const here = computed(() => roomAt(ship.pose.x, ship.pose.y)?.zone);
+const hud = computed(() => hudLine(readings.value, here.value));
+const alert = computed(() => nextAlertRoom(levels.value, here.value));
+const alertTurn = computed(() => alert.value ? turnToward(ship.pose.x, ship.pose.y, ship.pose.yaw, alert.value.zone) : 'ahead');
 
 function onGo(room: string)
 {
-    if (paused.value || ship.card !== null) return;
+    if (paused.value || covered.value) return;
     const route = glideRoute(body.x, body.y, room);
     if (!route || route.length < 2) return;
     if (prefersReducedMotion())
@@ -276,7 +367,7 @@ watch(() => ship.epoch, () =>
 });
 
 // the card has the screen: nothing is drawn behind it, and the clock restarts when it closes
-watch(() => ship.card, card => { if (card === null) last = performance.now(); });
+watch(covered, on => { if (!on) last = performance.now(); });
 
 function onBridgeEvent(ev: { name: string })
 {
@@ -322,6 +413,7 @@ onBeforeUnmount(() =>
         <canvas ref="canvas" class="view" />
         <ShipControls v-if="!unsupported" @move="onMove" @look="onLook" @tap="onTap" />
         <ShipMinimap v-if="!unsupported" :pose="ship.pose" :readings="readings" @go="onGo" />
+        <ShipHud v-if="!unsupported && !paused" :line="hud" :alert="alert" :turn="alertTurn" :here="here" @go="onGo" />
         <div v-if="hint" class="hint">{{ hint }}</div>
         <button v-if="!unsupported && !paused" class="pause pressable" @click="setPaused(true)" @touchstart.stop @mousedown.stop>[II]</button>
         <div v-if="paused" class="paused" data-no-swipe>

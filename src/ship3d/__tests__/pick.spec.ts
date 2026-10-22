@@ -74,7 +74,7 @@ describe('cards', () =>
 {
     it('exist for every room and only use widgets that exist', () =>
     {
-        expect(Object.keys(CARDS).sort()).toEqual([...new Set(SCREENS.map(s => s.zone))].sort());
+        expect(Object.keys(CARDS).sort()).toEqual([...new Set(SCREENS.map(s => s.zone).filter(z => z !== 'hub'))].sort());
         for (const widgets of Object.values(CARDS))
             for (const w of widgets)
             {

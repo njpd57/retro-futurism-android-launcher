@@ -128,6 +128,7 @@ export const SETTINGS_SECTIONS: SettingSection[] = [
             { kind: 'toggle', key: 'liveWidgets', label: 'VENTANAS VIVAS', hint: 'LA VENTANA DE UNA SEÑAL, LA ALARMA O LA RESERVA BAJA CRECE UN TAMAÑO MIENTRAS PIDE ATENCIÓN' },
             { kind: 'toggle', key: 'shipPanel', label: 'PANEL: NAVE', hint: 'PANEL COMO RECORRIDO EN PRIMERA PERSONA POR LA NAVE, EN VEZ DE LA REJILLA DE VENTANAS' },
             { kind: 'choice', key: 'shipFps', label: 'RITMO DE LA NAVE', when: { key: 'shipPanel' }, options: [{ id: 'eco', label: 'AHORRO' }, { id: '30', label: '30 FPS' }, { id: '60', label: '60 FPS' }], hint: 'AHORRO REDIBUJA SOLO AL MOVERSE; 30 Y 60 ANIMAN SIEMPRE' },
+            { kind: 'choice', key: 'shipStart', label: 'INICIO DE LA NAVE', when: { key: 'shipPanel' }, options: [{ id: 'bridge', label: 'PUENTE' }, { id: 'last', label: 'ÚLTIMA POSICIÓN' }], hint: 'DÓNDE TE DEJA EL BOTÓN DE INICIO: EN EL PUENTE O DONDE ESTABAS' },
             { kind: 'toggle', key: 'shipBloom', label: 'BRILLO DE LA NAVE', when: { key: 'shipPanel' }, hint: 'LÁMPARAS Y MONITORES IRRADIAN LUZ CON LA INTENSIDAD DEL BLOOM. GASTA MÁS BATERÍA' },
             { kind: 'action', id: 'bridgeButton', label: 'BOTÓN BRIDGE', hint: 'BOTÓN FLOTANTE DE BRIDGE LAUNCHER' },
             { kind: 'action', id: 'resetPanels', label: '[RESTABLECER PANELES]', hint: 'VUELVE A LOS CUATRO PANELES DE FÁBRICA' },

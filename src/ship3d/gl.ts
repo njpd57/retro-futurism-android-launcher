@@ -19,6 +19,10 @@ export interface GLFrame
     doors: ArrayLike<number>;
     /** plan y of the scan band, anything far outside the ship for none */
     sweep: number;
+    /** the urgent blink is on (busy crew lit, not dimmed) */
+    blink?: boolean;
+    /** how fast the crew's scan lines climb, 0 for still */
+    holo?: number;
 }
 
 export interface Palette { ph: [number, number, number]; bg: [number, number, number] }
@@ -168,7 +172,7 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         if (aniso) gl!.texParameterf(gl!.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4);
 
         uniforms = {};
-        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uDoor', 'uSweep'])
+        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep'])
             uniforms[name] = gl!.getUniformLocation(program, name);
         if (atlasSource) upload(atlasSource);
     }
@@ -376,7 +380,8 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
             gl.uniform3fv(uniforms.uBg, palette.bg);
             gl.uniform4fv(uniforms.uLights, f.lights.length === MAX_LIGHTS * 4 ? f.lights : new Float32Array(MAX_LIGHTS * 4));
             gl.uniform1f(uniforms.uTime, f.time);
-            gl.uniform1f(uniforms.uBlink, 0);
+            gl.uniform1f(uniforms.uBlink, f.blink ? 1 : 0);
+            gl.uniform1f(uniforms.uHolo, f.holo ?? 0.6);
             gl.uniform1f(uniforms.uSweep, f.sweep);
             gl.uniform1fv(uniforms.uDoor, Float32Array.from({ length: 16 }, (_, i) => f.doors[i] ?? 0));
             gl.activeTexture(gl.TEXTURE0);

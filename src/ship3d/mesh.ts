@@ -10,7 +10,7 @@ import { centroid, LIGHTS, PORTALS, portalAxis, PROPS, propOutline, roomAt, ROOM
 
 export const STRIDE = 10;
 
-export const MAT = { wall: 0, floor: 1, ceiling: 2, prop: 3, screen: 4, glow: 5, frame: 6, crew: 7, door: 8 } as const;
+export const MAT = { wall: 0, floor: 1, ceiling: 2, prop: 3, screen: 4, glow: 5, frame: 6, crew: 7, door: 8, label: 9 } as const;
 
 export interface Mesh { data: Float32Array; vertices: number }
 
