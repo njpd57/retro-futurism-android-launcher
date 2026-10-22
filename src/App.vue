@@ -19,6 +19,9 @@ import { useSoundStore } from '@/stores/useSoundStore';
 import AppList from '@/components/AppList.vue';
 import CrtScreen from '@/components/CrtScreen.vue';
 import Dashboard from '@/components/Dashboard.vue';
+import ShipCard from '@/components/ship/ShipCard.vue';
+import ShipPanel from '@/components/ship/ShipPanel.vue';
+import { useShipStore } from '@/stores/useShipStore';
 import MenuItem from '@/components/MenuItem.vue';
 import MotherTerminal from '@/components/MotherTerminal.vue';
 import NotificationWindow from '@/components/NotificationWindow.vue';
@@ -90,6 +93,7 @@ useOwnStatusBar(computed(() => settings.ownStatusBar));
 const query = ref('');
 const prompt = ref<InstanceType<typeof PromptBar> | null>(null);
 const editing = ref(false);
+const ship = useShipStore();
 const settingsOpen = ref(false);
 const menuApp = ref<InstalledAppInfo | null>(null);
 const renameApp = ref<InstalledAppInfo | null>(null);
@@ -123,7 +127,7 @@ const searchOptions = computed(() => ({
 const results = computed(() => isCommandInput(query.value) ? [] : searchApps(appsStore.apps.values(), query.value, effective.hiddenApps, searchOptions.value));
 const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
     ? [
-        { label: editing.value ? 'LISTO' : 'EDITAR', action: () => { editing.value = !editing.value; } },
+        ...(settings.shipPanel ? [] : [{ label: editing.value ? 'LISTO' : 'EDITAR', action: () => { editing.value = !editing.value; } }]),
         { label: 'MOTHER', action: () => { settings.activeTab = 'mother'; } },
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]
@@ -144,7 +148,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || quarantineApp.value !== null || quarantine.pending !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || quarantineApp.value !== null || quarantine.pending !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open || ship.card !== null);
 
 function launch(app: InstalledAppInfo)
 {
@@ -267,6 +271,7 @@ function closeOverlays()
     imagesStore.close();
     isolation.close();
     marines.close();
+    ship.closeCard();
 }
 
 function menuAction(action: (packageName: string) => void)
@@ -337,6 +342,7 @@ bridgeEvents.addEventListener(ev =>
         query.value = '';
         settings.activeTab = 'panel';
         editing.value = false;
+        ship.reset();
     }
 });
 
@@ -374,7 +380,10 @@ onUnmounted(() =>
             </WidgetBoundary>
             <TopBar ref="topBarEl" :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="selectTab" @open-notifications="notificationsOpen = true" />
             <AlertStrip />
-            <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />
+            <template v-if="settings.activeTab === 'panel'">
+                <ShipPanel v-if="settings.shipPanel" />
+                <Dashboard v-else :editing="editing" @menu="menuApp = $event" />
+            </template>
             <MotherTerminal v-else-if="settings.activeTab === 'mother'" @sessions="sessionsOpen = true" />
             <CommandList v-else-if="showCommandList" :commands="COMMANDS.console" @pick="pickCommand" />
             <template v-else>
@@ -407,6 +416,7 @@ onUnmounted(() =>
         <ImageViewer v-if="imagesStore.open" />
         <IsolationGame v-if="isolation.open" />
         <MarinesGame v-if="marines.open" />
+        <ShipCard v-if="ship.card" />
         <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />
         <AppFolderMenu v-if="folderApp" :app="folderApp" @close="folderApp = null" />

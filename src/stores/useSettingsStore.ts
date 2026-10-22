@@ -82,6 +82,11 @@ export const useSettingsStore = defineStore('settings', () =>
     /** Folders of the APPS tab as boxes (true) or as an inline accordion (false). */
     // how the folder boxes are drawn: a grid of boxes, or the compartments of a deck plan
     const appsLayout = useLocalStorage<'boxes' | 'deck'>('settings.appsLayout', 'boxes');
+    // PANEL as a first-person walk through the ship instead of the grid of windows, and how often it redraws
+    const shipPanel = useLocalStorage('settings.shipPanel', false);
+    const shipFps = useLocalStorage<'eco' | '30' | '60'>('settings.shipFps', 'eco');
+    // lamps and monitors glow in the ship (extra GPU passes, so off unless asked for)
+    const shipBloom = useLocalStorage('settings.shipBloom', false);
     const folderBoxes = useLocalStorage('settings.folderBoxes', true);
     const idleMinutes = useLocalStorage('settings.idleMinutes', 0);
     const bootSequence = useLocalStorage('settings.bootSequence', true);
@@ -121,5 +126,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, shipPanel, shipFps, shipBloom, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });
