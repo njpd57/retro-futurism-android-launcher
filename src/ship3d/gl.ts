@@ -5,7 +5,7 @@ import { fovYFor, multiply, perspective, topDown, viewMatrix, type V3 } from './
 import { MAX_LIGHTS } from './lights';
 import { ATLAS_H, ATLAS_W } from './atlas';
 import { FAR_PLANE } from './shaders';
-import { DETAIL_SIZE, packMaterialUniforms, type MaterialUniforms } from './materials';
+import { DETAIL_SIZE, MAX_STYLES, packMaterialUniforms, type MaterialUniforms } from './materials';
 
 /** Everything one frame needs. */
 export interface GLFrame
@@ -29,11 +29,19 @@ export interface GLFrame
     edge?: number;
     /** amount of grain over the picture, 0 for none (default 0.04) */
     grain?: number;
+    /** per style (kind of room), 0..1 how red its light has turned: an urgent room's alarm */
+    alerts?: ArrayLike<number>;
+    /** false paints the ship in the phosphor's one tint; in colour otherwise (the monitors and the crew are phosphor either way) */
+    color?: boolean;
     /** the map editor's plan view: straight down on `(x, y)`, `half` metres to the top edge, everything above `cut` metres removed */
     top?: { x: number; y: number; half: number; cut: number };
 }
 
 export interface Palette { ph: [number, number, number]; bg: [number, number, number] }
+
+/** Black, and white: what the glow pass measures brightness between when the picture is in colour. */
+const BLACK: [number, number, number] = [0, 0, 0];
+const WHITE: [number, number, number] = [1, 1, 1];
 
 /** Texture unit of the detail textures (one array, a layer each) in the scene pass (0 is the monitors' atlas). */
 const DETAIL_UNIT = 1;
@@ -169,7 +177,7 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
             post = {
                 bright: link(gl!, QUAD_VERTEX, BRIGHT_FRAGMENT, ['uSrc', 'uThreshold', 'uPh', 'uBg']),
                 blur: link(gl!, QUAD_VERTEX, BLUR_FRAGMENT, ['uSrc', 'uStep', 'uWeights']),
-                composite: link(gl!, QUAD_VERTEX, COMPOSITE_FRAGMENT, ['uScene', 'uNd', 'uBloom', 'uGain', 'uTexel', 'uEdge', 'uGrain', 'uPh', 'uBg']),
+                composite: link(gl!, QUAD_VERTEX, COMPOSITE_FRAGMENT, ['uScene', 'uNd', 'uBloom', 'uGain', 'uTexel', 'uEdge', 'uGrain', 'uPh', 'uBg', 'uMono']),
             };
         }
         catch (e)
@@ -213,7 +221,7 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
         gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.NEAREST);
 
         uniforms = {};
-        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', 'uCut', 'uDetail', 'uLayer', 'uTile', 'uStrength', 'uAlbedo', 'uShin', 'uKs', 'uStyled', 'uKindMat', 'uStyleBase'])
+        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', 'uCut', 'uDetail', 'uLayer', 'uTile', 'uStrength', 'uAlbedo', 'uShin', 'uKs', 'uStyled', 'uKindMat', 'uStyleBase', 'uColor', 'uMono', 'uStyleColor', 'uStyleLamp', 'uStyleAlert'])
             uniforms[name] = gl!.getUniformLocation(program, name);
         if (atlasSource) upload(atlasSource);
         for (const [layer, src] of layerSources) uploadLayer(layer, src);
@@ -390,14 +398,14 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
     function draw() { gl!.drawArrays(gl!.TRIANGLES, 0, 3); }
 
     /** cut out the bright parts of the scene, blur them both ways at half size; the result is in `glow.half[0]` */
-    function glowPasses(s: Scene, g: Glow)
+    function glowPasses(s: Scene, g: Glow, mono: boolean)
     {
         const { bright, blur } = post!;
         pass(bright, g.half[0].fbo, g.hw, g.hh, s.color);
         gl!.uniform1i(bright.uniforms.uSrc, 0);
         gl!.uniform1f(bright.uniforms.uThreshold, BLOOM_THRESHOLD);
-        gl!.uniform3fv(bright.uniforms.uPh, palette.ph);
-        gl!.uniform3fv(bright.uniforms.uBg, palette.bg);
+        gl!.uniform3fv(bright.uniforms.uPh, mono ? palette.ph : WHITE);
+        gl!.uniform3fv(bright.uniforms.uBg, mono ? palette.bg : BLACK);
         draw();
 
         pass(blur, g.half[1].fbo, g.hw, g.hh, g.half[0].tex);
@@ -416,7 +424,8 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
         const { composite: c } = post!;
         gl!.disable(gl!.DEPTH_TEST);
         gl!.bindVertexArray(null);
-        if (g) glowPasses(s, g);
+        const mono = f.color === false;
+        if (g) glowPasses(s, g, mono);
 
         pass(c, null, s.w, s.h, s.color);
         gl!.activeTexture(gl!.TEXTURE1);
@@ -432,6 +441,7 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
         gl!.uniform1f(c.uniforms.uGrain, f.grain ?? 0.04);
         gl!.uniform3fv(c.uniforms.uPh, palette.ph);
         gl!.uniform3fv(c.uniforms.uBg, palette.bg);
+        gl!.uniform1f(c.uniforms.uMono, mono ? 1 : 0);
         draw();
         gl!.activeTexture(gl!.TEXTURE0);
     }
@@ -523,6 +533,11 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
             gl.uniform1fv(uniforms.uStyled, mu.styled);
             gl.uniform1fv(uniforms.uKindMat, mu.kind);
             gl.uniform1fv(uniforms.uStyleBase, mu.style);
+            gl.uniform3fv(uniforms.uColor, mu.color);
+            gl.uniform1f(uniforms.uMono, f.color === false ? 1 : 0);
+            gl.uniform3fv(uniforms.uStyleColor, mu.styleColor);
+            gl.uniform3fv(uniforms.uStyleLamp, mu.styleLamp);
+            gl.uniform1fv(uniforms.uStyleAlert, Float32Array.from({ length: MAX_STYLES }, (_, i) => f.alerts?.[i] ?? 0));
             gl.activeTexture(gl.TEXTURE0);
             gl.drawArrays(gl.TRIANGLES, 0, mesh.vertices);
             if (crewData.length)

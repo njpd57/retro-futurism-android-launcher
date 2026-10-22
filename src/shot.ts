@@ -1,9 +1,10 @@
 // Dev-only page for `scripts/ship-shot.sh`: draws the ship once from the camera in the URL, for a screenshot.
-// ?x=&y=&yaw=&pitch=&doors=0..1&palette=amber|green&eye=1.6
+// ?x=&y=&yaw=&pitch=&doors=0..1&palette=amber|green&eye=1.6&mono=1
 import { loadMaterialTextures } from '@/ship3d/details';
 import { createShipGL } from '@/ship3d/gl';
 import { buildMesh } from '@/ship3d/mesh';
-import { ATLAS_H, ATLAS_W } from '@/ship3d/atlas';
+import { ATLAS_H, ATLAS_W, drawLabels } from '@/ship3d/atlas';
+import { withSigns, withStencils } from '@/ship3d/labels';
 import { LIGHTS } from '@/ship3d/world';
 import { nearestLights, packLights } from '@/ship3d/lights';
 
@@ -20,11 +21,13 @@ gl.setPalette(q.get('palette') === 'amber'
 const atlas = document.createElement('canvas');
 atlas.width = ATLAS_W;
 atlas.height = ATLAS_H;
+// the stencils and signs, so painted lettering shows in the picture
+drawLabels(atlas.getContext('2d')!, withSigns(withStencils([])), '#ffb000', 'monospace');
 gl.setAtlas(atlas);
 
 await loadMaterialTextures(gl, '/');
 
 gl.resize(Number(q.get('scale') ?? 1));
 const doors = Array.from({ length: 16 }, () => num('doors', 0));
-gl.render({ eye: [x, eye, y], yaw, pitch, lights: packLights(LIGHTS, nearestLights(LIGHTS, x, y, eye)), time: 0, doors, sweep: -1000, holo: 0, grain: 0 });
+gl.render({ eye: [x, eye, y], yaw, pitch, lights: packLights(LIGHTS, nearestLights(LIGHTS, x, y, eye)), time: 0, doors, sweep: -1000, holo: 0, grain: 0, color: q.get('mono') !== '1' });
 document.title = 'ready';

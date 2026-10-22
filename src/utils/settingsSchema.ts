@@ -134,6 +134,7 @@ export const SETTINGS_SECTIONS: SettingSection[] = [
             { kind: 'toggle', key: 'shipLabels', label: 'PLACAS DE NOMBRE', when: { key: 'shipPanel' }, hint: 'NOMBRE DE LA APP SOBRE CADA TRIPULANTE Y RÓTULOS EN LAS PAREDES. LAS LANZADERAS SIEMPRE LLEVAN EL SUYO' },
             { kind: 'slider', key: 'shipLook', label: 'GIRO DE LA VISTA', min: 50, max: 200, step: 10, when: { key: 'shipPanel' }, hint: 'CUÁNTO GIRA LA VISTA AL ARRASTRAR, EN POR CIENTO (100 = NORMAL)' },
             { kind: 'toggle', key: 'shipInvertY', label: 'INVERTIR EJE VERTICAL', when: { key: 'shipPanel' }, hint: 'ARRASTRAR HACIA ARRIBA MIRA HACIA ABAJO' },
+            { kind: 'choice', key: 'shipColor', label: 'COLOR DE LA NAVE', when: { key: 'shipPanel' }, options: [{ id: 'color', label: 'COLOR' }, { id: 'phosphor', label: 'FÓSFORO' }], hint: 'LA NAVE EN SUS COLORES, O TODA EN EL TONO DEL FÓSFORO. LOS MONITORES SIEMPRE SON CRT' },
             { kind: 'toggle', key: 'shipBloom', label: 'BRILLO DE LA NAVE', when: { key: 'shipPanel' }, hint: 'LÁMPARAS Y MONITORES IRRADIAN LUZ CON LA INTENSIDAD DEL BLOOM. GASTA MÁS BATERÍA' },
             { kind: 'action', id: 'bridgeButton', label: 'BOTÓN BRIDGE', hint: 'BOTÓN FLOTANTE DE BRIDGE LAUNCHER' },
             { kind: 'action', id: 'resetPanels', label: '[RESTABLECER PANELES]', hint: 'VUELVE A LOS CUATRO PANELES DE FÁBRICA' },

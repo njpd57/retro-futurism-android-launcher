@@ -1,8 +1,9 @@
-import { labelUv } from '../atlas';
-import { STENCIL_PLATES, STENCILS } from '../labels';
+import { LABEL_SLOTS, labelUv } from '../atlas';
+import { SIGN_PLATES, SIGNS, STENCIL_PLATES, STENCILS } from '../labels';
 import type { V3 } from '../math';
 import { BRIDGE_CONSOLES, PORTALS, portalAxis, roomAt, ROOMS, SCREENS, splitEdge, type Room, type Zone } from '../world';
 import { MAT, Builder } from './builder';
+import { made } from './doorway';
 
 /** A name plate: a quad of the atlas's plate `slot`, centred on `c` (GL space), `w` wide, spanning `right`, facing `n`. */
 export function plate(b: Builder, c: V3, right: V3, w: number, n: V3, slot: number, emit = 1)
@@ -69,6 +70,24 @@ export function addStencils(b: Builder)
     });
 }
 
+/** How much of a plate's width a sign's letters take: the atlas writes 44 px letters, about 22 px each, in a 256 px cell. */
+const signWidth = (text: string) => Math.min(0.95, text.length * 0.088 + 0.1);
+
+/** The printed signs: light letters (emit 0.75 tells the shader so) on a dark strip stuck to the wall. */
+export function addSigns(b: Builder)
+{
+    SIGNS.slice(0, LABEL_SLOTS - SIGN_PLATES).forEach((s, i) =>
+    {
+        b.room = roomAt(s.x, s.y) ?? null;
+        const right: V3 = [s.ny, 0, -s.nx];
+        const [hw, hh] = [(s.w * signWidth(s.text)) / 2, s.w / 10];
+        const at = (dw: number, dh: number, o: number): V3 => [s.x + right[0] * dw + s.nx * o, s.z + dh, s.y + right[2] * dw + s.ny * o];
+        b.quad([at(-hw, -hh, 0.006), at(hw, -hh, 0.006), at(hw, hh, 0.006), at(-hw, hh, 0.006)], [s.nx, 0, s.ny], [[0, 0], [1, 0], [1, 1], [0, 1]],
+            made(MAT.prop, 'graphite'), 0);
+        plate(b, [s.x + s.nx * 0.012, s.z, s.y + s.ny * 0.012], right, s.w, [s.nx, 0, s.ny], SIGN_PLATES + i, 0.75);
+    });
+}
+
 /** A slanted keyboard on each bridge console: low toward the middle of the bridge, rising to the back, lit from within. */
 export function addKeyboards(b: Builder)
 {
@@ -87,6 +106,24 @@ export function addKeyboards(b: Builder)
         let n: V3 = [e2[1] * e1[2] - e2[2] * e1[1], e2[2] * e1[0] - e2[0] * e1[2], e2[0] * e1[1] - e2[1] * e1[0]];
         if (n[1] < 0) n = [-n[0], -n[1], -n[2]];
         const l = Math.hypot(...n);
-        b.quad(q, [n[0] / l, n[1] / l, n[2] / l], [[0, 0], [hw * 2, 0], [hw * 2, hd * 2], [0, hd * 2]], MAT.frame, 0.45);
+        const nn: V3 = [n[0] / l, n[1] / l, n[2] / l];
+        b.quad(q, nn, [[0, 0], [hw * 2, 0], [hw * 2, hd * 2], [0, hd * 2]], made(MAT.prop, 'graphite'), 0);
+        // rows of lit keys in colour, standing a hair off the board
+        const at = (s: number, t: number): V3 =>
+        {
+            const lerp = (a: V3, c: V3, k: number): V3 => [a[0] + (c[0] - a[0]) * k, a[1] + (c[1] - a[1]) * k, a[2] + (c[2] - a[2]) * k];
+            const p = lerp(lerp(q[0], q[1], s), lerp(q[3], q[2], s), t);
+            return [p[0] + nn[0] * 0.006, p[1] + nn[1] * 0.006, p[2] + nn[2] * 0.006];
+        };
+        const keys = ['amber', 'green', 'red', 'blue', 'amber', 'green'];
+        const cols = Math.max(3, Math.floor(hw * 2 / 0.32));
+        for (let row = 0; row < 3; row++)
+            for (let col = 0; col < cols; col++)
+            {
+                const [s0, t0] = [(col + 0.15) / cols, 0.12 + row * 0.28];
+                const [s1, t1] = [(col + 0.85) / cols, t0 + 0.16];
+                const id = keys[(col * 7 + row * 3 + Math.round(c.x * 3)) % keys.length];
+                b.quad([at(s0, t0), at(s1, t0), at(s1, t1), at(s0, t1)], nn, [[0, 0], [1, 0], [1, 1], [0, 1]], made(MAT.glow, id), (col + row) % 3 === 0 ? 0.5 : 0.22);
+            }
     }
 }

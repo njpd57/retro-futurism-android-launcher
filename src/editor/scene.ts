@@ -13,7 +13,7 @@ export interface Scene
 
 export function sceneOf(data: ShipData): Scene
 {
-    const rooms = data.rooms.map(r => ({ id: r.id, zone: r.zone, name: r.name, height: r.height, poly: shapeOf(r.shape) }));
+    const rooms = data.rooms.map(r => ({ id: r.id, zone: r.zone, name: r.name, height: r.height, poly: shapeOf(r.shape), surface: { floor: -1, wall: -1, ceiling: -1 } }));
     const portals = data.portals.map((p): Portal => ({ x: p.x, y: p.y, ...data.door }));
     const props = data.props.flatMap((e, entry) => propsOf(e, data).map(prop => ({ entry, prop, outline: propOutline(prop, 24) })));
     const screens = data.screens.map(s => screenOf(s, data));

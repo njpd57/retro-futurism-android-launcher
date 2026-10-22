@@ -19,6 +19,7 @@ import { useShipStore } from '@/stores/useShipStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import { ATLAS_H, ATLAS_W, drawAtlas, drawLabels } from '@/ship3d/atlas';
 import { bloomGain } from '@/ship3d/bloom';
+import { MAX_STYLES, STYLE } from '@/ship3d/materials';
 import { createShipGL, type ShipGL } from '@/ship3d/gl';
 import { loadMaterialTextures } from '@/ship3d/details';
 import { nearestLights, packLights } from '@/ship3d/lights';
@@ -32,7 +33,7 @@ import { shutDoors, stepDoors } from '@/ship3d/doors';
 import { birdVertices, figureVertices, plateVertices, shuttleVertices, type CrewLook } from '@/ship3d/figures';
 import { headTurn } from '@/ship3d/pose';
 import { hudLine, nextAlertRoom, turnToward } from '@/ship3d/hud';
-import { CONTACT_PLATES, plateTexts, SIGNAL_PLATES, withStencils } from '@/ship3d/labels';
+import { CONTACT_PLATES, plateTexts, SIGNAL_PLATES, withSigns, withStencils } from '@/ship3d/labels';
 import { dinerLine, dinersAt } from '@/ship3d/mess';
 import { glideRoute, GLIDE_SPEED, pointAt, routeLength } from '@/ship3d/glide';
 import { pickAgent, pickScreen, pickShuttle, REACH } from '@/ship3d/pick';
@@ -93,7 +94,7 @@ const plates = computed(() =>
         contacts: settings.shipLabels ? starred.value.map(c => c.name) : [],
         shuttles: settings.favorites.slice(0, bays.value.length).map(labelOf),
     });
-    return settings.shipLabels ? withStencils(texts) : texts;
+    return withSigns(settings.shipLabels ? withStencils(texts) : texts);
 });
 const shuttles = computed(() => shuttleVertices(bays.value));
 // the shuttles are walked round like any crate
@@ -253,8 +254,23 @@ function frame(now: number)
         doors,
         blink,
         holo: reducedMotion ? 0 : 0.6,
+        color: settings.shipColor !== 'phosphor',
+        // an urgent room's light goes over to alarm red with the blink
+        alerts: alertsByStyle(blink),
         sweep: reducedMotion ? -1000 : hull.y0 - 3 + (((now / 1000) % SWEEP_S) / SWEEP_S) * (hull.y1 - hull.y0 + 6),
     });
+}
+
+/** How red each style's light is: the styles of the rooms with an urgent reading pulse with the blink. */
+function alertsByStyle(blink: boolean): number[]
+{
+    const out = Array.from({ length: MAX_STYLES }, () => 0);
+    for (const [zone, level] of Object.entries(levels.value))
+    {
+        const st = STYLE[zone as keyof typeof STYLE];
+        if (level === 'urgent' && st !== undefined) out[st] = Math.max(out[st], blink ? 0.75 : 0.25);
+    }
+    return out;
 }
 
 // ---- little sounds of the crew: a chirp as you come near the ones with messages, Jones's meow, the android's servos

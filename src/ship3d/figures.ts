@@ -2,7 +2,7 @@ import type { Agent } from './crew';
 import { SHUTTLE_PLATES } from './labels';
 import { birdTilt, poseBird, poseCat, posePerson, poseSeated, type Part } from './pose';
 import type { V3 } from './math';
-import { Builder, extrude, MAT, plate } from './mesh';
+import { Builder, extrude, made, MAT, plate } from './mesh';
 import { BIRD, ROOMS, TABLE_TOP, type Bay, type V2 } from './world';
 
 type Basis = { r: [number, number]; f: [number, number] };
@@ -126,7 +126,7 @@ const HY = 1.5;
 
 /**
  * The shuttles of the hangar: a hull on four struts, a cockpit toward the aisle, a glowing engine toward the wall and
- * the app's name painted on the side that faces the aisle.
+ * the app's name painted on the side that faces the aisle (dark paint in colour).
  */
 export function shuttleVertices(bays: readonly Bay[]): Float32Array
 {
@@ -140,21 +140,27 @@ export function shuttleVertices(bays: readonly Bay[]): Float32Array
         // the parking bay: chevrons on the floor round the shuttle
         b.quad([[x - HX - 0.5, 0.012, y - HY - 0.5], [x + HX + 0.5, 0.012, y - HY - 0.5], [x + HX + 0.5, 0.012, y + HY + 0.5], [x - HX - 0.5, 0.012, y + HY + 0.5]],
             [0, 1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], MAT.hazard, 0);
-        extrude(b, aabb(x - HX, y - HY, x + HX, y + HY), bay.prop.z0, top, MAT.prop, 0);
-        // the cockpit sits on the hull's aisle half, a little narrower and lower
+        // a white hull with an orange band round its waist
+        extrude(b, aabb(x - HX, y - HY, x + HX, y + HY), bay.prop.z0, top, made(MAT.prop, 'frame'), 0);
+        extrude(b, aabb(x - HX - 0.03, y - HY - 0.03, x + HX + 0.03, y + HY + 0.03), bay.prop.z0 + 1.2, bay.prop.z0 + 1.36, made(MAT.prop, 'orange'), 0);
+        // the cockpit sits on the hull's aisle half, a little narrower and lower, dark, with a lit window
         const cx = x + nx * 0.8;
-        extrude(b, aabb(cx - 0.6, y - 0.8, cx + 0.6, y + 0.8), top, top + 0.55, MAT.prop, 0);
-        extrude(b, aabb(cx + nx * 0.58 - 0.03, y - 0.6, cx + nx * 0.58 + 0.03, y + 0.6), top + 0.15, top + 0.45, MAT.glow, 0.7);
-        // the engine
+        extrude(b, aabb(cx - 0.6, y - 0.8, cx + 0.6, y + 0.8), top, top + 0.55, made(MAT.prop, 'graphite'), 0);
+        extrude(b, aabb(cx + nx * 0.58 - 0.03, y - 0.6, cx + nx * 0.58 + 0.03, y + 0.6), top + 0.15, top + 0.45, made(MAT.glow, 'blue'), 0.4);
+        // the engine, a dark nozzle with an amber glow
         const ex = x - nx * (HX + 0.05);
-        extrude(b, aabb(ex - 0.05, y - 0.8, ex + 0.05, y + 0.8), 0.7, 1.4, MAT.glow, 0.9);
+        extrude(b, aabb(ex - 0.12, y - 0.95, ex + 0.12, y + 0.95), 0.6, 1.5, made(MAT.prop, 'graphite'), 0);
+        extrude(b, aabb(ex - nx * 0.1 - 0.04, y - 0.8, ex - nx * 0.1 + 0.04, y + 0.8), 0.7, 1.4, made(MAT.glow, 'amber'), 0.9);
+        // the struts, and its navigation lights: red to port, green to starboard
         for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]])
         {
             const [lx, ly] = [x + sx * (HX - 0.4), y + sy * (HY - 0.4)];
-            extrude(b, aabb(lx - 0.08, ly - 0.08, lx + 0.08, ly + 0.08), 0, bay.prop.z0, MAT.frame, 0);
+            extrude(b, aabb(lx - 0.08, ly - 0.08, lx + 0.08, ly + 0.08), 0, bay.prop.z0, made(MAT.prop, 'graphite'), 0);
         }
+        for (const sy of [-1, 1])
+            extrude(b, aabb(x - 0.08, y + sy * (HY + 0.02) - 0.04, x + 0.08, y + sy * (HY + 0.02) + 0.04), top - 0.12, top - 0.02, made(MAT.glow, sy < 0 ? 'red' : 'green'), 0.8);
         // seen from the aisle, the viewer's right runs along -nx * y
-        plate(b, [x + nx * (HX + 0.02), bay.prop.z0 + bay.prop.h * 0.5, y], [0, 0, -nx], 2.6, [nx, 0, 0], SHUTTLE_PLATES + i);
+        plate(b, [x + nx * (HX + 0.02), bay.prop.z0 + 0.6, y], [0, 0, -nx], 2.6, [nx, 0, 0], SHUTTLE_PLATES + i, 0.5);
     });
     return new Float32Array(b.data);
 }

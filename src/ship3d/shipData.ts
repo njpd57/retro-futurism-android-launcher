@@ -23,6 +23,10 @@ export interface RoomData
     name: string;
     height: number;
     shape: ShapeData;
+    /** ids in `materials.json` for this room's surfaces; the kind's own when left out */
+    floor?: string;
+    wall?: string;
+    ceiling?: string;
 }
 
 /** A prop with the defaults left out (`yaw`, `z0`, `glow` = 0, `solid` = true). */
@@ -108,4 +112,8 @@ export interface ShipData
     vias: Record<string, V2[]>;
     signalSlots: { x: number; y: number; yaw: number }[];
     stencils: { room: string; text: string }[];
+    /** printed labels on the walls (`LECHE` over a dispenser): light letters on a dark strip, `w` wide, centred on `(x, z, y)`, facing `(nx, ny)` */
+    signs?: SignData[];
 }
+
+export interface SignData { text: string; x: number; y: number; z: number; w: number; nx: number; ny: number }

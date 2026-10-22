@@ -17,11 +17,13 @@ export interface MaterialData
     /** how strongly the texture's normal bends the light, 1 = as it is */
     strength: number;
     albedo: number;
+    /** the colour of the surface, `#rrggbb` (white when left out); its brightness is `albedo` */
+    color?: string;
     /** sharpness of the highlight */
     shin: number;
     /** strength of the highlight */
     ks: number;
-    /** the brightness comes from the room's style (`styles`) instead of `albedo` */
+    /** the brightness and colour come from the room's style (`styles`, `styleColors`) instead of `albedo` and `color` */
     styled?: boolean;
     /** where the texture comes from and its licence */
     source?: string;
@@ -36,6 +38,10 @@ export interface MaterialsFile
     kinds: Record<KindName, string>;
     /** the brightness of a `styled` material in each style */
     styles: number[];
+    /** the colour of a `styled` material in each style, `#rrggbb` (white when missing) */
+    styleColors?: string[];
+    /** the colour of the lamps' light in each style (warm white when missing) */
+    styleLamps?: string[];
     /** the style of each zone's surfaces */
     zoneStyle: Record<string, number>;
 }

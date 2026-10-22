@@ -16,7 +16,7 @@ npm run ship:edit      # vite dev server, opens /editor.html
 |---|---|
 | `door` | width and height of every doorway (the shader reads the height once at load) |
 | `start` | where the camera begins |
-| `rooms` | `id`, `zone` (one of the nine rooms or `pasillo`), `name`, `height`, `shape`: `rect`, `chamfer`, `ngon`, `dome` (parameters) or `poly` (literal convex outline) |
+| `rooms` | `id`, `zone` (one of the nine rooms or `pasillo`), `name`, `height`, `shape`: `rect`, `chamfer`, `ngon`, `dome` (parameters) or `poly` (literal convex outline); optional `floor`, `wall`, `ceiling`: ids in `materials.json` for that room's surfaces (the kind's own when left out; set by hand in `ship.json`, the editor keeps them) |
 | `portals` | doorway centres; each must sit on a wall shared by two rooms |
 | `props` | boxes and cylinders in order, plus generators: `mess` (ring, table, jars, bird's glass, crown, chairs: numbers in `mess`) and `pods` |
 | `mess`, `hangar` | parameters of those generators; `hangar.rows` holds one `y` per pair of shuttles |
@@ -45,7 +45,7 @@ After saving `ship.json`, reload the launcher (or its dev tab) to see it. The ed
 
 - How it reaches the screen: `gl.setMaterials(packMaterialUniforms())` fills uniform arrays (`uTile[m]`, `uAlbedo[m]`...) and `loadMaterialTextures(gl, base)` (`details.ts`) loads each PNG into its layer. A surface asks for its material by `materialOf(mat)` in the fragment shader: the one its vertices name (`mat + 16 * style + 256 * (material + 1)`, see `MAT_SURFACE`) or the one of its kind. A vertex that names none is `mat + 16 * style` as before, so adding a material changes nothing that does not use it.
 - **Subir**: give a name and either the maps (colour, normal GL, AO if any: packed in the browser by `texturePack.ts`, the same formula as `scripts/pack_ship_textures.py`) or an already packed image; it is resized to 512x512 and written to `public/ship/<name>.png` by the dev server (`POST /__ship/texture`, a 512x512 PNG of at most 2 MB). A picture of the wrong size is rejected.
-- A live preview (floor, wall, boxes and a column of the selected material, drag to turn, wheel to zoom) uses the same shader. A material is deleted only when no kind, prefab or object uses it. Warnings: missing or oversized textures, a kind pointing to a missing material, unused materials, more than the limits, and a total over 3 MB.
+- A live preview (floor, wall, boxes and a column of the selected material, drag to turn, wheel to zoom) uses the same shader. A material is deleted only when no kind, prefab or object uses it. Warnings: missing or oversized textures, a kind pointing to a missing material, unused materials, more than the limits, and a total over 8 MB.
 - Props (and prefab parts) pick a material in their panel; `Prop.material` is its index in `MATERIALS`, found by id when the plan is expanded.
 
 ## Prefabs (PREFABS tab)

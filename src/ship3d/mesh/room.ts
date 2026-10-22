@@ -1,6 +1,7 @@
 import type { V3 } from '../math';
 import { propOutline, roomAt, splitEdge, type Light, type Prop, type Room, type V2 } from '../world';
 import { MAT, MAT_SURFACE, STYLE, MAT_STYLE, Builder, extrude } from './builder';
+import { addDoorway } from './doorway';
 
 /** Edge in metres of the cells the big surfaces are cut into: small enough for the baked light to follow the corners. */
 export const CELL = 1;
@@ -69,13 +70,15 @@ export function addRoom(b: Builder, room: Room)
     const h = room.height;
     const st = STYLE[room.zone] * MAT_STYLE;
     b.room = room;
+    const own = (i: number) => (i < 0 ? 0 : (i + 1) * MAT_SURFACE);
+    const [fl, wl, ce] = [own(room.surface.floor), own(room.surface.wall), own(room.surface.ceiling)];
     // floor and ceiling, cut into cells and fanned
     for (const piece of tessellate(room.poly))
         for (let i = 1; i < piece.length - 1; i++)
         {
             const [p0, p1, p2] = [piece[0], piece[i], piece[i + 1]];
-            b.tri([p0[0], 0, p0[1]], [p1[0], 0, p1[1]], [p2[0], 0, p2[1]], [0, 1, 0], MAT.floor + st, 0);
-            b.tri([p0[0], h, p0[1]], [p1[0], h, p1[1]], [p2[0], h, p2[1]], [0, -1, 0], MAT.ceiling + st, 0);
+            b.tri([p0[0], 0, p0[1]], [p1[0], 0, p1[1]], [p2[0], 0, p2[1]], [0, 1, 0], MAT.floor + st + fl, 0);
+            b.tri([p0[0], h, p0[1]], [p1[0], h, p1[1]], [p2[0], h, p2[1]], [0, -1, 0], MAT.ceiling + st + ce, 0);
         }
 
     for (let i = 0; i < room.poly.length; i++)
@@ -83,9 +86,11 @@ export function addRoom(b: Builder, room: Room)
         const e = splitEdge(room, i);
         const at = (t: number, o = 0): V2 => [e.ax + e.dx * t + e.nx * o, e.ay + e.dy * t + e.ny * o];
         const n: V3 = [e.nx, 0, e.ny];
+        const [p0, p1] = [room.poly[i], room.poly[(i + 1) % room.poly.length]];
+        const length = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
         for (const [from, to] of e.walls)
         {
-            wallGrid(b, at, from, to, 0, h, n, MAT.wall + st);
+            wallGrid(b, at, from, to, 0, h, n, MAT.wall + st + wl);
         }
         for (const d of e.doors)
         {
@@ -94,25 +99,24 @@ export function addRoom(b: Builder, room: Room)
             {
                 // the room on the other side of the doorway has its own panel in this plane: stand ours a hair into
                 // our room so the two don't fight for the pixel
-                wallGrid(b, t => at(t, 0.003), d.from, d.to, top, h, n, MAT.wall + st);
+                wallGrid(b, t => at(t, 0.003), d.from, d.to, top, h, n, MAT.wall + st + wl);
             }
-            // two posts and a beam
-            const post = (t0: number, t1: number) => extrude(b, [at(t0), at(t1), at(t1, 0.35), at(t0, 0.35)], 0, top, MAT.frame, 0.06);
-            post(d.from, d.from + 0.2);
-            post(d.to - 0.2, d.to);
-            extrude(b, [at(d.from), at(d.to), at(d.to, 0.35), at(d.from, 0.35)], top - 0.2, top, MAT.frame, 0.06);
+            // the moulded surround on the room's side (a corridor's ends are all doorway: its own kit frames them)
+            if (room.zone !== 'pasillo')
+                addDoorway(b, { origin: at(0), along: [e.dx, e.dy], normal: [e.nx, e.ny] }, (d.from + d.to) / 2, (d.to - d.from) / 2, top,
+                    Math.min(d.from, length - d.to), h);
         }
     }
 }
 
-/** The material number of a prop's surfaces: a prop of its own material carries it (`MAT_SURFACE`); a lamp is not made of anything. */
+/** The material number of a prop's surfaces: a prop of its own material carries it (`MAT_SURFACE`); a lamp that names one shines in its colour. */
 export const propMaterial = (p: Prop): number =>
-    p.glow > 0 ? MAT.glow : MAT.prop + (p.material === undefined ? 0 : (p.material + 1) * MAT_SURFACE);
+    (p.glow > 0 ? MAT.glow : MAT.prop) + (p.material === undefined ? 0 : (p.material + 1) * MAT_SURFACE);
 
 export function addProp(b: Builder, p: Prop)
 {
     b.room = roomAt(p.x, p.y) ?? null;
-    extrude(b, propOutline(p, p.kind === 'cyl' ? 16 : 4), p.z0, p.z0 + p.h, propMaterial(p), p.glow);
+    extrude(b, propOutline(p, p.kind === 'cyl' ? (p.sides ?? 16) : 4), p.z0, p.z0 + p.h, propMaterial(p), p.glow);
 }
 
 /** A glowing lamp panel on the ceiling under each ceiling light. */

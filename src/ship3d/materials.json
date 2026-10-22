@@ -1,14 +1,26 @@
 {
- "textures": ["wall", "floor", "ceiling", "prop"],
+ "textures": ["panel", "plain", "quilt", "floor", "ceiling", "louvre", "mesh", "door"],
  "materials": [
-  { "id": "wall", "texture": "wall", "tile": 2, "strength": 1, "albedo": 0.12, "shin": 8, "ks": 0.25, "styled": true, "source": "ambientCG MetalPlates015A (CC0)" },
-  { "id": "floor", "texture": "floor", "tile": 2, "strength": 1, "albedo": 0.09, "shin": 14, "ks": 0.5, "source": "ambientCG DiamondPlate008A (CC0)" },
-  { "id": "ceiling", "texture": "ceiling", "tile": 2, "strength": 1, "albedo": 0.05, "shin": 6, "ks": 0.15, "source": "ambientCG CorrugatedSteel009 (CC0)" },
-  { "id": "prop", "texture": "prop", "tile": 1.5, "strength": 1, "albedo": 0.14, "shin": 10, "ks": 0.35, "source": "ambientCG Metal063 (CC0)" },
-  { "id": "frame", "texture": "prop", "tile": 1.5, "strength": 1, "albedo": 0.14, "shin": 8, "ks": 0.3 },
-  { "id": "door", "texture": "prop", "tile": 1.5, "strength": 1, "albedo": 0.22, "shin": 8, "ks": 0.3 }
+  {"id": "wall", "texture": "panel", "tile": 1.5, "strength": 1, "albedo": 0.42, "color": "#ddd6c8", "styled": true, "shin": 12, "ks": 0.25, "source": "gen_ship_panels.py (original)"},
+  {"id": "floor", "texture": "floor", "tile": 2.4, "strength": 1, "albedo": 0.38, "color": "#bdb7ab", "shin": 16, "ks": 0.35, "source": "gen_ship_panels.py (original)"},
+  {"id": "ceiling", "texture": "ceiling", "tile": 2, "strength": 1, "albedo": 0.42, "color": "#d2ccbf", "shin": 8, "ks": 0.1, "source": "gen_ship_panels.py (original)"},
+  {"id": "prop", "texture": "plain", "tile": 1.2, "strength": 1, "albedo": 0.4, "color": "#d8d1c3", "shin": 14, "ks": 0.3, "source": "gen_ship_panels.py (original)"},
+  {"id": "frame", "texture": "plain", "tile": 1.2, "strength": 1, "albedo": 0.46, "color": "#e2dccf", "shin": 14, "ks": 0.3, "source": "gen_ship_panels.py (original)"},
+  {"id": "door", "texture": "door", "tile": 3, "strength": 1, "albedo": 0.35, "color": "#3d4245", "shin": 16, "ks": 0.35, "source": "gen_ship_panels.py (original)"},
+  {"id": "quilt", "texture": "quilt", "tile": 0.7, "strength": 1, "albedo": 0.55, "color": "#d9661e", "shin": 10, "ks": 0.2, "source": "gen_ship_panels.py (original)"},
+  {"id": "louvre", "texture": "louvre", "tile": 0.5, "strength": 1, "albedo": 0.35, "color": "#55524d", "shin": 10, "ks": 0.2, "source": "gen_ship_panels.py (original)"},
+  {"id": "mesh", "texture": "mesh", "tile": 0.3, "strength": 1, "albedo": 0.45, "color": "#cfc9bd", "shin": 12, "ks": 0.25, "source": "gen_ship_panels.py (original)"},
+  {"id": "seat", "texture": "plain", "tile": 0.6, "strength": 0.5, "albedo": 0.45, "color": "#d0962e", "shin": 20, "ks": 0.35, "source": "gen_ship_panels.py (original)"},
+  {"id": "graphite", "texture": "plain", "tile": 1.2, "strength": 0.6, "albedo": 0.3, "color": "#34383b", "shin": 18, "ks": 0.4, "source": "gen_ship_panels.py (original)"},
+  {"id": "orange", "texture": "plain", "tile": 1.2, "strength": 0.4, "albedo": 0.5, "color": "#d9661e", "shin": 14, "ks": 0.3, "source": "gen_ship_panels.py (original)"},
+  {"id": "red", "texture": "plain", "tile": 1, "strength": 0, "albedo": 0.5, "color": "#e0402e", "shin": 8, "ks": 0.2, "source": "gen_ship_panels.py (original)"},
+  {"id": "green", "texture": "plain", "tile": 1, "strength": 0, "albedo": 0.5, "color": "#56d07a", "shin": 8, "ks": 0.2, "source": "gen_ship_panels.py (original)"},
+  {"id": "blue", "texture": "plain", "tile": 1, "strength": 0, "albedo": 0.5, "color": "#3a78d8", "shin": 8, "ks": 0.2, "source": "gen_ship_panels.py (original)"},
+  {"id": "amber", "texture": "plain", "tile": 1, "strength": 0, "albedo": 0.5, "color": "#f2a531", "shin": 8, "ks": 0.2, "source": "gen_ship_panels.py (original)"}
  ],
- "kinds": { "wall": "wall", "floor": "floor", "ceiling": "ceiling", "prop": "prop", "frame": "frame", "door": "door" },
- "styles": [0.12, 0.12, 0.1, 0.12, 0.15, 0.12, 0.12],
- "zoneStyle": { "comedor": 4, "camarotes": 0, "comms": 0, "puente": 1, "motor": 2, "bodega": 3, "hangar": 3, "enfermeria": 4, "hipersueno": 5, "pasillo": 6 }
+ "kinds": {"wall": "wall", "floor": "floor", "ceiling": "ceiling", "prop": "prop", "frame": "frame", "door": "door"},
+ "styles": [0.42, 0.4, 0.36, 0.4, 0.46, 0.42, 0.42, 0.4],
+ "styleColors": ["#ddd6c8", "#d6d3cb", "#8a857b", "#bdb6a8", "#e8e8e4", "#d8dee2", "#ddd6c8", "#d2cfc6"],
+ "styleLamps": ["#fff0dc", "#f2f0ff", "#ffc98a", "#fff3e2", "#eef5ff", "#cfe2ff", "#fff0dc", "#e6efff"],
+ "zoneStyle": {"comedor": 0, "camarotes": 0, "comms": 7, "puente": 1, "motor": 2, "bodega": 3, "hangar": 3, "enfermeria": 4, "hipersueno": 5, "pasillo": 6}
 }

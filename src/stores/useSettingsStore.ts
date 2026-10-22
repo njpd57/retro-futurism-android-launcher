@@ -87,6 +87,8 @@ export const useSettingsStore = defineStore('settings', () =>
     const shipFps = useLocalStorage<'eco' | '30' | '60' | '120'>('settings.shipFps', 'eco');
     // lamps and monitors glow in the ship (extra GPU passes, so off unless asked for)
     const shipBloom = useLocalStorage('settings.shipBloom', false);
+    /** the ship in colour, or all of it in the phosphor's tint (the monitors are phosphor either way) */
+    const shipColor = useLocalStorage<'color' | 'phosphor'>('settings.shipColor', 'color');
     /** where Home leaves the camera: back on the bridge, or where it was */
     const shipStart = useLocalStorage<'bridge' | 'last'>('settings.shipStart', 'bridge');
     /** each room of the ship hums on its own, louder as you come near and through open doors */
@@ -137,5 +139,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsSites, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, shipPanel, shipFps, shipBloom, shipStart, shipRoomSound, shipLabels, shipLook, shipInvertY, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsSites, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, shipPanel, shipFps, shipBloom, shipColor, shipStart, shipRoomSound, shipLabels, shipLook, shipInvertY, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

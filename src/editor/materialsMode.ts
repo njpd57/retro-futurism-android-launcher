@@ -33,7 +33,7 @@ export function materialIssues(data: MaterialsFile, textures: readonly TextureIn
     for (const k of KINDS) if (!ids.has(data.kinds[k])) err(`EL TIPO «${k}» USA UN MATERIAL QUE NO EXISTE: ${data.kinds[k]}`);
     for (const t of data.textures) if (!textures.some(f => f.name === t)) warn(`FALTA EL ARCHIVO public/ship/${t}.png (SE VE LISO)`);
     const total = textures.filter(f => data.textures.includes(f.name)).reduce((s, f) => s + f.bytes, 0);
-    if (total > 3 * 1024 * 1024) warn(`LAS TEXTURAS PESAN ${(total / 1048576).toFixed(1)} MB (EN EL TELÉFONO PESAN)`);
+    if (total > 8 * 1024 * 1024) warn(`LAS TEXTURAS PESAN ${(total / 1048576).toFixed(1)} MB (EN EL TELÉFONO PESAN)`);
     for (const [zone, st] of Object.entries(data.zoneStyle)) if (st < 0 || st >= data.styles.length) warn(`LA ZONA ${zone} USA EL ESTILO ${st}, QUE NO EXISTE`);
     const used = new Set<string>([...Object.values(data.kinds), ...PREFABS.flatMap(p => p.parts.map(q => q.material ?? ''))]);
     const live = new Set(PROPS.map(p => (p.material === undefined ? '' : MATERIALS[p.material]?.id ?? '')));

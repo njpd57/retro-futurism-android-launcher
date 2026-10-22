@@ -3,7 +3,7 @@ import type { Prefab } from './prefabData';
 import shipJson from './ship.json';
 import { materialIndex } from './materials';
 import { prefabById } from './prefabs';
-import type { HangarData, LampData, MessData, PropData, PropEntry, ScreenData, ShapeData, ShipData } from './shipData';
+import type { HangarData, LampData, MessData, PropData, PropEntry, ScreenData, ShapeData, ShipData, SignData } from './shipData';
 
 /**
  * The ship as data: convex rooms (polygons extruded to a height), the doors between them, what stands in them, the
@@ -24,6 +24,8 @@ export interface Room
     /** convex outline */
     poly: V2[];
     height: number;
+    /** material index (`materials.json`) of each surface, or -1 for the kind's own */
+    surface: { floor: number; wall: number; ceiling: number };
 }
 
 /** A doorway on the line where two rooms meet. */
@@ -48,6 +50,8 @@ export interface Prop
     /** 0..1 how much it shines by itself */
     glow: number;
     solid: boolean;
+    /** a cylinder's sides in the mesh (16 when left out); its first corner is at `yaw` */
+    sides?: number;
     /** index into `MATERIALS`; the kind's own when left out */
     material?: number;
 }
@@ -72,6 +76,8 @@ export interface ScreenDef
 }
 
 /** Door size. Filled from `ship.json`; the door shader reads `height` once when it is built. */
+const surfaceIndex = (id?: string) => (id ? materialIndex(id) : -1);
+
 export const DOOR = { width: 3, height: 2.6 };
 /** how far a monitor stands off its wall */
 export const SCREEN_OFFSET = 0.04;
@@ -147,6 +153,7 @@ export const VIAS: Record<string, V2[]> = {};
 export const SIGNAL_SLOTS: { x: number; y: number; yaw: number }[] = [];
 /** The rooms that have a stencil on their wall, and what it says. */
 export const STENCILS: { room: string; text: string }[] = [];
+export const SIGNS: SignData[] = [];
 
 const door = (x: number, y: number): Portal => ({ x, y, ...DOOR });
 
@@ -184,8 +191,14 @@ const pods = (cx: number, cy: number, radius: number): Prop[] =>
     Array.from({ length: 6 }, (_, k) =>
     {
         const a = (k * Math.PI * 2) / 6 + Math.PI / 6;
-        return cyl(round(cx + radius * Math.cos(a)), round(cy + radius * Math.sin(a)), 1.4, 1.1, { glow: 0.55 });
-    });
+        const [x, y] = [round(cx + radius * Math.cos(a)), round(cy + radius * Math.sin(a))];
+        // a white shell, a dark seal and a lid of cold light
+        return [
+            cyl(x, y, 1.4, 0.7, of('frame')),
+            cyl(x, y, 1.46, 0.06, of('graphite', { z0: 0.68, solid: false })),
+            cyl(x, y, 1.2, 0.32, of('blue', { z0: 0.72, glow: 0.35, solid: false })),
+        ];
+    }).flat();
 
 // ---- the mess: a round table in a sunken ring under a crown of monitors, as on the Torrens
 
@@ -214,32 +227,73 @@ export const BIRD = { x: 1, y: 1.1, yaw: Math.PI / 2 };
 /** How far in front of the bird its glass stands. */
 export let BIRD_GLASS = 0.26;
 
+/** `extra` for a prop made of material `id` of `materials.json`, as many as it has; the kind's own if there is none. */
+function of(id: string, extra: Partial<Prop> = {}): Partial<Prop>
+{
+    const material = materialIndex(id);
+    return material >= 0 ? { ...extra, material } : extra;
+}
+
+/**
+ * One of the mess's chairs at plan angle `a` from the middle, `r` out: a yellow seat and back on a frame of dark tube,
+ * as on the Torrens. The seat is what you bump into.
+ */
+function chairProps(r: number, a: number): Prop[]
+{
+    const at = (radial: number, along: number) => messAt(a, r + radial, along);
+    const yaw = a + Math.PI / 2;
+    const out: Prop[] = [];
+    const seat = at(0, 0);
+    out.push(box(seat.x, seat.y, 0.5, 0.46, 0.06, of('seat', { yaw, z0: 0.42 })));
+    for (const [radial, along] of [[-0.19, -0.21], [-0.19, 0.21], [0.19, -0.21], [0.19, 0.21]])
+    {
+        const leg = at(radial, along);
+        out.push(box(leg.x, leg.y, 0.035, 0.035, 0.42, of('graphite', { yaw, solid: false })));
+    }
+    for (const along of [-0.21, 0.21])
+    {
+        const post = at(0.23, along);
+        out.push(box(post.x, post.y, 0.035, 0.035, 0.55, of('graphite', { yaw, z0: 0.47, solid: false })));
+    }
+    const back = at(0.25, 0);
+    out.push(box(back.x, back.y, 0.5, 0.05, 0.3, of('seat', { yaw, z0: 0.68, solid: false })));
+    return out;
+}
+
 /** The table, the chairs and what is on and over them. The furniture along the walls is plain props in the data. */
 function messProps(m: MessData, height: number): Prop[]
 {
+    const top = m.tableTop;
     const out: Prop[] = [
         // the sunken ring the table stands in, a floor of another kind with an edge you can see
-        cyl(0, 0, m.ringD, 0.03, { solid: false }),
-        cyl(0, 0, m.tableR * 2, m.tableTop),
-        // the lit turntable in the middle and the jars on it
-        cyl(0, 0, 1.4, 0.05, { z0: m.tableTop, glow: 0.25, solid: false }),
-        ...[0, 1, 2].map(k => cyl(round(0.42 * Math.cos(k * 2.1)), round(0.42 * Math.sin(k * 2.1)), 0.2, 0.3, { z0: m.tableTop + 0.05, solid: false })),
+        cyl(0, 0, m.ringD, 0.03, of('graphite', { solid: false })),
+        // the table: a mesh drum on a dark plinth, an orange rim and a white top just proud of it
+        cyl(0, 0, m.tableR * 2 - 0.5, top - 0.08, of('mesh')),
+        cyl(0, 0, m.tableR * 2 - 0.36, 0.1, of('graphite', { solid: false })),
+        cyl(0, 0, m.tableR * 2, 0.08, of('orange', { z0: top - 0.08, solid: false })),
+        cyl(0, 0, m.tableR * 2 - 0.1, 0.085, of('prop', { z0: top - 0.08, solid: false })),
+        // the turntable in the middle, a dark ring round a white disc, and the jars of cereal on it with their lids
+        cyl(0, 0, 1.9, 0.012, of('graphite', { z0: top, solid: false })),
+        cyl(0, 0, 1.3, 0.04, of('prop', { z0: top, solid: false })),
+        ...[0, 1, 2].flatMap(k =>
+        {
+            const [x, y] = [round(0.42 * Math.cos(k * 2.1)), round(0.42 * Math.sin(k * 2.1))];
+            return [cyl(x, y, 0.2, 0.26, of('amber', { z0: top + 0.04, solid: false })), cyl(x, y, 0.21, 0.04, of('prop', { z0: top + 0.3, solid: false }))];
+        }),
         // the bird's glass
-        cyl(round(m.bird.x + Math.sin(m.bird.yaw) * m.bird.glass), round(m.bird.y - Math.cos(m.bird.yaw) * m.bird.glass), 0.1, 0.23, { z0: m.tableTop, solid: false }),
-        // the crown over the table and the ring of light under it
-        cyl(0, 0, m.crownR * 2, height - m.crownZ0, { z0: m.crownZ0, solid: false }),
-        cyl(0, 0, 1.6, 0.12, { z0: m.crownZ0 - 0.12, glow: 0.8, solid: false }),
+        cyl(round(m.bird.x + Math.sin(m.bird.yaw) * m.bird.glass), round(m.bird.y - Math.cos(m.bird.yaw) * m.bird.glass), 0.1, 0.23, of('prop', { z0: top, solid: false })),
+        // the octagonal hood over the table, its monitors on four of its faces, a band of vents round its foot, and the
+        // ring of light under it
+        cyl(0, 0, (m.crownR * 2) / Math.cos(Math.PI / 8), height - m.crownZ0, of('frame', { z0: m.crownZ0 + 0.25, solid: false, sides: 8, yaw: Math.PI / 8 })),
+        cyl(0, 0, (m.crownR * 2 + 0.1) / Math.cos(Math.PI / 8), 0.25, of('louvre', { z0: m.crownZ0, solid: false, sides: 8, yaw: Math.PI / 8 })),
+        cyl(0, 0, m.crownR * 2 - 0.3, 0.06, of('graphite', { z0: m.crownZ0 - 0.06, solid: false })),
+        cyl(0, 0, 1.6, 0.1, { z0: m.crownZ0 - 0.16, glow: 0.8, solid: false }),
     ];
     for (let k = 0; k < m.chairs; k++)
     {
         const c = chairAt(k, m.chairR, m.chairs);
-        const back = messAt(c.a, m.chairR + 0.24);
         const mug = messAt(c.a, m.tableR - 0.35);
-        out.push(
-            box(c.x, c.y, 0.56, 0.5, 0.46, { yaw: c.a + Math.PI / 2 }),
-            box(back.x, back.y, 0.56, 0.07, 0.55, { yaw: back.yaw, z0: 0.46, solid: false }),
-            cyl(mug.x, mug.y, 0.09, 0.11, { z0: m.tableTop, solid: false }),
-        );
+        out.push(...chairProps(m.chairR, c.a), cyl(mug.x, mug.y, 0.09, 0.11, of(k % 2 ? 'graphite' : 'prop', { z0: top, solid: false })));
     }
     return out;
 }
@@ -347,7 +401,8 @@ export function applyWorld(data: ShipData): void
     Object.assign(START, data.start);
 
     rooms.length = 0;
-    for (const r of data.rooms) rooms.push({ id: r.id, zone: r.zone as Zone, name: r.name, poly: shapeOf(r.shape), height: r.height });
+    for (const r of data.rooms) rooms.push({ id: r.id, zone: r.zone as Zone, name: r.name, poly: shapeOf(r.shape), height: r.height,
+        surface: { floor: surfaceIndex(r.floor), wall: surfaceIndex(r.wall), ceiling: surfaceIndex(r.ceiling) } });
     portals.length = 0;
     for (const p of data.portals) portals.push(door(p.x, p.y));
 
@@ -381,6 +436,8 @@ export function applyWorld(data: ShipData): void
     SIGNAL_SLOTS.push(...data.signalSlots);
     STENCILS.length = 0;
     STENCILS.push(...data.stencils);
+    SIGNS.length = 0;
+    SIGNS.push(...(data.signs ?? []));
 
     lights.length = 0;
     lampCfg = { ...data.lamps };
@@ -500,7 +557,7 @@ export function propOutline(p: Prop, n = 10): V2[]
     {
         return Array.from({ length: n }, (_, k): V2 =>
         {
-            const a = (k * Math.PI * 2) / n;
+            const a = (k * Math.PI * 2) / n + p.yaw;
             return [p.x + (p.w / 2) * Math.cos(a), p.y + (p.w / 2) * Math.sin(a)];
         });
     }

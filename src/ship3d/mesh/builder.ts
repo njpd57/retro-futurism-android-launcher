@@ -1,4 +1,5 @@
 import { bakeVertex } from '../bake';
+import { STYLE } from '../materials';
 import type { V3 } from '../math';
 import { centroid, type Room, type V2 } from '../world';
 
@@ -33,6 +34,8 @@ export class Builder
 
     vertex(x: number, up: number, y: number, n: V3, u: number, v: number, mat: number, emit: number)
     {
+        // everything in a room carries the room's style, which is the colour of its light
+        if (this.room && mat % MAT_SURFACE < MAT_STYLE) mat += (STYLE[this.room.zone] ?? 0) * MAT_STYLE;
         const { ao, lit, dir } = bakeVertex(this.room, x, up, y, n);
         this.data.push(x, up, y, n[0], n[1], n[2], u, v, mat, emit, ao, lit, dir[0], dir[1], dir[2]);
     }

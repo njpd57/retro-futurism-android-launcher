@@ -1,6 +1,6 @@
 import { LABEL_SLOTS } from './atlas';
 import { fit } from './readings';
-import { STENCILS } from './world';
+import { SIGNS, STENCILS } from './world';
 
 /**
  * Which name plate of the atlas holds what: the apps of the signals crew in COMMS, the starred contacts at their bunks
@@ -12,8 +12,10 @@ export const CONTACT_PLATES = 6;
 export const SHUTTLE_PLATES = 10;
 /** the stencil of each room beside its door, in `STENCIL_ROOMS` order */
 export const STENCIL_PLATES = 16;
+/** the printed signs, in `SIGNS` order, after the stencils */
+export const SIGN_PLATES = 25;
 
-export { STENCILS };
+export { SIGNS, STENCILS };
 
 /** How wide a plate's text may be, in characters. */
 export const PLATE_CHARS = 14;
@@ -48,5 +50,13 @@ export function withStencils(texts: readonly (string | undefined)[]): (string | 
 {
     const out = [...texts];
     STENCILS.forEach((s, i) => { out[STENCIL_PLATES + i] = s.text; });
+    return out;
+}
+
+/** `texts` with the printed signs in their plates: they are part of the ship, so they show with or without name plates. */
+export function withSigns(texts: readonly (string | undefined)[]): (string | undefined)[]
+{
+    const out = [...texts];
+    SIGNS.slice(0, LABEL_SLOTS - SIGN_PLATES).forEach((s, i) => { out[SIGN_PLATES + i] = s.text; });
     return out;
 }
