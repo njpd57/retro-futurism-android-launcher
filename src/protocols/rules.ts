@@ -1,4 +1,5 @@
 import type { Phosphor } from '@/stores/useSettingsStore';
+import { MAX_PANELS } from '@/utils/dashboardLayout';
 
 /** Weekdays as `Date.getDay()` gives them: 0 is Sunday. An empty list means every day. */
 export type Days = number[];
@@ -11,8 +12,8 @@ export type Condition =
     | { type: 'wifi'; on: boolean };
 
 export type Effect =
-    /** Index of the dashboard panel (0..3), shown once when the protocol starts. */
-    | { type: 'panel'; index: number }
+    /** The dashboard deck shown once when the protocol starts: by `deck` id when it still exists, otherwise by `index`. */
+    | { type: 'panel'; index: number; deck?: string }
     | { type: 'phosphor'; phosphor: Phosphor }
     | { type: 'nightShift' }
     | { type: 'hideFolder'; folder: string }
@@ -211,7 +212,9 @@ function readEffect(raw: unknown): Effect | null
     const e = raw as Record<string, unknown>;
     switch (e.type)
     {
-        case 'panel': return isInt(e.index, 0, 3) ? { type: 'panel', index: e.index } : null;
+        case 'panel':
+            if (!isInt(e.index, 0, MAX_PANELS - 1)) return null;
+            return typeof e.deck === 'string' && e.deck ? { type: 'panel', index: e.index, deck: e.deck.slice(0, 12) } : { type: 'panel', index: e.index };
         case 'phosphor': return PHOSPHOR_IDS.includes(e.phosphor as Phosphor) ? { type: 'phosphor', phosphor: e.phosphor as Phosphor } : null;
         case 'nightShift': return { type: 'nightShift' };
         case 'hideFolder': return typeof e.folder === 'string' && e.folder.trim() ? { type: 'hideFolder', folder: e.folder.trim().toUpperCase().slice(0, 16) } : null;

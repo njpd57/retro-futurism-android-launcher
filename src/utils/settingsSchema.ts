@@ -122,7 +122,10 @@ export const SETTINGS_SECTIONS: SettingSection[] = [
         id: 'system', code: '07', title: 'SISTEMA', hint: 'ARRANQUE, BARRAS Y MANTENIMIENTO',
         rows: [
             { kind: 'toggle', key: 'bootSequence', label: 'ARRANQUE', hint: 'SECUENCIA DE ARRANQUE AL INICIAR' },
-            { kind: 'toggle', key: 'ownStatusBar', label: 'BARRA PROPIA', hint: 'OCULTA LA BARRA DEL SISTEMA Y DIBUJA LA NUESTRA' },
+            { kind: 'toggle', key: 'ownStatusBar', label: 'CONSOLA DE PUENTE', hint: 'OCULTA LA BARRA DEL SISTEMA Y DIBUJA LA CONSOLA DE LA NAVE' },
+            { kind: 'slider', key: 'cameraWidth', label: 'HUECO CÁMARA', min: 0, max: 60, step: 5, when: { key: 'ownStatusBar' }, hint: 'ESPACIO LIBRE EN EL CENTRO DE LA BARRA (0 = AUTOMÁTICO)' },
+            { kind: 'toggle', key: 'ticker', label: 'TELETIPO', when: { key: 'ownStatusBar' }, hint: 'CINTA DE MOTHER BAJO LA CONSOLA: SEÑALES, ALARMA, CLIMA, RESERVA' },
+            { kind: 'toggle', key: 'liveWidgets', label: 'VENTANAS VIVAS', hint: 'LA VENTANA DE UNA SEÑAL, LA ALARMA O LA RESERVA BAJA CRECE UN TAMAÑO MIENTRAS PIDE ATENCIÓN' },
             { kind: 'action', id: 'bridgeButton', label: 'BOTÓN BRIDGE', hint: 'BOTÓN FLOTANTE DE BRIDGE LAUNCHER' },
             { kind: 'action', id: 'resetPanels', label: '[RESTABLECER PANELES]', hint: 'VUELVE A LOS CUATRO PANELES DE FÁBRICA' },
             { kind: 'link', target: 'permissions', label: 'PERMISOS', hint: 'ESTADO DE CADA PERMISO Y CAPACIDAD' },

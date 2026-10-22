@@ -134,7 +134,7 @@ describe('normalizeRules', () =>
 
     it('clamps the numbers', () =>
     {
-        const [r] = normalizeRules([{ id: 'a', when: [{ type: 'time', from: -5, to: 99999, days: [1] }, { type: 'battery', below: 0 }, { type: 'time', from: 60, to: 120, days: [1, 9, 'x'] }], then: [{ type: 'panel', index: 7 }] }]);
+        const [r] = normalizeRules([{ id: 'a', when: [{ type: 'time', from: -5, to: 99999, days: [1] }, { type: 'battery', below: 0 }, { type: 'time', from: 60, to: 120, days: [1, 9, 'x'] }], then: [{ type: 'panel', index: 9 }] }]);
         expect(r.when).toEqual([{ type: 'time', from: 60, to: 120, days: [1] }]);
         expect(r.then).toEqual([]);
     });

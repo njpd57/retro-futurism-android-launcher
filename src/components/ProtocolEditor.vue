@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { PHOSPHORS, useSettingsStore } from '@/stores/useSettingsStore';
 import { useProtocolsStore } from '@/stores/useProtocolsStore';
+import { deckIndex } from '@/utils/dashboardLayout';
 import { formatDays, formatMinutes, type Condition, type Effect } from '@/protocols/rules';
 import MenuItem from './MenuItem.vue';
 import TermInput from './TermInput.vue';
@@ -37,6 +38,15 @@ function nextFolder(current: string)
     const names = folderNames.value;
     return names.length ? names[(names.indexOf(current) + 1) % names.length] : current;
 }
+// a rule shows a deck by id; one deleted since falls back to the index it was made with
+type PanelEffect = Extract<Effect, { type: 'panel' }>;
+const deckAt = (e: PanelEffect) => { const byId = e.deck ? deckIndex(settings.layouts, e.deck) : -1; return byId >= 0 ? byId : Math.min(e.index, settings.layouts.panels.length - 1); };
+const deckLabel = (e: PanelEffect) => settings.layouts.names[deckAt(e)];
+function nextDeck(e: PanelEffect): PanelEffect
+{
+    const index = (deckAt(e) + 1) % settings.layouts.panels.length;
+    return { type: 'panel', index, deck: settings.layouts.ids[index] };
+}
 const nextPhosphor = (id: string) => PHOSPHORS[(PHOSPHORS.findIndex(p => p.id === id) + 1) % PHOSPHORS.length].id;
 
 const adding = ref<'when' | 'then' | null>(null);
@@ -47,7 +57,7 @@ const CONDITION_CHOICES: { label: string; make: () => Condition }[] = [
     { label: 'WI-FI', make: () => ({ type: 'wifi', on: true }) },
 ];
 const EFFECT_CHOICES: { label: string; make: () => Effect }[] = [
-    { label: 'CAMBIAR DE PANEL', make: () => ({ type: 'panel', index: 0 }) },
+    { label: 'CAMBIAR DE CUBIERTA', make: () => ({ type: 'panel', index: 0, deck: settings.layouts.ids[0] }) },
     { label: 'CAMBIAR DE FÓSFORO', make: () => ({ type: 'phosphor', phosphor: 'red' }) },
     { label: 'TURNO NOCTURNO', make: () => ({ type: 'nightShift' }) },
     { label: 'OCULTAR UNA CARPETA', make: () => ({ type: 'hideFolder', folder: folderNames.value[0] ?? 'JUEGOS' }) },
@@ -86,7 +96,7 @@ function remove()
         <div class="head">ENTONCES</div>
         <div v-if="!rule.then.length" class="note">SIN EFECTOS.</div>
         <div v-for="(e, i) in rule.then" :key="i" class="block">
-            <MenuItem v-if="e.type === 'panel'"><span>MUESTRA EL PANEL P{{ e.index + 1 }}</span><span><span class="step pressable" @click.stop="setThen(i, { ...e, index: Math.max(0, e.index - 1) })">[-]</span> <span class="step pressable" @click.stop="setThen(i, { ...e, index: Math.min(3, e.index + 1) })">[+]</span></span></MenuItem>
+            <MenuItem v-if="e.type === 'panel'" @click="setThen(i, nextDeck(e))"><span>MUESTRA LA CUBIERTA</span><span>{{ deckLabel(e) }}</span></MenuItem>
             <MenuItem v-else-if="e.type === 'phosphor'" @click="setThen(i, { ...e, phosphor: nextPhosphor(e.phosphor) })"><span>FÓSFORO</span><span>{{ PHOSPHORS.find(p => p.id === e.phosphor)?.label }}</span></MenuItem>
             <MenuItem v-else-if="e.type === 'hideFolder'" @click="setThen(i, { ...e, folder: nextFolder(e.folder) })"><span>OCULTA LA CARPETA</span><span>{{ e.folder }}</span></MenuItem>
             <MenuItem v-else-if="e.type === 'nightShift'"><span>TURNO NOCTURNO</span><span>ROJO + MENOS BLOOM</span></MenuItem>

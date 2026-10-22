@@ -81,6 +81,8 @@ class ForkBridgeMock extends BridgeMock
     }
 
     getWindowInsetsSwapFixed() { return true; }
+    /** A camera hole in the middle of the top edge, to see the gap in the status bar. */
+    getDisplayCutoutPath() { const c = window.innerWidth / 2; return `M ${c - 45} 0 L ${c + 45} 0 L ${c + 45} 28 L ${c - 45} 28 Z`; }
     getBattery() { return JSON.stringify(this.battery); }
     getConnectivity() { return JSON.stringify(this.connectivity); }
 

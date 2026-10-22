@@ -22,7 +22,8 @@ import Dashboard from '@/components/Dashboard.vue';
 import MenuItem from '@/components/MenuItem.vue';
 import MotherTerminal from '@/components/MotherTerminal.vue';
 import NotificationWindow from '@/components/NotificationWindow.vue';
-import StatusBar from '@/components/StatusBar.vue';
+import BridgeConsole from '@/components/console/BridgeConsole.vue';
+import WidgetBoundary from '@/components/WidgetBoundary.vue';
 import PromptBar from '@/components/PromptBar.vue';
 import SoftKeys, { type SoftKey } from '@/components/SoftKeys.vue';
 import SettingsPanel from '@/components/SettingsPanel.vue';
@@ -368,7 +369,9 @@ onUnmounted(() =>
             ref="screenEl"
             class="screen"
             :style="{ 'padding-top': px(insetTop), 'padding-bottom': px(insetBottom) }">
-            <StatusBar v-if="settings.ownStatusBar" :style="{ height: px(statusBarHeight) }" @open="openStatusBar" />
+            <WidgetBoundary v-if="settings.ownStatusBar" name="CONSOLA">
+                <BridgeConsole :deck-height="statusBarHeight" @open="openStatusBar" @mother="settings.activeTab = 'mother'" />
+            </WidgetBoundary>
             <TopBar ref="topBarEl" :tab="settings.activeTab" @open-settings="settingsOpen = true" @select-tab="selectTab" @open-notifications="notificationsOpen = true" />
             <AlertStrip />
             <Dashboard v-if="settings.activeTab === 'panel'" :editing="editing" @menu="menuApp = $event" />

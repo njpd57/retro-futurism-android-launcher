@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES } from '@/utils/widgetCatalog';
-import { DEFAULT_PANELS, MAX_PANELS, SIZE_CELLS, sizeOf } from '@/utils/dashboardLayout';
+import { LAYOUT_TEMPLATES, templateSet, DEFAULT_PANELS, MAX_PANELS, SIZE_CELLS, sizeOf } from '@/utils/dashboardLayout';
 import { WIDGETS } from '../registry';
 
 describe('widget registry', () =>
@@ -33,6 +33,22 @@ describe('widget registry', () =>
         {
             expect(WIDGETS, item.id).toHaveProperty(item.kind);
             expect(sizeOf(item, WIDGETS[item.kind].sizes), item.id).toBe(item.size);
+        }
+    });
+
+    it('layout templates use known widgets at sizes they support, with unique ids', () =>
+    {
+        for (const t of LAYOUT_TEMPLATES)
+        {
+            const set = templateSet(t);
+            expect(set.panels.length, t.id).toBe(t.decks.length);
+            const items = set.panels.flat();
+            expect(new Set(items.map(i => i.id)).size, t.id).toBe(items.length);
+            for (const i of items)
+            {
+                expect(i.kind in WIDGETS, `${t.id}:${i.kind}`).toBe(true);
+                expect(WIDGETS[i.kind].sizes, `${t.id}:${i.kind}`).toContain(i.size);
+            }
         }
     });
 });

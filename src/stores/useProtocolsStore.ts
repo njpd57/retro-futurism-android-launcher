@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { useLocalStorage } from "@vueuse/core";
 import { computed, watch } from "vue";
 import { changes, cleanRuleName, evaluate, MAX_RULES, normalizeRules, overlay, TEMPLATES, type Rule, type RuleContext } from "@/protocols/rules";
-import { selectPanel } from "@/utils/dashboardLayout";
+import { deckIndex, selectPanel } from "@/utils/dashboardLayout";
 import { useLogStore } from "./useLogStore";
 import { useSettingsStore } from "./useSettingsStore";
 import { useShipClockStore } from "./useShipClockStore";
@@ -43,7 +43,14 @@ export const useProtocolsStore = defineStore('protocols', () =>
             if (!rule) continue;
             log.push('PRT', `${rule.name} ACTIVO`);
             const panel = [...rule.then].reverse().find(e => e.type === 'panel');
-            if (panel && panel.type === 'panel') settings.layouts = selectPanel(settings.layouts, panel.index);
+            if (panel && panel.type === 'panel')
+            {
+                // a deck is found by its id; a deleted one falls back to the index the rule was made with
+                const byId = panel.deck ? deckIndex(settings.layouts, panel.deck) : -1;
+                const target = byId >= 0 ? byId : Math.min(panel.index, settings.layouts.panels.length - 1);
+                settings.layouts = selectPanel(settings.layouts, target);
+                log.push('PRT', `CUBIERTA ${settings.layouts.names[target]}`);
+            }
         }
     }, { immediate: true });
 

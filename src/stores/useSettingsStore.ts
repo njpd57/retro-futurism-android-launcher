@@ -69,6 +69,12 @@ export const useSettingsStore = defineStore('settings', () =>
         set: items => { layouts.value = setActivePanelItems(normalizeLayoutSet(layouts.value), items); },
     });
     const ownStatusBar = useLocalStorage('settings.ownStatusBar', false);
+    /** Percent of the status bar left empty for the camera; 0 = measured from the display cutout. */
+    const cameraWidth = useLocalStorage('settings.cameraWidth', 0);
+    /** MOTHER's teletype under the bridge console. */
+    const ticker = useLocalStorage('settings.ticker', true);
+    /** Windows whose subject needs a look (signals, alarm, low battery) grow a size for a while. */
+    const liveWidgets = useLocalStorage('settings.liveWidgets', true);
     const sortMode = useLocalStorage<SortMode>('settings.sortMode', 'alpha');
     const listMode = useLocalStorage<'simple' | 'long'>('settings.listMode', 'simple');
     const aliases = useLocalStorage<Record<string, string>>('settings.aliases', {});
@@ -115,5 +121,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

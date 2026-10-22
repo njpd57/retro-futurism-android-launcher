@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { useAnimStore } from '@/stores/useAnimStore';
 import { useSoundStore } from '@/stores/useSoundStore';
 import { TRANSITION_MS, noiseParams } from '@/utils/anim';
+import { useRowDrag } from '@/composables/useRowDrag';
 
 const props = withDefaults(defineProps<{
     title: string;
@@ -17,7 +18,20 @@ const props = withDefaults(defineProps<{
     pop?: boolean;
 }>(), { minimized: false, minimizable: true, closable: false, movable: false, resizable: false, fill: false, pop: false });
 
-defineEmits<{ (e: 'toggle'): void; (e: 'close'): void; (e: 'move', delta: -1 | 1): void; (e: 'resize'): void }>();
+const emit = defineEmits<{
+    (e: 'toggle'): void; (e: 'close'): void; (e: 'move', delta: -1 | 1): void; (e: 'resize'): void; (e: 'duplicate'): void;
+    (e: 'drag-start'): void; (e: 'drag-move', x: number, y: number): void; (e: 'drag-drop', x: number, y: number): void; (e: 'drag-cancel'): void;
+}>();
+
+// in edit mode, holding the title bar lifts the window; letting go without moving puts it back
+const drag = useRowDrag({
+    canDrag: () => props.movable,
+    onLift: () => { if (props.movable) emit('drag-start'); },
+    onMenu: () => emit('drag-cancel'),
+    onMove: (x, y) => emit('drag-move', x, y),
+    onDrop: (x, y) => emit('drag-drop', x, y),
+    onCancel: () => emit('drag-cancel'),
+});
 
 const anim = useAnimStore();
 const sound = useSoundStore();
@@ -78,10 +92,17 @@ onBeforeUnmount(() => { observer?.disconnect(); window.clearTimeout(unfoldTimer)
 
 <template>
     <section class="tui-window" :class="{ fill, minimized, ambient: anim.ambient }" :style="anim.ambient ? noise : undefined">
-        <header class="title-bar">
+        <header
+            class="title-bar"
+            data-no-swipe
+            @touchstart.passive="movable && drag.onTouchStart($event)"
+            @touchmove="movable && drag.onTouchMove($event)"
+            @touchend="movable && drag.onTouchEnd($event)"
+            @touchcancel="movable && drag.onTouchCancel()">
             <span v-if="minimizable" class="btn" @click.stop="sound.play('minimize'); $emit('toggle')">{{ minimized ? '▣' : '□' }}</span>
             <span class="title">{{ title }}</span>
             <span v-if="resizable" class="btn" @click.stop="$emit('resize')">◢</span>
+            <span v-if="movable" class="btn" @click.stop="$emit('duplicate')">⧉</span>
             <span v-if="movable" class="btn" @click.stop="$emit('move', -1)">◀</span>
             <span v-if="movable" class="btn" @click.stop="$emit('move', 1)">▶</span>
             <span v-if="closable" class="btn" @click.stop="sound.play('close'); $emit('close')">✕</span>
