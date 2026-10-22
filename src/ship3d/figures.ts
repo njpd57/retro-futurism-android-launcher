@@ -1,9 +1,8 @@
-import { labelUv } from './atlas';
 import type { Agent } from './crew';
 import { SHUTTLE_PLATES } from './labels';
 import { poseCat, posePerson, type Part } from './pose';
 import type { V3 } from './math';
-import { Builder, extrude, MAT } from './mesh';
+import { Builder, extrude, MAT, plate } from './mesh';
 import type { Bay, V2 } from './world';
 
 type Basis = { r: [number, number]; f: [number, number] };
@@ -91,16 +90,6 @@ export function figureVertices(agents: readonly Agent[], time: number, moving: R
     return new Float32Array(b.data);
 }
 
-/** A name plate: a quad of the atlas's plate `plate`, centred on `c` (GL space), `w` wide, spanning `right` and up. */
-function plate(b: Builder, c: V3, right: V3, w: number, n: V3, slot: number)
-{
-    const [u0, v0, u1, v1] = labelUv(slot);
-    const hw = w / 2;
-    const hh = w / 8;
-    const at = (dw: number, dh: number): V3 => [c[0] + right[0] * dw, c[1] + dh, c[2] + right[2] * dw];
-    b.quad([at(-hw, hh), at(hw, hh), at(hw, -hh), at(-hw, -hh)], n, [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], MAT.label, 1);
-}
-
 /** Plate width over a person's head. */
 export const HEAD_PLATE_W = 1.3;
 
@@ -133,6 +122,9 @@ export function shuttleVertices(bays: readonly Bay[]): Float32Array
     {
         const { x, y, nx } = bay;
         const top = bay.prop.z0 + bay.prop.h;
+        // the parking bay: chevrons on the floor round the shuttle
+        b.quad([[x - HX - 0.5, 0.012, y - HY - 0.5], [x + HX + 0.5, 0.012, y - HY - 0.5], [x + HX + 0.5, 0.012, y + HY + 0.5], [x - HX - 0.5, 0.012, y + HY + 0.5]],
+            [0, 1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], MAT.hazard, 0);
         extrude(b, aabb(x - HX, y - HY, x + HX, y + HY), bay.prop.z0, top, MAT.prop, 0);
         // the cockpit sits on the hull's aisle half, a little narrower and lower
         const cx = x + nx * 0.8;

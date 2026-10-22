@@ -156,14 +156,20 @@ function hubSide(sx: number, sy: number)
 /** The hub's terminal: a console under each monitor on the two front diagonals (search on the right, MOTHER on the left). */
 const HUB_TERMINAL = [hubSide(1, -1), hubSide(-1, -1)];
 
+/** The three consoles of the bridge; the mesh puts a slanted keyboard on each. */
+export const BRIDGE_CONSOLES: readonly Prop[] = [
+    box(-4.8, -13.8, 3, 1.2, 1, { yaw: -0.55 }),
+    box(0, -15.6, 3.4, 1.2, 1),
+    box(4.8, -13.8, 3, 1.2, 1, { yaw: 0.55 }),
+];
+
 export const PROPS: readonly Prop[] = [
     // hub: a column of light in the middle and the terminal's two consoles
     cyl(0, 0, 1.2, 5, { glow: 0.5 }),
     ...HUB_TERMINAL.map(h => box(round(h.x + h.nx * 0.45), round(h.y + h.ny * 0.45), 2.4, 0.6, 1, { yaw: h.yaw })),
-    // bridge: three consoles under the dome, the middle of the floor left open
-    box(-4.8, -13.8, 3, 1.2, 1, { yaw: -0.55 }),
-    box(0, -15.6, 3.4, 1.2, 1),
-    box(4.8, -13.8, 3, 1.2, 1, { yaw: 0.55 }),
+    // bridge: three consoles under the dome and the captain's chair before the middle one; the floor is left open
+    ...BRIDGE_CONSOLES,
+    cyl(0, -14.2, 0.6, 0.5), box(0, -14.55, 0.7, 0.12, 1.25),
     // comms: the antenna mast and two desks
     cyl(-18, 0, 1.2, 4, { glow: 0.4 }),
     box(-17, 4.9, 4.4, 1.1, 1),
@@ -177,6 +183,8 @@ export const PROPS: readonly Prop[] = [
     // mess: a round table and four bunks along the wall
     cyl(-23, 18.6, 3, 0.8),
     box(-28.2, 15, 1.2, 2.4, 1.8), box(-28.2, 18.6, 1.2, 2.4, 1.8), box(-28.2, 22, 1.2, 2.4, 1.8),
+    // and a row of lockers along the north wall
+    ...[-21.6, -21, -20.4, -19.8].map(x => box(x, 12.95, 0.6, 0.5, 1.9)),
     // hypersleep: the ring of capsules
     ...pods(23, 18.6, 3.6),
     // engine room: the reactor core

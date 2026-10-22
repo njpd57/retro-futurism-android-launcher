@@ -11,6 +11,7 @@ import { useBridgeEventStore } from '@/stores/useBridgeEventStore';
 import { useContactsStore } from '@/stores/useContactsStore';
 import { useLaunchStore } from '@/stores/useLaunchStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
+import { useSystemStatusStore } from '@/stores/useSystemStatusStore';
 import { useEffectiveSettings } from '@/stores/useEffectiveSettings';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useShipStore } from '@/stores/useShipStore';
@@ -23,15 +24,17 @@ import { buildMesh } from '@/ship3d/mesh';
 import { roomLevel, roomReadings, type Level } from '@/ship3d/readings';
 import { eyeHeight, stepWalk, walker, type Walker } from '@/ship3d/walk';
 import { agentsOf, BUNK_SLOTS, newRoamers, SIGNAL_SLOTS, stationaryAgents, stepRoamer, type Agent } from '@/ship3d/crew';
+import { stepKind } from '@/ship3d/acoustics';
+import { frameWait, lookScale, lowPower, renderScale } from '@/ship3d/power';
 import { shutDoors, stepDoors } from '@/ship3d/doors';
 import { figureVertices, plateVertices, shuttleVertices, type CrewLook } from '@/ship3d/figures';
 import { headTurn } from '@/ship3d/pose';
 import { hudLine, nextAlertRoom, turnToward } from '@/ship3d/hud';
-import { CONTACT_PLATES, plateTexts, SIGNAL_PLATES } from '@/ship3d/labels';
+import { CONTACT_PLATES, plateTexts, SIGNAL_PLATES, withStencils } from '@/ship3d/labels';
 import { glideRoute, GLIDE_SPEED, pointAt, routeLength } from '@/ship3d/glide';
 import { pickAgent, pickScreen, pickShuttle, REACH } from '@/ship3d/pick';
 import { wrapAngle } from '@/ship3d/math';
-import { bounds, collisionSegments, hangarBays, LIGHTS, PROPS, roomAt, ROOMS, type V2 } from '@/ship3d/world';
+import { bounds, collisionSegments, hangarBays, LIGHTS, PORTALS, PROPS, roomAt, ROOMS, type V2 } from '@/ship3d/world';
 import { appLabelFor } from '@/utils/notifications';
 import { HEAVY_CONTACT, radarContacts } from '@/utils/radar';
 import { bendK, correctPoint } from '@/utils/curvature';
@@ -46,6 +49,9 @@ const appsStore = useAppsStore();
 const notifications = useNotificationsStore();
 const contacts = useContactsStore();
 const launcher = useLaunchStore();
+const system = useSystemStatusStore();
+/** the battery is low and not charging: 30 frames a second, a smaller picture and no bloom */
+const saving = computed(() => lowPower(system.battery));
 const input = useShipInput();
 const readings = computed(() => roomReadings(input.value));
 const reducedMotion = prefersReducedMotion();
@@ -63,8 +69,6 @@ const covered = computed(() => ship.card !== null || ship.signals !== null);
 /** Radians of turn and tilt per pixel of drag. */
 const TURN_PER_PX = 0.0045;
 const TILT_PER_PX = 0.0035;
-/** Never draw more device pixels than this per CSS pixel: the phone's GPU has better things to do. */
-const MAX_SCALE = 1.5;
 const BLINK_MS = 500;
 const POSE_SYNC_MS = 120;
 
@@ -78,11 +82,15 @@ const labelOf = (pkg: string) => appLabelFor(pkg, appsStore.apps);
 const signalApps = computed(() => radarContacts(notifications.visible, SIGNAL_SLOTS.length));
 const starred = computed(() => contacts.starred.slice(0, BUNK_SLOTS.length));
 const bays = computed(() => hangarBays(settings.favorites.length));
-const plates = computed(() => plateTexts({
-    signals: signalApps.value.map(c => ({ label: labelOf(c.packageName), count: c.notifications.length })),
-    contacts: starred.value.map(c => c.name),
-    shuttles: settings.favorites.slice(0, bays.value.length).map(labelOf),
-}));
+const plates = computed(() =>
+{
+    const texts = plateTexts({
+        signals: settings.shipLabels ? signalApps.value.map(c => ({ label: labelOf(c.packageName), count: c.notifications.length })) : [],
+        contacts: settings.shipLabels ? starred.value.map(c => c.name) : [],
+        shuttles: settings.favorites.slice(0, bays.value.length).map(labelOf),
+    });
+    return settings.shipLabels ? withStencils(texts) : texts;
+});
 const shuttles = computed(() => shuttleVertices(bays.value));
 // the shuttles are walked round like any crate
 const segs = computed(() => collisionSegments(ROOMS, [...PROPS, ...bays.value.map(b => b.prop)]));
@@ -123,8 +131,9 @@ function onMove(s: number, f: number)
 function onLook(dx: number, dy: number)
 {
     if (paused.value) return;
-    turnAcc += aimPixels(dx) * TURN_PER_PX;
-    tiltAcc -= dy * TILT_PER_PX;
+    const k = lookScale(settings.shipLook);
+    turnAcc += aimPixels(dx) * TURN_PER_PX * k;
+    tiltAcc -= dy * TILT_PER_PX * k * (settings.shipInvertY ? -1 : 1);
 }
 
 // ---- the monitors' picture and the phosphor colours
@@ -170,7 +179,7 @@ function frame(now: number)
 
     const speed = Math.hypot(body.vx, body.vy);
     const active = strafe !== 0 || forward !== 0 || turnAcc !== 0 || tiltAcc !== 0 || speed > 0.01 || glide !== null;
-    const wait = settings.shipFps === '30' ? 1000 / 30 - 2 : settings.shipFps === '60' || active ? 1000 / 60 - 2 : 100;
+    const wait = frameWait(settings.shipFps, active, saving.value);
     if (now - last < wait) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
@@ -193,31 +202,35 @@ function frame(now: number)
         lastSync = now;
     }
 
-    // sound, only if the user turned it on: a step per bounce of the walk, a hiss as a door starts to slide
+    // sound, only if the user turned it on: a step per bounce of the walk (on plates or a grating), a hiss as a door
+    // starts to slide and a thump as it shuts
     const stepNo = Math.floor(body.bob);
     if (stepNo !== lastStep)
     {
         lastStep = stepNo;
-        if (Math.hypot(body.vx, body.vy) > 0.8) sound.play('step');
+        if (Math.hypot(body.vx, body.vy) > 0.8) sound.play(stepKind(roomAt(body.x, body.y)?.zone) === 'grate' ? 'shipGrate' : 'shipStep');
     }
     const before = doors;
     doors = stepDoors(doors, body.x, body.y, dt);
-    if (doors.some((v, i) => v > 0.02 && before[i] <= 0.02)) sound.play('door');
+    if (doors.some((v, i) => v > 0.02 && before[i] <= 0.02)) sound.play('shipDoor');
+    if (doors.some((v, i) => v < 0.98 && before[i] >= 0.98 && Math.hypot(PORTALS[i].x - body.x, PORTALS[i].y - body.y) < 10)) sound.play('shipDoorShut');
+    sound.listenShip(body.x, body.y, body.yaw, doors);
+    cues(now);
     // Jones and the android wander; with reduced motion they keep still
     if (!reducedMotion) roamers = roamers.map(r => stepRoamer(r, dt, Math.random));
     agents = agentsOf(stay.value, roamers);
     const blink = reducedMotion || Math.floor(now / BLINK_MS) % 2 === 0;
     gl.setCrew(joined(
         figureVertices(agents, reducedMotion ? 0 : now / 1000, new Set(roamers.filter(r => r.route).map(r => r.id)), crewLook(dt)),
-        plateVertices(agents, body.yaw),
+        settings.shipLabels ? plateVertices(agents, body.yaw) : new Float32Array(0),
         shuttles.value,
     ));
 
     if (atlasDirty || (hasUrgent.value && blink !== blinkShown)) paintAtlas(blink);
     blinkShown = blink;
 
-    gl.resize(Math.min(window.devicePixelRatio || 1, MAX_SCALE));
-    gl.setBloom(settings.shipBloom ? bloomGain(effective.bloom) : 0);
+    gl.resize(renderScale(window.devicePixelRatio || 1, saving.value));
+    gl.setBloom(settings.shipBloom && !saving.value ? bloomGain(effective.bloom) : 0);
     gl.render({
         eye: [body.x, eyeHeight(body, reducedMotion), body.y],
         yaw: body.yaw,
@@ -234,6 +247,34 @@ function frame(now: number)
         holo: reducedMotion ? 0 : 0.6,
         sweep: reducedMotion ? -1000 : hull.y0 - 3 + (((now / 1000) % SWEEP_S) / SWEEP_S) * (hull.y1 - hull.y0 + 6),
     });
+}
+
+// ---- little sounds of the crew: a chirp as you come near the ones with messages, Jones's meow, the android's servos
+let nearSignals = false;
+let nextMeow = 0;
+let nextServo = 0;
+
+function cues(now: number)
+{
+    const dist = (a: { x: number; y: number }) => Math.hypot(a.x - body.x, a.y - body.y);
+    const closest = Math.min(Infinity, ...stay.value.filter(a => a.kind === 'signal').map(dist));
+    // one chirp per approach: it rearms when you walk away
+    if (!nearSignals && closest < 3) { nearSignals = true; sound.play('shipSignal'); }
+    else if (nearSignals && closest > 5) nearSignals = false;
+
+    for (const r of roamers)
+    {
+        if (r.kind === 'cat' && dist(r) < 5 && now > nextMeow)
+        {
+            nextMeow = now + 20000 + Math.random() * 30000;
+            sound.play('shipMeow');
+        }
+        else if (r.kind === 'android' && r.route && dist(r) < 6 && now > nextServo)
+        {
+            nextServo = now + 1500;
+            sound.play('shipAsh');
+        }
+    }
 }
 
 /** The ones standing near turn their heads to the camera; the crew of a busy app blinks. */
@@ -292,7 +333,11 @@ function onTap(clientX: number, clientY: number)
     if (shuttle?.distance === near)
     {
         const pkg = settings.favorites[shuttle.index];
-        if (pkg) launcher.launch(pkg, labelOf(pkg));
+        if (pkg)
+        {
+            sound.play('shipLaunch');
+            launcher.launch(pkg, labelOf(pkg));
+        }
         return;
     }
     if (person?.distance === near)
@@ -300,6 +345,7 @@ function onTap(clientX: number, clientY: number)
         const { kind, plate } = person.agent;
         if (kind === 'signal')
         {
+            sound.play('shipSignal');
             const app = signalApps.value[(plate ?? SIGNAL_PLATES) - SIGNAL_PLATES];
             if (app) ship.openSignals(app.packageName); else ship.openCard('comms');
         }
@@ -309,8 +355,8 @@ function onTap(clientX: number, clientY: number)
             const c = starred.value[(plate ?? CONTACT_PLATES) - CONTACT_PLATES];
             if (c) contacts.openContact(c); else ship.openCard('comedor');
         }
-        else if (kind === 'cat') say('JONES: MIAU');
-        else say(`ASH: ${readings.value['enfermeria.sistema']?.lines.join(' ') ?? 'NOMINAL'}`);
+        else if (kind === 'cat') { sound.play('shipMeow'); say('JONES: MIAU'); }
+        else { sound.play('shipAsh'); say(`ASH: ${readings.value['enfermeria.sistema']?.lines.join(' ') ?? 'NOMINAL'}`); }
         return;
     }
     const zone = screen!.screen.zone;
@@ -321,7 +367,7 @@ function onTap(clientX: number, clientY: number)
 
 // ---- the strip at the top: the room you are in and the one that wants you
 const here = computed(() => roomAt(ship.pose.x, ship.pose.y)?.zone);
-const hud = computed(() => hudLine(readings.value, here.value));
+const hud = computed(() => hudLine(readings.value, here.value) + (saving.value ? ' · AHORRO' : ''));
 const alert = computed(() => nextAlertRoom(levels.value, here.value));
 const alertTurn = computed(() => alert.value ? turnToward(ship.pose.x, ship.pose.y, ship.pose.yaw, alert.value.zone) : 'ahead');
 
@@ -395,11 +441,13 @@ onMounted(() =>
     document.fonts?.ready.then(() => { atlasDirty = true; });
     raf = requestAnimationFrame(frame);
     bridgeEvents.addEventListener(onBridgeEvent);
+    sound.setShip(true);
 });
 
 onBeforeUnmount(() =>
 {
     cancelAnimationFrame(raf);
+    sound.setShip(false);
     bridgeEvents.removeEventListener(onBridgeEvent);
     ship.pose = { x: body.x, y: body.y, yaw: body.yaw, pitch: body.pitch };
     clearTimeout(hintTimer);

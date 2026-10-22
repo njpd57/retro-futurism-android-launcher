@@ -6,7 +6,8 @@ export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 's
     | 'pulse' | 'reload' | 'hurt' | 'kill' | 'dry' | 'shotgun' | 'smart' | 'burn' | 'launch' | 'blast' | 'acid' | 'rattle'
     | 'thunk' | 'klaxon' | 'chirp'
     | 'open' | 'close' | 'tab' | 'minimize' | 'error' | 'deny' | 'confirm' | 'toggleOn' | 'toggleOff'
-    | 'notify' | 'notifyCall' | 'notifySys' | 'boot' | 'powerOff' | 'powerOn' | 'relay';
+    | 'notify' | 'notifyCall' | 'notifySys' | 'boot' | 'powerOff' | 'powerOn' | 'relay'
+    | 'shipStep' | 'shipGrate' | 'shipDoor' | 'shipDoorShut' | 'shipLaunch' | 'shipSignal' | 'shipMeow' | 'shipAsh';
 
 /** Which channel each sound belongs to; the games and the tube-sized sounds have their own volume. */
 const GAME_SOUNDS: readonly SfxName[] = ['step', 'door', 'hiss', 'screech', 'vent', 'flame', 'clatter', 'pulse', 'reload', 'hurt', 'kill', 'dry',
@@ -181,6 +182,54 @@ const SOUNDS: Record<SfxName, () => void> = {
     {
         const count = 2 + Math.floor(Math.random() * 5);
         for (let i = 0; i < count; i++) beep(900 + Math.floor(Math.random() * 8) * 220, 50, 'square', 0.04, i * 70);
+    },
+
+    // the ship panel: boots on a plate and on a grating, a pneumatic door opening and shutting, a shuttle's engines,
+    // the crew's data chirp, Jones and the android's servos
+    shipStep: () =>
+    {
+        noise('lowpass', 240 + Math.random() * 80, 110, 3, 90, 0.38);
+        noise('bandpass', 900 + Math.random() * 400, 450, 1, 22, 0.1);
+    },
+    shipGrate: () =>
+    {
+        noise('lowpass', 260 + Math.random() * 80, 120, 3, 80, 0.3);
+        noise('bandpass', 2200 + Math.random() * 600, 1400, 1, 55, 0.14);
+        beep(1700 + Math.random() * 300, 45, 'sine', 0.025, 5, 1500);
+    },
+    shipDoor: () =>
+    {
+        noise('highpass', 2800, 6200, 25, 300, 0.16, 0, { wet: 0.25 });
+        beep(95, 220, 'sawtooth', 0.04, 0, 150, { attack: 0.06, wet: 0.25 });
+        noise('lowpass', 320, 90, 2, 110, 0.28, 280);
+    },
+    shipDoorShut: () =>
+    {
+        noise('highpass', 3200, 1800, 8, 160, 0.1, 0, { wet: 0.2 });
+        noise('lowpass', 380, 70, 2, 150, 0.4, 150);
+        beep(70, 140, 'square', 0.05, 150, 45);
+    },
+    shipLaunch: () =>
+    {
+        beep(70, 1000, 'sawtooth', 0.08, 0, 460, { attack: 0.3, wet: 0.4 });
+        noise('lowpass', 400, 2600, 350, 950, 0.32, 0, { wet: 0.3 });
+        beep(900, 70, 'square', 0.05, 80);
+    },
+    shipSignal: () =>
+    {
+        beep(1500, 30, 'square', 0.05);
+        beep(2000, 30, 'square', 0.05, 55);
+        beep(1650, 70, 'square', 0.05, 110, 1900);
+    },
+    shipMeow: () =>
+    {
+        beep(720, 190, 'triangle', 0.12, 0, 1150, { attack: 0.04, wet: 0.2 });
+        beep(1150, 220, 'triangle', 0.1, 170, 620, { wet: 0.2 });
+    },
+    shipAsh: () =>
+    {
+        beep(260, 130, 'sawtooth', 0.04, 0, 640);
+        beep(640, 110, 'sawtooth', 0.035, 140, 300);
     },
 
     // AISLAMIENTO: a boot on the deck plating, a pressure door, the creature breathing, the end, the ducts

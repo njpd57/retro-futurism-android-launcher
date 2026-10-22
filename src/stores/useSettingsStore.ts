@@ -89,6 +89,14 @@ export const useSettingsStore = defineStore('settings', () =>
     const shipBloom = useLocalStorage('settings.shipBloom', false);
     /** where Home leaves the camera: back on the bridge, or where it was */
     const shipStart = useLocalStorage<'bridge' | 'last'>('settings.shipStart', 'bridge');
+    /** each room of the ship hums on its own, louder as you come near and through open doors */
+    const shipRoomSound = useLocalStorage('settings.shipRoomSound', true);
+    /** the name plates over the crew and on the walls (the shuttles always carry their app's name) */
+    const shipLabels = useLocalStorage('settings.shipLabels', true);
+    /** how fast a drag turns the view, in percent of the default */
+    const shipLook = useLocalStorage('settings.shipLook', 100);
+    /** drag up to look down instead of up */
+    const shipInvertY = useLocalStorage('settings.shipInvertY', false);
     const folderBoxes = useLocalStorage('settings.folderBoxes', true);
     const idleMinutes = useLocalStorage('settings.idleMinutes', 0);
     const bootSequence = useLocalStorage('settings.bootSequence', true);
@@ -128,5 +136,5 @@ export const useSettingsStore = defineStore('settings', () =>
             : [...favorites.value, packageName];
     }
 
-    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, shipPanel, shipFps, shipBloom, shipStart, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
+    return { alertsEvent, alertsBattery, alertsAlarm, alertsKlaxon, imageFilter, sortMode, listMode, aliases, folders, folderBoxes, appsLayout, shipPanel, shipFps, shipBloom, shipStart, shipRoomSound, shipLabels, shipLook, shipInvertY, layouts, idleMinutes, bootSequence, haptics, nightShift, hypersleep, soundUi, soundAmbient, volume, volumeUi, volumeAmbient, volumeGame, soundMix, soundProfile, soundNotify, sweep, tubePower, autoDegauss, phosphorBurn, burnMinutes, animText, animTransitions, animAmbient, curvature, curvatureBend, curvatureCorners, curvatureShade, showIcons, ownStatusBar, cameraWidth, ticker, liveWidgets, dashboard, favorites, activeTab, toggleFavorite, setAlias, phosphor, bloom, scanlines, flicker, vignette, labelCase, showType, hiddenApps, hideApp, unhideApp };
 });

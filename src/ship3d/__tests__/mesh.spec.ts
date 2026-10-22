@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ATLAS_H, ATLAS_W, COLS, ROWS, SLOT, slotRect, slotUv } from '../atlas';
 import { nearestLights, packLights } from '../lights';
-import { buildMesh, MAT, screenFrame, STRIDE } from '../mesh';
-import { bounds, LIGHTS, SCREENS } from '../world';
+import { buildMesh, MAT, MAT_STYLE, screenFrame, STRIDE, STYLE, stencilSpot } from '../mesh';
+import { STENCIL_PLATES, STENCILS } from '../labels';
+import { bounds, LIGHTS, PORTALS, ROOMS, roomAt, SCREENS } from '../world';
 
 describe('buildMesh', () =>
 {
@@ -38,9 +39,43 @@ describe('buildMesh', () =>
         {
             const o = i * STRIDE;
             expect(Math.hypot(mesh.data[o + 3], mesh.data[o + 4], mesh.data[o + 5])).toBeCloseTo(1, 4);
-            expect(mats.has(mesh.data[o + 8] as never)).toBe(true);
+            expect(mats.has((mesh.data[o + 8] % MAT_STYLE) as never)).toBe(true);
             expect(mesh.data[o + 9]).toBeGreaterThanOrEqual(0);
             expect(mesh.data[o + 9]).toBeLessThanOrEqual(1);
+        }
+    });
+
+    it('stays near the budget of the plain ship, with the details of phase 3', () =>
+    {
+        // 6810 vertices before the details; they may add at most 40 %
+        expect(mesh.vertices).toBeLessThan(6810 * 1.4);
+    });
+
+    it('carries each room style in its walls, floors and ceilings', () =>
+    {
+        const styles = new Set<number>();
+        for (let i = 0; i < mesh.vertices; i++)
+        {
+            const m = mesh.data[i * STRIDE + 8];
+            const base = m % MAT_STYLE;
+            const style = Math.floor(m / MAT_STYLE);
+            if (base === MAT.wall || base === MAT.floor || base === MAT.ceiling) styles.add(style);
+            else expect(style, `material ${base}`).toBe(0);
+        }
+        expect([...styles].sort()).toEqual([...new Set(Object.values(STYLE))].sort());
+    });
+
+    it('lays chevrons on the floor at the doors of the working rooms and nowhere else', () =>
+    {
+        const hazard: [number, number][] = [];
+        for (let i = 0; i < mesh.vertices; i++)
+            if (mesh.data[i * STRIDE + 8] === MAT.hazard) hazard.push([mesh.data[i * STRIDE], mesh.data[i * STRIDE + 2]]);
+        expect(hazard.length).toBeGreaterThan(0);
+        expect(hazard.length % 6).toBe(0);
+        for (const [x, y] of hazard)
+        {
+            expect(['bodega', 'hangar', 'motor']).toContain(roomAt(x, y)?.zone ?? roomAt(x + 0.001, y + 0.001)?.zone);
+            expect(PORTALS.some(p => Math.hypot(p.x - x, p.y - y) < 3)).toBe(true);
         }
     });
 
@@ -105,5 +140,21 @@ describe('lights', () =>
     it('chooses at most eight of the ship lights', () =>
     {
         expect(nearestLights(LIGHTS, 0, -11.8, 1.6)).toHaveLength(8);
+    });
+});
+
+describe('stencils', () =>
+{
+    it('sit on a wall of their room, clear of the monitors, one for each room that has one', () =>
+    {
+        for (const [i, s] of STENCILS.entries())
+        {
+            const room = ROOMS.find(r => r.id === s.room)!;
+            const spot = stencilSpot(room)!;
+            expect(spot, s.room).not.toBeNull();
+            expect(roomAt(spot.x + spot.nx * 0.3, spot.y + spot.ny * 0.3)?.id, s.room).toBe(room.id);
+            for (const sc of SCREENS) expect(Math.hypot(sc.x - spot.x, sc.y - spot.y), `${s.room} near ${sc.id}`).toBeGreaterThan(1.8);
+            expect(STENCIL_PLATES + i).toBeLessThan(28);
+        }
     });
 });

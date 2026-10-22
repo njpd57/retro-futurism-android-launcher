@@ -9,6 +9,21 @@ import { fit } from './readings';
 export const SIGNAL_PLATES = 0;
 export const CONTACT_PLATES = 6;
 export const SHUTTLE_PLATES = 10;
+/** the stencil of each room beside its door, in `STENCIL_ROOMS` order */
+export const STENCIL_PLATES = 16;
+
+/** The rooms that have a stencil on their wall, and what it says. */
+export const STENCILS: readonly { room: string; text: string }[] = [
+    { room: 'hub', text: 'C0 NÚCLEO' },
+    { room: 'puente', text: 'C1 PUENTE' },
+    { room: 'comms', text: 'C2 COMMS' },
+    { room: 'enfermeria', text: 'C3 ENFERMERÍA' },
+    { room: 'bodega', text: 'C4 BODEGA' },
+    { room: 'comedor', text: 'C5 COMEDOR' },
+    { room: 'hipersueno', text: 'C6 HIPERSUEÑO' },
+    { room: 'motor', text: 'C7 MOTOR' },
+    { room: 'hangar', text: 'C8 HANGAR' },
+];
 
 /** How wide a plate's text may be, in characters. */
 export const PLATE_CHARS = 14;
@@ -34,6 +49,14 @@ export function plateTexts(p: Plates): (string | undefined)[]
     const out: (string | undefined)[] = Array.from({ length: LABEL_SLOTS }, () => undefined);
     p.signals.slice(0, CONTACT_PLATES - SIGNAL_PLATES).forEach((s, i) => { out[SIGNAL_PLATES + i] = signalPlate(s.label, s.count); });
     p.contacts.slice(0, SHUTTLE_PLATES - CONTACT_PLATES).forEach((c, i) => { out[CONTACT_PLATES + i] = fit(c, PLATE_CHARS); });
-    p.shuttles.slice(0, LABEL_SLOTS - SHUTTLE_PLATES).forEach((s, i) => { out[SHUTTLE_PLATES + i] = fit(s, PLATE_CHARS); });
+    p.shuttles.slice(0, STENCIL_PLATES - SHUTTLE_PLATES).forEach((s, i) => { out[SHUTTLE_PLATES + i] = fit(s, PLATE_CHARS); });
+    return out;
+}
+
+/** `texts` with the rooms' stencils painted in their own plates. */
+export function withStencils(texts: readonly (string | undefined)[]): (string | undefined)[]
+{
+    const out = [...texts];
+    STENCILS.forEach((s, i) => { out[STENCIL_PLATES + i] = s.text; });
     return out;
 }

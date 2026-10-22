@@ -2,6 +2,8 @@ import { defineStore } from "pinia";
 import { watch } from "vue";
 import { resumeAudio, setBusVolume, setMasterVolume, suspendAudio } from "@/audio/context";
 import { applyAmbientMix, previewAmbient, setAmbientLevel, setAmbientMood, startAmbient, stopAmbient, type AmbientMood } from "@/audio/ambient";
+import { shipAmbientRunning, startShipAmbient, stopShipAmbient, updateShipAmbient } from "@/audio/shipAmbient";
+import { hear } from "@/ship3d/acoustics";
 import { normalizeMix, setMix } from "@/audio/mix";
 import { profileOf } from "@/audio/profiles";
 import { playSfx, setProfile, type SfxName } from "@/audio/sfx";
@@ -22,9 +24,26 @@ export const useSoundStore = defineStore('sound', () =>
     let mood: AmbientMood = 'calm';
     let testTimers: number[] = [];
 
+    // the ship panel is on screen: its rooms hum, and the terminal hum steps back so they don't pile up
+    let shipHere = false;
+    let lastListen = 0;
+
+    function applyAmbientLevel()
+    {
+        const share = profileOf(settings.soundProfile).ambient;
+        setAmbientLevel(shipAmbientRunning() ? share * 0.4 : share);
+    }
+
+    function syncShip()
+    {
+        if (settings.soundAmbient && settings.shipRoomSound && unlocked && !paused && shipHere) startShipAmbient(); else stopShipAmbient();
+        applyAmbientLevel();
+    }
+
     function syncAmbient()
     {
         if (settings.soundAmbient && unlocked && !paused) startAmbient(); else stopAmbient();
+        syncShip();
     }
 
     // browsers only start audio after a gesture
@@ -53,13 +72,13 @@ export const useSoundStore = defineStore('sound', () =>
 
     const applyProfile = () =>
     {
-        const p = profileOf(settings.soundProfile);
-        setProfile(p);
-        setAmbientLevel(p.ambient);
+        setProfile(profileOf(settings.soundProfile));
+        applyAmbientLevel();
     };
     applyProfile();
     watch(() => settings.soundProfile, applyProfile);
     watch(() => settings.soundAmbient, syncAmbient);
+    watch(() => settings.shipRoomSound, syncShip);
 
     bridgeEvents.addEventListener(ev =>
     {
@@ -67,6 +86,7 @@ export const useSoundStore = defineStore('sound', () =>
         {
             paused = true;
             stopAmbient();
+            syncShip();
             suspendAudio();
         }
         else if (ev.name === 'afterResume')
@@ -114,5 +134,22 @@ export const useSoundStore = defineStore('sound', () =>
         testTimers = TEST_SEQUENCE.map(([name, delay]) => window.setTimeout(() => playAlways(name), delay));
     }
 
-    return { play, playAlways, preview, setMood, test, mood: () => mood };
+    /** The ship panel appeared or went away. */
+    function setShip(on: boolean)
+    {
+        shipHere = on;
+        syncShip();
+    }
+
+    /** Where the camera is: the rooms' hum follows it (ten times a second at most). */
+    function listenShip(x: number, y: number, yaw: number, doors: ArrayLike<number>)
+    {
+        if (!shipAmbientRunning()) return;
+        const now = performance.now();
+        if (now - lastListen < 100) return;
+        lastListen = now;
+        updateShipAmbient(hear(x, y, yaw, doors));
+    }
+
+    return { play, playAlways, preview, setMood, test, setShip, listenShip, mood: () => mood };
 });

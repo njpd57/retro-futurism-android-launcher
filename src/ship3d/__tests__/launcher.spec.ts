@@ -5,7 +5,7 @@ import { stationaryAgents } from '../crew';
 import { plateVertices, shuttleVertices } from '../figures';
 import { STANDS } from '../glide';
 import { hudLine, nextAlertRoom, turnToward } from '../hud';
-import { CONTACT_PLATES, PLATE_CHARS, plateTexts, SHUTTLE_PLATES, signalPlate } from '../labels';
+import { CONTACT_PLATES, PLATE_CHARS, plateTexts, SHUTTLE_PLATES, signalPlate, STENCIL_PLATES, STENCILS, withStencils } from '../labels';
 import { EYE_HEIGHT } from '../math';
 import { MAT, STRIDE } from '../mesh';
 import { pickScreen, pickShuttle } from '../pick';
@@ -68,6 +68,17 @@ describe('name plates', () =>
         expect(t[CONTACT_PLATES]).toBe('RIPLEY');
         expect(t[SHUTTLE_PLATES + 1]).toBe('CÁMARA');
         expect(t.filter(Boolean)).toHaveLength(4);
+    });
+
+    it('add the rooms\' stencils in their own slots without touching the others', () =>
+    {
+        const base = plateTexts({ signals: [{ label: 'Gmail', count: 1 }], contacts: [], shuttles: ['Mapas'] });
+        const all = withStencils(base);
+        expect(all.slice(0, STENCIL_PLATES)).toEqual(base.slice(0, STENCIL_PLATES));
+        STENCILS.forEach((s, i) => expect(all[STENCIL_PLATES + i]).toBe(s.text));
+        expect(all.length).toBeGreaterThanOrEqual(STENCIL_PLATES + STENCILS.length);
+        expect(all.length).toBeLessThanOrEqual(LABEL_SLOTS);
+        for (const s of STENCILS) expect(s.text.length).toBeLessThanOrEqual(PLATE_CHARS);
     });
 
     it('live below the monitors in the atlas, without overlapping them', () =>

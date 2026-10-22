@@ -1,6 +1,7 @@
 import { MAX_LIGHTS } from './lights';
 import { BLUR_TAPS } from './bloom';
-import { MAT } from './mesh';
+import { ATLAS_H, CELL_H, COLS } from './atlas';
+import { MAT, MAT_STYLE } from './mesh';
 
 /** A material number as a GLSL float literal. */
 const F = (n: number) => n.toFixed(1);
@@ -23,13 +24,17 @@ out vec3 vPos;
 out vec3 vNormal;
 out vec2 vUv;
 out float vMat;
+out float vStyle;
 out float vEmit;
 void main()
 {
+    // the material number carries the room's surface style: mat + 16 * style
+    float style = floor(aMat / ${F(MAT_STYLE)} + 0.01);
+    float mat = aMat - style * ${F(MAT_STYLE)};
     vec3 p = aPos;
     float emit = aEmit;
     // a door leaf slides up into the lintel as its door opens; its emit slot only carries the door's number
-    if (abs(aMat - ${F(MAT.door)}) < 0.5)
+    if (abs(mat - ${F(MAT.door)}) < 0.5)
     {
         int d = int(aEmit * 16.0 + 0.5);
         p.y += uDoor[d] * 2.45;
@@ -38,7 +43,8 @@ void main()
     vPos = p;
     vNormal = aNormal;
     vUv = aUv;
-    vMat = aMat;
+    vMat = mat;
+    vStyle = style;
     vEmit = emit;
     gl_Position = uViewProj * vec4(p, 1.0);
 }`;
@@ -49,6 +55,7 @@ in vec3 vPos;
 in vec3 vNormal;
 in vec2 vUv;
 in float vMat;
+in float vStyle;
 in float vEmit;
 uniform vec3 uEye;
 uniform vec3 uPh;
@@ -77,48 +84,126 @@ float panel(vec2 uv, vec2 period, float width)
     return max(lines(uv.x, period.x, width), lines(uv.y, period.y, width));
 }
 
+// a round rivet at every crossing of a seam grid
+float rivets(vec2 uv, vec2 period, float r)
+{
+    vec2 v = (fract(uv / period + 0.5) - 0.5) * period;
+    float aa = fwidth(uv.x) + fwidth(uv.y);
+    return 1.0 - smoothstep(r - aa, r + aa, length(v));
+}
+
+// hexagons of width \`size\`: the cell outlines
+float hexLines(vec2 uv, float size, float width)
+{
+    vec2 p = uv / size;
+    const vec2 s = vec2(1.0, 1.7320508);
+    vec4 hc = floor(vec4(p, p - vec2(1.0, 1.5)) / s.xyxy) + 0.5;
+    vec4 h = vec4(p - hc.xy * s, p - (hc.zw + 0.5) * s);
+    vec2 q = dot(h.xy, h.xy) < dot(h.zw, h.zw) ? h.xy : h.zw;
+    q = abs(q);
+    float edge = 0.5 - max(dot(q, vec2(0.5, 0.8660254)), q.x);
+    float aa = fwidth(p.x) + fwidth(p.y);
+    return 1.0 - smoothstep(width / size - aa, width / size + aa, edge);
+}
+
+// the pattern of a wall, floor or ceiling in room style \`st\`: how much of the surface is seam (0..1+)
+float surface(int kind, int st, vec2 uv)
+{
+    if (kind == 0)
+    {
+        // wall
+        if (st == 1) return 0.55 * panel(uv, vec2(1.0, 0.9), 0.012) + 0.5 * rivets(uv, vec2(1.0, 0.9), 0.035);
+        if (st == 2) return 0.5 * panel(uv, vec2(2.0, 1.2), 0.018) + 0.6 * lines(uv.y, 2.4, 0.05);
+        if (st == 3) return 0.5 * panel(uv, vec2(2.0, 1.4), 0.018) + 0.7 * lines(uv.x, 3.0, 0.05);
+        if (st == 4) return 0.4 * panel(uv, vec2(4.0, 2.0), 0.012);
+        if (st == 5) return 0.7 * hexLines(uv, 0.55, 0.018);
+        if (st == 6) return 0.5 * lines(uv.y, 0.7, 0.012) + 0.5 * lines(uv.x, 6.0, 0.03);
+        return 0.6 * panel(uv, vec2(2.0, 1.4), 0.018);
+    }
+    if (kind == 1)
+    {
+        // floor (uv is the plan)
+        if (st == 1) return 0.4 * panel(uv, vec2(0.5), 0.008) + 0.4 * panel(uv, vec2(4.0), 0.02);
+        if (st == 2)
+        {
+            vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70711;
+            return 0.55 * panel(r, vec2(0.5), 0.02) + 0.3 * panel(uv, vec2(4.0), 0.03);
+        }
+        if (st == 3) return 0.5 * panel(uv, vec2(2.0), 0.02) + 0.4 * panel(uv, vec2(4.0), 0.035);
+        if (st == 4) return 0.2 * panel(uv, vec2(2.0), 0.01);
+        if (st == 5) return 0.6 * hexLines(uv, 0.9, 0.015);
+        if (st == 6) return 0.25 * panel(uv, vec2(0.25), 0.02) + 0.4 * panel(uv, vec2(4.0), 0.02);
+        return 0.4 * panel(uv, vec2(1.0), 0.012) + 0.4 * panel(uv, vec2(4.0), 0.02);
+    }
+    // ceiling
+    if (st == 5) return 0.4 * hexLines(uv, 1.1, 0.03);
+    if (st == 6) return 0.4 * lines(uv.x + uv.y, 1.0, 0.03);
+    return 0.35 * panel(uv, vec2(3.0), 0.04);
+}
+
 void main()
 {
     vec3 n = normalize(vNormal);
     float mat = vMat;
+    int st = int(vStyle + 0.5);
     float albedo = 0.16;
     float emit = vEmit;
     float extra = 0.0;
     vec3 tint = uPh;
+    // surfaces that get their seams lifted into the light
+    bool bump = false;
 
     if (mat < ${F(MAT.wall)} + 0.5)
     {
-        // wall: panel seams, a darker skirting and a bright rail
-        albedo = 0.05 + 0.6 * panel(vUv, vec2(2.0, 1.4), 0.018);
+        // wall: seams, a darker skirting and a bright rail
+        albedo = (st == 4 ? 0.075 : 0.05) + surface(0, st, vUv);
         albedo *= mix(0.55, 1.0, smoothstep(0.25, 0.35, vUv.y));
         albedo += 0.6 * (1.0 - smoothstep(0.0, 0.03, abs(vUv.y - 1.05)));
+        bump = true;
     }
     else if (mat < ${F(MAT.floor)} + 0.5)
     {
-        albedo = 0.035 + 0.4 * panel(vUv, vec2(1.0, 1.0), 0.012) + 0.4 * panel(vUv, vec2(4.0, 4.0), 0.02);
+        albedo = (st == 4 ? 0.05 : 0.035) + surface(1, st, vUv);
+        bump = true;
     }
     else if (mat < ${F(MAT.ceiling)} + 0.5)
     {
-        albedo = 0.02 + 0.35 * panel(vUv, vec2(3.0, 3.0), 0.04);
+        albedo = 0.02 + surface(2, st, vUv);
     }
     else if (mat < ${F(MAT.prop)} + 0.5)
     {
         albedo = 0.07 + 0.6 * panel(vUv, vec2(1.0, 0.8), 0.014);
+        bump = true;
     }
     else if (mat < ${F(MAT.screen)} + 0.5)
     {
-        vec3 pic = texture(uAtlas, vUv).rgb;
+        // a monitor: the picture of its cell of the atlas, on slightly curved glass that darkens at the corners
+        vec2 grid = vec2(${F(COLS)}, ${F(ATLAS_H / CELL_H)});
+        vec2 origin = floor(vUv * grid) / grid;
+        vec2 c = fract(vUv * grid) * 2.0 - 1.0;
+        c *= 1.0 + 0.06 * vec2(c.y * c.y, c.x * c.x);
+        if (max(abs(c.x), abs(c.y)) > 1.0) { outColor = vec4(uBg, 1.0); return; }
+        vec3 pic = texture(uAtlas, origin + (c * 0.5 + 0.5) / grid).rgb;
         float scan = 0.94 + 0.06 * sin(vUv.y * 900.0 + uTime * 6.0);
-        outColor = vec4(pic * scan * 1.15, 1.0);
+        float vig = 1.0 - 0.4 * pow(max(abs(c.x), abs(c.y)), 4.0);
+        outColor = vec4(pic * scan * vig * 1.15, 1.0);
         return;
     }
-    else if (mat > ${F(MAT.label)} - 0.5)
+    else if (abs(mat - ${F(MAT.label)}) < 0.5)
     {
-        // a name plate: only its letters, floating
+        // a name plate or a wall stencil: only its letters, floating; the emit slot says how strong
         vec4 t = texture(uAtlas, vUv);
         if (t.a < 0.35) discard;
-        outColor = vec4(mix(uBg, t.rgb, t.a), 1.0);
+        float fog = exp(-length(uEye - vPos) * 0.02);
+        outColor = vec4(mix(uBg, t.rgb, t.a * vEmit * fog), 1.0);
         return;
+    }
+    else if (mat > ${F(MAT.hazard)} - 0.5)
+    {
+        // chevrons on the floor: diagonal stripes, framed
+        float stripe = step(0.5, fract((vPos.x + vPos.z) / 0.7));
+        albedo = 0.04 + 0.5 * stripe;
+        bump = true;
     }
     else if (mat < ${F(MAT.glow)} + 0.5)
     {
@@ -148,6 +233,18 @@ void main()
     {
         // door leaf: a panel with a bright seam round the edge
         albedo = 0.12 + 0.5 * panel(vUv, vec2(1.5, 1.3), 0.02);
+    }
+
+    // fake relief: the seams are grooves, so they catch the lamps at their edges
+    if (bump)
+    {
+        vec3 sx = dFdx(vPos);
+        vec3 sy = dFdy(vPos);
+        vec3 r1 = cross(sy, n);
+        vec3 r2 = cross(n, sx);
+        float det = dot(sx, r1);
+        vec3 grad = sign(det) * (dFdx(albedo * 0.012) * r1 + dFdy(albedo * 0.012) * r2);
+        n = normalize(abs(det) * n - grad);
     }
 
     // light: lamps and monitors, with a wrap so surfaces turned away are not black

@@ -1,6 +1,7 @@
-import { slotUv, SLOT } from './atlas';
+import { labelUv, slotUv, SLOT } from './atlas';
+import { STENCIL_PLATES, STENCILS } from './labels';
 import type { V3 } from './math';
-import { centroid, LIGHTS, PORTALS, portalAxis, PROPS, propOutline, roomAt, ROOMS, SCREENS, splitEdge, type Light, type Prop, type Room, type ScreenDef, type V2 } from './world';
+import { BRIDGE_CONSOLES, centroid, LIGHTS, PORTALS, portalAxis, PROPS, propOutline, roomAt, ROOMS, SCREENS, splitEdge, type Light, type Prop, type Room, type ScreenDef, type V2, type Zone } from './world';
 
 /**
  * The ship baked into one triangle list. Built once and uploaded to the GPU: a frame only moves the camera.
@@ -10,7 +11,17 @@ import { centroid, LIGHTS, PORTALS, portalAxis, PROPS, propOutline, roomAt, ROOM
 
 export const STRIDE = 10;
 
-export const MAT = { wall: 0, floor: 1, ceiling: 2, prop: 3, screen: 4, glow: 5, frame: 6, crew: 7, door: 8, label: 9 } as const;
+export const MAT = { wall: 0, floor: 1, ceiling: 2, prop: 3, screen: 4, glow: 5, frame: 6, crew: 7, door: 8, label: 9, hazard: 10 } as const;
+
+/**
+ * The look of a room's surfaces. It rides in the material number as `mat + 16 * style` (the shader splits it), so a
+ * wall, floor or ceiling carries its room's pattern with no extra vertex data.
+ */
+export const STYLE: Readonly<Record<Zone, number>> = {
+    hub: 0, comms: 0, comedor: 0, puente: 1, motor: 2, bodega: 3, hangar: 3, enfermeria: 4, hipersueno: 5, pasillo: 6,
+};
+
+export const MAT_STYLE = 16;
 
 export interface Mesh { data: Float32Array; vertices: number }
 
@@ -71,12 +82,13 @@ export function screenFrame(s: ScreenDef): { center: V3; normal: V3; right: V3; 
 function addRoom(b: Builder, room: Room)
 {
     const h = room.height;
+    const st = STYLE[room.zone] * MAT_STYLE;
     // floor and ceiling as fans
     for (let i = 1; i < room.poly.length - 1; i++)
     {
         const [p0, p1, p2] = [room.poly[0], room.poly[i], room.poly[i + 1]];
-        b.tri([p0[0], 0, p0[1]], [p1[0], 0, p1[1]], [p2[0], 0, p2[1]], [0, 1, 0], MAT.floor, 0);
-        b.tri([p0[0], h, p0[1]], [p1[0], h, p1[1]], [p2[0], h, p2[1]], [0, -1, 0], MAT.ceiling, 0);
+        b.tri([p0[0], 0, p0[1]], [p1[0], 0, p1[1]], [p2[0], 0, p2[1]], [0, 1, 0], MAT.floor + st, 0);
+        b.tri([p0[0], h, p0[1]], [p1[0], h, p1[1]], [p2[0], h, p2[1]], [0, -1, 0], MAT.ceiling + st, 0);
     }
 
     for (let i = 0; i < room.poly.length; i++)
@@ -87,7 +99,7 @@ function addRoom(b: Builder, room: Room)
         for (const [from, to] of e.walls)
         {
             const [p0, p1] = [at(from), at(to)];
-            b.quad([[p0[0], 0, p0[1]], [p1[0], 0, p1[1]], [p1[0], h, p1[1]], [p0[0], h, p0[1]]], n, [[from, 0], [to, 0], [to, h], [from, h]], MAT.wall, 0);
+            b.quad([[p0[0], 0, p0[1]], [p1[0], 0, p1[1]], [p1[0], h, p1[1]], [p0[0], h, p0[1]]], n, [[from, 0], [to, 0], [to, h], [from, h]], MAT.wall + st, 0);
         }
         for (const d of e.doors)
         {
@@ -95,7 +107,7 @@ function addRoom(b: Builder, room: Room)
             if (h > top + 0.01)
             {
                 const [p0, p1] = [at(d.from), at(d.to)];
-                b.quad([[p0[0], top, p0[1]], [p1[0], top, p1[1]], [p1[0], h, p1[1]], [p0[0], h, p0[1]]], n, [[d.from, top], [d.to, top], [d.to, h], [d.from, h]], MAT.wall, 0);
+                b.quad([[p0[0], top, p0[1]], [p1[0], top, p1[1]], [p1[0], h, p1[1]], [p0[0], h, p0[1]]], n, [[d.from, top], [d.to, top], [d.to, h], [d.from, h]], MAT.wall + st, 0);
             }
             // two posts and a beam
             const post = (t0: number, t1: number) => extrude(b, [at(t0), at(t1), at(t1, 0.35), at(t0, 0.35)], 0, top, MAT.frame, 0.2);
@@ -157,10 +169,119 @@ function addDoors(b: Builder)
     });
 }
 
+/** A name plate: a quad of the atlas's plate `slot`, centred on `c` (GL space), `w` wide, spanning `right`, facing `n`. */
+export function plate(b: Builder, c: V3, right: V3, w: number, n: V3, slot: number, emit = 1)
+{
+    const [u0, v0, u1, v1] = labelUv(slot);
+    const hw = w / 2;
+    const hh = w / 8;
+    const at = (dw: number, dh: number): V3 => [c[0] + right[0] * dw, c[1] + dh, c[2] + right[2] * dw];
+    b.quad([at(-hw, hh), at(hw, hh), at(hw, -hh), at(-hw, -hh)], n, [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], MAT.label, emit);
+}
+
+const rectOutline = (x0: number, y0: number, x1: number, y1: number): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+
+/** Ribs up the long walls of a corridor and two pipes along its ceiling, the Nostromo's ribbed hallways. */
+function addCorridor(b: Builder, room: Room)
+{
+    const xs = room.poly.map(p => p[0]);
+    const ys = room.poly.map(p => p[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const alongX = x1 - x0 > y1 - y0;
+    const [a0, a1, c0, c1] = alongX ? [x0, x1, y0, y1] : [y0, y1, x0, x1];
+    const at = (u0: number, v0: number, u1: number, v1: number) => (alongX ? rectOutline(u0, v0, u1, v1) : rectOutline(v0, u0, v1, u1));
+    for (let u = a0 + 1; u < a1 - 0.6; u += 2)
+        for (const [v0, v1] of [[c0, c0 + 0.14], [c1 - 0.14, c1]])
+            extrude(b, at(u - 0.06, v0, u + 0.06, v1), 0, room.height, MAT.frame, 0.1);
+    for (const v of [c0 + 0.45, c1 - 0.45])
+        extrude(b, at(a0, v - 0.07, a1, v + 0.07), room.height - 0.5, room.height - 0.36, MAT.prop, 0);
+}
+
+/** Chevrons on the floor on both faces of the doorways of the working rooms. */
+function addHazard(b: Builder)
+{
+    const WORK = new Set<Zone>(['bodega', 'hangar', 'motor']);
+    for (const p of PORTALS)
+    {
+        const a = portalAxis(p);
+        for (const side of [-1, 1])
+        {
+            const zone = roomAt(p.x + a.nx * side * 0.8, p.y + a.ny * side * 0.8)?.zone;
+            if (!zone || !WORK.has(zone)) continue;
+            const [hw, d0, d1] = [p.width / 2 + 0.2, 0.15, 1.05];
+            const corner = (u: number, d: number): V3 => [p.x + a.dx * u + a.nx * side * d, 0.012, p.y + a.dy * u + a.ny * side * d];
+            b.quad([corner(-hw, d0), corner(hw, d0), corner(hw, d1), corner(-hw, d1)], [0, 1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], MAT.hazard, 0);
+        }
+    }
+}
+
+/** A name stencil on the wall beside the room's door, away from monitors. */
+export function stencilSpot(room: Room): { x: number; y: number; nx: number; ny: number } | null
+{
+    const near = (x: number, y: number, list: readonly { x: number; y: number }[], r: number) => list.some(q => Math.hypot(q.x - x, q.y - y) < r);
+    let fallback: { x: number; y: number; nx: number; ny: number } | null = null;
+    for (let i = 0; i < room.poly.length; i++)
+    {
+        const e = splitEdge(room, i);
+        for (const [from, to] of e.walls)
+        {
+            if (to - from < 2.4) continue;
+            for (const t of [from + 1.3, to - 1.3])
+            {
+                const x = e.ax + e.dx * t + e.nx * 0.02;
+                const y = e.ay + e.dy * t + e.ny * 0.02;
+                if (near(x, y, SCREENS, 1.9)) continue;
+                const spot = { x, y, nx: e.nx, ny: e.ny };
+                if (near(x, y, PORTALS, 3.2)) return spot;
+                fallback ??= spot;
+            }
+        }
+    }
+    return fallback;
+}
+
+function addStencils(b: Builder)
+{
+    STENCILS.forEach((s, i) =>
+    {
+        const room = ROOMS.find(r => r.id === s.room);
+        const spot = room && stencilSpot(room);
+        if (spot) plate(b, [spot.x, 2.2, spot.y], [spot.ny, 0, -spot.nx], 2, [spot.nx, 0, spot.ny], STENCIL_PLATES + i, 0.5);
+    });
+}
+
+/** A slanted keyboard on each bridge console: low toward the middle of the bridge, rising to the back, lit from within. */
+function addKeyboards(b: Builder)
+{
+    for (const c of BRIDGE_CONSOLES)
+    {
+        const cs = Math.cos(c.yaw);
+        const sn = Math.sin(c.yaw);
+        // `u` runs along the console, `v` toward the middle of the bridge
+        const corner = (u: number, v: number, up: number): V3 => [c.x + u * cs - v * sn, up, c.y + u * sn + v * cs];
+        const top = c.z0 + c.h;
+        const [hw, hd] = [c.w / 2 - 0.25, c.d / 2 - 0.1];
+        const q: [V3, V3, V3, V3] = [corner(-hw, hd, top + 0.02), corner(hw, hd, top + 0.02), corner(hw, -hd, top + 0.2), corner(-hw, -hd, top + 0.2)];
+        const e1: V3 = [q[1][0] - q[0][0], q[1][1] - q[0][1], q[1][2] - q[0][2]];
+        const e2: V3 = [q[3][0] - q[0][0], q[3][1] - q[0][1], q[3][2] - q[0][2]];
+        let n: V3 = [e2[1] * e1[2] - e2[2] * e1[1], e2[2] * e1[0] - e2[0] * e1[2], e2[0] * e1[1] - e2[1] * e1[0]];
+        if (n[1] < 0) n = [-n[0], -n[1], -n[2]];
+        const l = Math.hypot(...n);
+        b.quad(q, [n[0] / l, n[1] / l, n[2] / l], [[0, 0], [hw * 2, 0], [hw * 2, hd * 2], [0, hd * 2]], MAT.frame, 0.45);
+    }
+}
+
 export function buildMesh(): Mesh
 {
     const b = new Builder();
-    for (const room of ROOMS) addRoom(b, room);
+    for (const room of ROOMS)
+    {
+        addRoom(b, room);
+        if (room.zone === 'pasillo') addCorridor(b, room);
+    }
+    addHazard(b);
+    addStencils(b);
+    addKeyboards(b);
     for (const p of PROPS) addProp(b, p);
     for (const s of SCREENS) addScreen(b, s);
     addDoors(b);

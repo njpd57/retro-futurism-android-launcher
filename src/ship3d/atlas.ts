@@ -5,11 +5,11 @@ export const CELL_W = 256;
 export const CELL_H = 128;
 export const COLS = 4;
 export const ROWS = 5;
-/** Below the monitors, a band of name plates: the crew's apps and names and the shuttles' apps. */
+/** Below the monitors, a band of name plates: the crew's apps and names, the shuttles' apps and the rooms' wall stencils. */
 export const LABEL_W = 256;
 export const LABEL_H = 64;
 export const LABEL_COLS = 4;
-export const LABEL_ROWS = 4;
+export const LABEL_ROWS = 7;
 export const LABEL_SLOTS = LABEL_COLS * LABEL_ROWS;
 const LABELS_Y = ROWS * CELL_H;
 export const ATLAS_W = COLS * CELL_W;
