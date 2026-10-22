@@ -20,6 +20,7 @@ import { useSoundStore } from '@/stores/useSoundStore';
 import { ATLAS_H, ATLAS_W, drawAtlas, drawLabels } from '@/ship3d/atlas';
 import { bloomGain } from '@/ship3d/bloom';
 import { createShipGL, type ShipGL } from '@/ship3d/gl';
+import { loadMaterialTextures } from '@/ship3d/details';
 import { nearestLights, packLights } from '@/ship3d/lights';
 import { buildMesh } from '@/ship3d/mesh';
 import { roomLevel, roomReadings, type Level } from '@/ship3d/readings';
@@ -446,12 +447,7 @@ onMounted(() =>
     palette();
     paintAtlas(true);
     // the detail of the surfaces: brightness and relief (see scripts/pack_ship_textures.py); flat until they arrive
-    for (const name of ['wall', 'floor', 'ceiling', 'prop'] as const)
-    {
-        const img = new Image();
-        img.onload = () => gl?.setDetail(name, img);
-        img.src = `${import.meta.env.BASE_URL}ship/${name}.png`;
-    }
+    void loadMaterialTextures(gl, import.meta.env.BASE_URL);
     // the monitors' font may still be loading
     document.fonts?.ready.then(() => { atlasDirty = true; });
     raf = requestAnimationFrame(frame);

@@ -1,10 +1,11 @@
 import { BLOOM_THRESHOLD, bloomSize, blurWeights } from './bloom';
 import { BLUR_FRAGMENT, BRIGHT_FRAGMENT, COMPOSITE_FRAGMENT, FRAGMENT, QUAD_VERTEX, VERTEX } from './shaders';
 import { STRIDE, type Mesh } from './mesh';
-import { fovYFor, multiply, perspective, viewMatrix, type V3 } from './math';
+import { fovYFor, multiply, perspective, topDown, viewMatrix, type V3 } from './math';
 import { MAX_LIGHTS } from './lights';
 import { ATLAS_H, ATLAS_W } from './atlas';
 import { FAR_PLANE } from './shaders';
+import { DETAIL_SIZE, packMaterialUniforms, type MaterialUniforms } from './materials';
 
 /** Everything one frame needs. */
 export interface GLFrame
@@ -28,16 +29,14 @@ export interface GLFrame
     edge?: number;
     /** amount of grain over the picture, 0 for none (default 0.04) */
     grain?: number;
+    /** the map editor's plan view: straight down on `(x, y)`, `half` metres to the top edge, everything above `cut` metres removed */
+    top?: { x: number; y: number; half: number; cut: number };
 }
 
 export interface Palette { ph: [number, number, number]; bg: [number, number, number] }
 
-/** The surfaces that carry a detail texture. */
-export type DetailName = 'wall' | 'floor' | 'ceiling' | 'prop';
-
-/** Texture unit of each detail texture in the scene pass (0 is the monitors' atlas). */
-const DETAIL_UNITS: Readonly<Record<DetailName, number>> = { wall: 1, floor: 2, ceiling: 3, prop: 4 };
-const DETAIL_UNIFORMS: Readonly<Record<DetailName, string>> = { wall: 'uWall', floor: 'uFloor', ceiling: 'uCeil', prop: 'uProp' };
+/** Texture unit of the detail textures (one array, a layer each) in the scene pass (0 is the monitors' atlas). */
+const DETAIL_UNIT = 1;
 
 export interface ShipGL
 {
@@ -45,8 +44,12 @@ export interface ShipGL
     resize(scale: number): boolean;
     render(frame: GLFrame): void;
     setAtlas(source: HTMLCanvasElement): void;
-    /** the picture of a kind of surface: brightness, and the normal's x and y (see `scripts/pack_ship_textures.py`) */
-    setDetail(name: DetailName, source: TexImageSource): void;
+    /** swaps the ship's triangles (the map editor rebuilt them) */
+    setMesh(mesh: Mesh): void;
+    /** the picture of layer `layer` of the detail textures: brightness, and the normal's x and y (see `scripts/pack_ship_textures.py`) */
+    setMaterialTexture(layer: number, source: TexImageSource): void;
+    /** what each material makes of its texture, and how many layers there are; the table the module `materials.ts` holds is used until this is called */
+    setMaterials(uniforms: MaterialUniforms): void;
     /** the people and Jones, rebuilt every frame: triangles in the same layout as the ship */
     setCrew(data: Float32Array): void;
     setPalette(p: Palette): void;
@@ -104,8 +107,9 @@ const WEIGHTS = blurWeights();
 const SPREAD = 1.5;
 
 /** Null when the device has no WebGL2. */
-export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | null
+export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): ShipGL | null
 {
+    let mesh = initialMesh;
     // no multisampling: the scene is drawn into our own buffers at the canvas size, which is already twice the CSS size
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
     if (!gl) return null;
@@ -113,7 +117,9 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
     let lost = false;
     let palette: Palette = { ph: [1, 0.69, 0], bg: [0.02, 0.015, 0] };
     let atlasSource: HTMLCanvasElement | null = null;
-    const detailSources = new Map<DetailName, TexImageSource>();
+    const layerSources = new Map<number, TexImageSource>();
+    let materialUniforms: MaterialUniforms = packMaterialUniforms();
+    let layers = 0;
     let crewData = new Float32Array(0);
 
     // resources, rebuilt after a lost context
@@ -123,7 +129,7 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
     let crewVao: WebGLVertexArrayObject;
     let crewBuffer: WebGLBuffer;
     let texture: WebGLTexture;
-    const details = new Map<DetailName, WebGLTexture>();
+    let details: WebGLTexture;
     let black: WebGLTexture;
     let uniforms: Record<string, WebGLUniformLocation | null> = {};
     let post: { bright: Pass; blur: Pass; composite: Pass } | null = null;
@@ -198,14 +204,7 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         texture = surfaceTexture(gl!.CLAMP_TO_EDGE, 4);
         gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, ATLAS_W, ATLAS_H, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, null);
 
-        // until a detail texture arrives: flat, average brightness (0.5 is "as bright as average")
-        details.clear();
-        for (const name of Object.keys(DETAIL_UNITS) as DetailName[])
-        {
-            const t = surfaceTexture(gl!.REPEAT, 8);
-            gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, 1, 1, 0, gl!.RGB, gl!.UNSIGNED_BYTE, new Uint8Array([128, 128, 128]));
-            details.set(name, t);
-        }
+        allocateDetails(materialUniforms.layers);
 
         black = gl!.createTexture()!;
         gl!.bindTexture(gl!.TEXTURE_2D, black);
@@ -214,10 +213,10 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.NEAREST);
 
         uniforms = {};
-        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', ...Object.values(DETAIL_UNIFORMS)])
+        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', 'uCut', 'uDetail', 'uLayer', 'uTile', 'uStrength', 'uAlbedo', 'uShin', 'uKs', 'uStyled', 'uKindMat', 'uStyleBase'])
             uniforms[name] = gl!.getUniformLocation(program, name);
         if (atlasSource) upload(atlasSource);
-        for (const [name, src] of detailSources) uploadDetail(name, src);
+        for (const [layer, src] of layerSources) uploadLayer(layer, src);
     }
 
     function upload(source: HTMLCanvasElement)
@@ -227,17 +226,48 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         gl!.generateMipmap(gl!.TEXTURE_2D);
     }
 
-    function uploadDetail(name: DetailName, source: TexImageSource)
+    /** The array of detail textures with `n` layers, flat average brightness until a picture arrives (0.5 is "as bright as average"). */
+    function allocateDetails(n: number)
     {
-        const t = details.get(name);
-        if (!t) return;
-        gl!.bindTexture(gl!.TEXTURE_2D, t);
+        const old = details;
+        details = gl!.createTexture()!;
+        gl!.bindTexture(gl!.TEXTURE_2D_ARRAY, details);
+        gl!.texParameteri(gl!.TEXTURE_2D_ARRAY, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR_MIPMAP_LINEAR);
+        gl!.texParameteri(gl!.TEXTURE_2D_ARRAY, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
+        gl!.texParameteri(gl!.TEXTURE_2D_ARRAY, gl!.TEXTURE_WRAP_S, gl!.REPEAT);
+        gl!.texParameteri(gl!.TEXTURE_2D_ARRAY, gl!.TEXTURE_WRAP_T, gl!.REPEAT);
+        const ext = anisotropy();
+        if (ext) gl!.texParameterf(gl!.TEXTURE_2D_ARRAY, ext.TEXTURE_MAX_ANISOTROPY_EXT, 8);
+        gl!.texImage3D(gl!.TEXTURE_2D_ARRAY, 0, gl!.RGB8, DETAIL_SIZE, DETAIL_SIZE, n, 0, gl!.RGB, gl!.UNSIGNED_BYTE,
+            new Uint8Array(DETAIL_SIZE * DETAIL_SIZE * 3 * n).fill(128));
+        gl!.generateMipmap(gl!.TEXTURE_2D_ARRAY);
+        layers = n;
+        if (old && old !== details) gl!.deleteTexture(old);
+    }
+
+    let resampler: HTMLCanvasElement | null = null;
+
+    function uploadLayer(layer: number, source: TexImageSource)
+    {
+        if (layer < 0 || layer >= layers) return;
+        let src = source;
+        const w = (source as { width?: number }).width ?? DETAIL_SIZE;
+        const h = (source as { height?: number }).height ?? DETAIL_SIZE;
+        if (w !== DETAIL_SIZE || h !== DETAIL_SIZE)
+        {
+            // the array's layers are one size: bring a picture of another size to it
+            resampler ??= document.createElement('canvas');
+            resampler.width = resampler.height = DETAIL_SIZE;
+            resampler.getContext('2d')!.drawImage(source as CanvasImageSource, 0, 0, DETAIL_SIZE, DETAIL_SIZE);
+            src = resampler;
+        }
+        gl!.bindTexture(gl!.TEXTURE_2D_ARRAY, details);
         // the picture holds data, not colour: no premultiplying, no colour conversion
         gl!.pixelStorei(gl!.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         gl!.pixelStorei(gl!.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl!.NONE);
-        gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, gl!.RGB, gl!.UNSIGNED_BYTE, source);
+        gl!.texSubImage3D(gl!.TEXTURE_2D_ARRAY, 0, 0, 0, layer, DETAIL_SIZE, DETAIL_SIZE, 1, gl!.RGB, gl!.UNSIGNED_BYTE, src);
         gl!.pixelStorei(gl!.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl!.BROWSER_DEFAULT_WEBGL);
-        gl!.generateMipmap(gl!.TEXTURE_2D);
+        gl!.generateMipmap(gl!.TEXTURE_2D_ARRAY);
     }
 
     function target(w: number, h: number): Target
@@ -460,7 +490,10 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
             gl.enable(gl.DEPTH_TEST);
             gl.disable(gl.CULL_FACE);
 
-            const viewProj = multiply(perspective(fovYFor(canvas.width / canvas.height), canvas.width / canvas.height, NEAR, FAR_PLANE), viewMatrix(f.eye, f.yaw, f.pitch));
+            const aspect = canvas.width / canvas.height;
+            const viewProj = f.top
+                ? topDown(f.top.x, f.top.y, f.top.half, aspect, 100, 200)
+                : multiply(perspective(fovYFor(aspect), aspect, NEAR, FAR_PLANE), viewMatrix(f.eye, f.yaw, f.pitch));
             gl.useProgram(program);
             gl.bindVertexArray(vao);
             gl.uniformMatrix4fv(uniforms.uViewProj, false, viewProj);
@@ -472,16 +505,24 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
             gl.uniform1f(uniforms.uBlink, f.blink ? 1 : 0);
             gl.uniform1f(uniforms.uHolo, f.holo ?? 0.6);
             gl.uniform1f(uniforms.uSweep, f.sweep);
+            gl.uniform1f(uniforms.uCut, f.top ? f.top.cut : 1e4);
             gl.uniform1fv(uniforms.uDoor, Float32Array.from({ length: 16 }, (_, i) => f.doors[i] ?? 0));
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.uniform1i(uniforms.uAtlas, 0);
-            for (const [name, unit] of Object.entries(DETAIL_UNITS) as [DetailName, number][])
-            {
-                gl.activeTexture(gl.TEXTURE0 + unit);
-                gl.bindTexture(gl.TEXTURE_2D, details.get(name)!);
-                gl.uniform1i(uniforms[DETAIL_UNIFORMS[name]], unit);
-            }
+            gl.activeTexture(gl.TEXTURE0 + DETAIL_UNIT);
+            gl.bindTexture(gl.TEXTURE_2D_ARRAY, details);
+            gl.uniform1i(uniforms.uDetail, DETAIL_UNIT);
+            const mu = materialUniforms;
+            gl.uniform1fv(uniforms.uLayer, mu.layer);
+            gl.uniform1fv(uniforms.uTile, mu.tile);
+            gl.uniform1fv(uniforms.uStrength, mu.strength);
+            gl.uniform1fv(uniforms.uAlbedo, mu.albedo);
+            gl.uniform1fv(uniforms.uShin, mu.shin);
+            gl.uniform1fv(uniforms.uKs, mu.ks);
+            gl.uniform1fv(uniforms.uStyled, mu.styled);
+            gl.uniform1fv(uniforms.uKindMat, mu.kind);
+            gl.uniform1fv(uniforms.uStyleBase, mu.style);
             gl.activeTexture(gl.TEXTURE0);
             gl.drawArrays(gl.TRIANGLES, 0, mesh.vertices);
             if (crewData.length)
@@ -494,7 +535,22 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
         },
 
         setAtlas(source) { atlasSource = source; if (!lost) upload(source); },
-        setDetail(name, source) { detailSources.set(name, source); if (!lost) uploadDetail(name, source); },
+        setMesh(next)
+        {
+            mesh = next;
+            if (lost || gl.isContextLost()) return;
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, mesh.data, gl.STATIC_DRAW);
+        },
+        setMaterialTexture(layer, source) { layerSources.set(layer, source); if (!lost) uploadLayer(layer, source); },
+        setMaterials(uniforms)
+        {
+            materialUniforms = uniforms;
+            if (lost || gl.isContextLost() || uniforms.layers === layers) return;
+            // more or fewer layers: a new array, with the pictures that are known put back
+            allocateDetails(uniforms.layers);
+            for (const [layer, src] of layerSources) uploadLayer(layer, src);
+        },
         setCrew(data)
         {
             crewData = data;
@@ -525,7 +581,7 @@ export function createShipGL(canvas: HTMLCanvasElement, mesh: Mesh): ShipGL | nu
                 gl.deleteVertexArray(crewVao);
                 gl.deleteTexture(texture);
                 gl.deleteTexture(black);
-                for (const t of details.values()) gl.deleteTexture(t);
+                gl.deleteTexture(details);
             }
             gl.getExtension('WEBGL_lose_context')?.loseContext();
         },

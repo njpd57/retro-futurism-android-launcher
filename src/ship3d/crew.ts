@@ -1,7 +1,7 @@
 import { glideRoute, pointAt, routeLength, STANDS } from './glide';
 import { CONTACT_PLATES, SIGNAL_PLATES } from './labels';
 import { yawOf } from './math';
-import { chairAt, CHAIRS, type V2 } from './world';
+import { chairAt, CHAIRS, SIGNAL_SLOTS, type V2 } from './world';
 
 /**
  * Who is aboard: a crew member per app with notifications waiting, the starred contacts and the rest of the crew at
@@ -24,11 +24,7 @@ export interface Agent
 
 interface Slot { x: number; y: number; yaw: number }
 
-/** Where the crew of the signals stand in COMMS, facing their desks. */
-export const SIGNAL_SLOTS: readonly Slot[] = [
-    { x: -19.2, y: 3.4, yaw: Math.PI }, { x: -17, y: 3.4, yaw: Math.PI }, { x: -14.8, y: 3.4, yaw: Math.PI },
-    { x: -19.2, y: -3.4, yaw: 0 }, { x: -17, y: -3.4, yaw: 0 }, { x: -14.8, y: -3.4, yaw: 0 },
-];
+export { SIGNAL_SLOTS };
 
 /**
  * The chairs round the mess table in the order they fill: the far side from the south door first, so whoever walks in

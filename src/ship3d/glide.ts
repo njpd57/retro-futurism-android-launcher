@@ -1,32 +1,13 @@
 import { collides } from './collide';
 import { yawOf } from './math';
-import { collisionSegments, PORTALS, ROOMS, roomAt, splitEdge, type Portal, type Seg, type V2 } from './world';
+import { collisionSegments, PORTALS, ROOMS, roomAt, splitEdge, STANDS, VIAS, type Portal, type Seg, type V2 } from './world';
 
 /**
  * Where the minimap takes the camera: each room has a spot to stand, and a route of straight legs through the
  * doorways that keeps clear of crates, columns and walls. Pure.
  */
 
-/** Where the camera ends up in each of the nine rooms the data lives in. */
-export const STANDS: Readonly<Record<string, V2>> = {
-    comedor: [0, 4.6],
-    puente: [0, -14.9],
-    comms: [-17.4, 0],
-    enfermeria: [17.4, 0],
-    bodega: [0, 21],
-    camarotes: [-19.5, 21],
-    hipersueno: [23, 21],
-    motor: [0, 37.8],
-    hangar: [0, 58.4],
-};
-
-/** Points to route round what stands in the way of a straight leg inside a room. */
-const VIAS: Readonly<Record<string, readonly V2[]>> = {
-    // round the table: a ring of points between the chairs and the furniture on the walls
-    comedor: Array.from({ length: 8 }, (_, k): V2 => [Math.round(5 * Math.cos((k * Math.PI) / 4) * 1e4) / 1e4, Math.round(5 * Math.sin((k * Math.PI) / 4) * 1e4) / 1e4]),
-    bodega: [[0, 21]],
-    motor: [[-4.2, 42], [4.2, 42]],
-};
+export { STANDS };
 
 /** Body radius used to judge a leg clear. */
 const CLEAR_RADIUS = 0.3;

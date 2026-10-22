@@ -39,6 +39,8 @@ npm run test:unit    # vitest in watch mode (jsdom)
 npx vitest run --dir src   # all tests once; --dir keeps out the git worktrees under .claude/
 ```
 
+**Tests are not a concern here: don't run them and don't write new ones** (not after a change, not for a new feature, not to confirm a fix). `npm run type-check` is the only automated check to run. The existing tests stay in the repo as they are.
+
 Tests live in `src/**/__tests__/` (pure logic only: utils, mother, games; excluded from `tsconfig.app.json`, included by `tsconfig.vitest.json`). DOM, canvas, gestures and sound are checked by hand in the dev server and on the device.
 
 To run on a device, point Bridge's "project dir" setting at a folder containing the contents of `dist/`. The Vite build uses stable, unhashed asset names (`assets/index.js`), so copying a new `dist/` over the old one is enough. Don't use adb on the phone without asking; the user does device testing.
@@ -60,6 +62,8 @@ Read the matching doc before touching an area:
 
 - `docs/ARCHITECTURE.md`: layout, dashboard and widget registry, settings page, stores, utils, protocols, quarantine, MOTHER, APPS folders and deck map, image viewer, command assist, audio.
 - `docs/SHIP_PANEL.md`: the 3D ship PANEL (`src/ship3d/`, `components/ship/`) and the bridge console.
+- `docs/SHIP_EDITOR.md`: the dev-only map and asset editor (`npm run ship:edit`): `src/ship3d/ship.json` (the plan: rooms, doorways, props, monitors, lights) that `world.ts` expands, `materials.json` (the detail textures in `public/ship/` and what each material makes of them) and `prefabs.json` (objects made of boxes and cylinders). Change the map, materials and prefabs there, not with literals in `world.ts` or `shaders.ts`.
+- `docs/SHIP_MODELS.md`: which file in `src/ship3d/mesh/` builds each piece of the ship, the mesh conventions, and how to see it (`scripts/ship-shot.sh`) and check it (`npm run ship:check`).
 - `docs/GAMES_ENGINE.md`: AISLAMIENTO, MARINES and the shared wire engine (finished; see "Games are finished").
 - `docs/CRT_TUBE.md`: curvature, degauss, tube power, phosphor persistence.
 - `@/` is an alias for `src/`. Adding a widget: component in `src/components/widgets/` plus one line in `src/widgets/registry.ts` (see ARCHITECTURE).

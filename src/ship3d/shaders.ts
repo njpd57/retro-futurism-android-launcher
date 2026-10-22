@@ -1,7 +1,9 @@
 import { MAX_LIGHTS } from './lights';
 import { BLUR_TAPS } from './bloom';
 import { ATLAS_H, CELL_H, COLS } from './atlas';
-import { MAT, MAT_STYLE } from './mesh';
+import { MAX_MATERIALS, MAX_STYLES } from './materials';
+import { MAT, MAT_STYLE, MAT_SURFACE } from './mesh';
+import { DOOR } from './world';
 
 /** A material number as a GLSL float literal. */
 const F = (n: number) => n.toFixed(1);
@@ -13,9 +15,6 @@ const F = (n: number) => n.toFixed(1);
 
 /** Far plane in metres; the depth written for the outlines is the distance over this. */
 export const FAR_PLANE = 90;
-
-/** Details of the surfaces: how many metres one repeat of each texture covers. */
-const TILE = { wall: 2.0, floor: 2.0, ceiling: 2.0, prop: 1.5 };
 
 export const VERTEX = `#version 300 es
 precision highp float;
@@ -35,15 +34,18 @@ out vec3 vNormal;
 out vec2 vUv;
 out float vMat;
 out float vStyle;
+out float vSurf;
 out float vEmit;
 out float vAo;
 out float vLit;
 out vec3 vDir;
 void main()
 {
-    // the material number carries the room's surface style: mat + 16 * style
-    float style = floor(aMat / ${F(MAT_STYLE)} + 0.01);
-    float mat = aMat - style * ${F(MAT_STYLE)};
+    // the material number carries the room's surface style and, if the surface names one, its material: mat + 16 * style + 256 * (material + 1)
+    float surf = floor(aMat / ${F(MAT_SURFACE)} + 0.01);
+    float rest = aMat - surf * ${F(MAT_SURFACE)};
+    float style = floor(rest / ${F(MAT_STYLE)} + 0.01);
+    float mat = rest - style * ${F(MAT_STYLE)};
     vec3 p = aPos;
     float emit = aEmit;
     // a door leaf slides up into the lintel as its door opens; its emit slot only carries the door's number
@@ -58,6 +60,7 @@ void main()
     vUv = aUv;
     vMat = mat;
     vStyle = style;
+    vSurf = surf;
     vEmit = emit;
     vAo = aAo;
     vLit = aLit;
@@ -72,6 +75,7 @@ in vec3 vNormal;
 in vec2 vUv;
 in float vMat;
 in float vStyle;
+in float vSurf;
 in float vEmit;
 in float vAo;
 in float vLit;
@@ -81,17 +85,28 @@ uniform vec3 uPh;
 uniform vec3 uBg;
 uniform vec4 uLights[${MAX_LIGHTS}];
 uniform sampler2D uAtlas;
-// the detail of each kind of surface: brightness in red, the normal's x and y in green and blue
-uniform sampler2D uWall;
-uniform sampler2D uFloor;
-uniform sampler2D uCeil;
-uniform sampler2D uProp;
+// the detail textures, one layer each: brightness in red, the normal's x and y in green and blue; and what each
+// material makes of them (see materials.ts)
+uniform highp sampler2DArray uDetail;
+uniform float uLayer[${MAX_MATERIALS}];
+uniform float uTile[${MAX_MATERIALS}];
+uniform float uStrength[${MAX_MATERIALS}];
+uniform float uAlbedo[${MAX_MATERIALS}];
+uniform float uShin[${MAX_MATERIALS}];
+uniform float uKs[${MAX_MATERIALS}];
+uniform float uStyled[${MAX_MATERIALS}];
+// the material of each kind of surface, indexed by the kind's number
+uniform float uKindMat[16];
+// how bright a style's walls are
+uniform float uStyleBase[${MAX_STYLES}];
 uniform float uTime;
 uniform float uBlink;
 // how fast the crew's scan lines climb; 0 holds them still
 uniform float uHolo;
 // where the scan band is along the ship (plan y), or far away when it is off
 uniform float uSweep;
+// the map editor's plan view cuts everything above this height; far above the ship otherwise
+uniform float uCut;
 layout(location = 0) out vec4 outColor;
 // for the outlines: the distance in three bytes and the kind of surface
 layout(location = 1) out vec4 outNd;
@@ -120,22 +135,31 @@ mat3 cotangentFrame(vec3 n, vec3 p, vec2 uv)
     return mat3(t * invmax, b * invmax, n);
 }
 
-// reads a detail texture: returns its brightness and bends \`n\` by its normal
-float detail(sampler2D tex, float tile, float strength, inout vec3 n)
+// the material a surface is made of: the one its vertices name, or the one of its kind
+int materialOf(float mat)
 {
-    vec3 t = texture(tex, vUv / tile).rgb;
-    vec2 xy = (t.gb * 2.0 - 1.0) * strength;
+    int named = int(vSurf + 0.5);
+    return named > 0 ? named - 1 : int(uKindMat[int(mat + 0.5)] + 0.5);
+}
+
+// reads the material's detail texture: returns its brightness and bends \`n\` by its normal
+float detail(int m, inout vec3 n)
+{
+    float tile = uTile[m];
+    vec3 t = texture(uDetail, vec3(vUv / tile, uLayer[m])).rgb;
+    vec2 xy = (t.gb * 2.0 - 1.0) * uStrength[m];
     vec3 tn = vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy))));
     n = normalize(cotangentFrame(n, vPos, vUv / tile) * tn);
     return t.r * 2.0;
 }
 
-// How bright a room's walls are.
-float wallBase(int st)
+// the brightness, relief and shine of material \`m\`; a styled one is as bright as its room's style says
+void surface(int m, int st, inout vec3 n, inout float albedo, inout float shin, inout float ks)
 {
-    if (st == 2) return 0.1;    // the engine room is dim
-    if (st == 4) return 0.15;   // the sickbay is clean and bright
-    return 0.12;
+    float base = uStyled[m] > 0.5 ? uStyleBase[min(st, ${MAX_STYLES - 1})] : uAlbedo[m];
+    albedo = base * detail(m, n);
+    shin = uShin[m];
+    ks = uKs[m];
 }
 
 void main()
@@ -151,32 +175,29 @@ void main()
     float shin = 8.0;
     float ks = 0.0;
 
+    if (vPos.y > uCut) discard;
+
+    // a door leaf slides up into the lintel: what has gone above the doorway is inside the wall, not in front of it
+    if (abs(mat - ${F(MAT.door)}) < 0.5 && vPos.y > ${F(DOOR.height)}) discard;
+
     outNd = vec4(pack24((1.0 / gl_FragCoord.w) / ${F(FAR_PLANE)}), mat / 16.0);
 
     if (mat < ${F(MAT.wall)} + 0.5)
     {
-        albedo = wallBase(st) * detail(uWall, ${F(TILE.wall)}, 1.0, n);
+        surface(materialOf(mat), st, n, albedo, shin, ks);
         albedo *= mix(0.6, 1.0, smoothstep(0.0, 0.6, vUv.y));
-        shin = 8.0;
-        ks = 0.25;
     }
     else if (mat < ${F(MAT.floor)} + 0.5)
     {
-        albedo = 0.09 * detail(uFloor, ${F(TILE.floor)}, 1.0, n);
-        shin = 14.0;
-        ks = 0.5;
+        surface(materialOf(mat), st, n, albedo, shin, ks);
     }
     else if (mat < ${F(MAT.ceiling)} + 0.5)
     {
-        albedo = 0.05 * detail(uCeil, ${F(TILE.ceiling)}, 1.0, n);
-        shin = 6.0;
-        ks = 0.15;
+        surface(materialOf(mat), st, n, albedo, shin, ks);
     }
     else if (mat < ${F(MAT.prop)} + 0.5)
     {
-        albedo = 0.14 * detail(uProp, ${F(TILE.prop)}, 1.0, n);
-        shin = 10.0;
-        ks = 0.35;
+        surface(materialOf(mat), st, n, albedo, shin, ks);
     }
     else if (mat < ${F(MAT.screen)} + 0.5)
     {
@@ -221,8 +242,7 @@ void main()
     }
     else if (mat < ${F(MAT.frame)} + 0.5)
     {
-        albedo = 0.14 * detail(uProp, ${F(TILE.prop)}, 1.0, n);
-        ks = 0.3;
+        surface(materialOf(mat), st, n, albedo, shin, ks);
     }
     else if (mat < ${F(MAT.crew)} + 0.5)
     {
@@ -243,8 +263,7 @@ void main()
     else
     {
         // door leaf
-        albedo = 0.1 * detail(uProp, ${F(TILE.prop)}, 1.0, n);
-        ks = 0.3;
+        surface(materialOf(mat), st, n, albedo, shin, ks);
     }
 
     // light: what the lamps of the room gave this vertex, turned by the surface's own relief (the baked direction

@@ -1,0 +1,14 @@
+{
+ "textures": ["wall", "floor", "ceiling", "prop"],
+ "materials": [
+  { "id": "wall", "texture": "wall", "tile": 2, "strength": 1, "albedo": 0.12, "shin": 8, "ks": 0.25, "styled": true, "source": "ambientCG MetalPlates015A (CC0)" },
+  { "id": "floor", "texture": "floor", "tile": 2, "strength": 1, "albedo": 0.09, "shin": 14, "ks": 0.5, "source": "ambientCG DiamondPlate008A (CC0)" },
+  { "id": "ceiling", "texture": "ceiling", "tile": 2, "strength": 1, "albedo": 0.05, "shin": 6, "ks": 0.15, "source": "ambientCG CorrugatedSteel009 (CC0)" },
+  { "id": "prop", "texture": "prop", "tile": 1.5, "strength": 1, "albedo": 0.14, "shin": 10, "ks": 0.35, "source": "ambientCG Metal063 (CC0)" },
+  { "id": "frame", "texture": "prop", "tile": 1.5, "strength": 1, "albedo": 0.14, "shin": 8, "ks": 0.3 },
+  { "id": "door", "texture": "prop", "tile": 1.5, "strength": 1, "albedo": 0.22, "shin": 8, "ks": 0.3 }
+ ],
+ "kinds": { "wall": "wall", "floor": "floor", "ceiling": "ceiling", "prop": "prop", "frame": "frame", "door": "door" },
+ "styles": [0.12, 0.12, 0.1, 0.12, 0.15, 0.12, 0.12],
+ "zoneStyle": { "comedor": 4, "camarotes": 0, "comms": 0, "puente": 1, "motor": 2, "bodega": 3, "hangar": 3, "enfermeria": 4, "hipersueno": 5, "pasillo": 6 }
+}

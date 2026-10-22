@@ -1,0 +1,1112 @@
+{
+ "door": {
+  "width": 3,
+  "height": 2.6
+ },
+ "start": {
+  "x": 0,
+  "y": -14.2,
+  "yaw": 0,
+  "pitch": 0
+ },
+ "rooms": [
+  {
+   "id": "comedor",
+   "zone": "comedor",
+   "name": "COMEDOR",
+   "height": 4.2,
+   "shape": {
+    "ngon": [
+     0,
+     0,
+     7,
+     12
+    ]
+   }
+  },
+  {
+   "id": "puente",
+   "zone": "puente",
+   "name": "PUENTE",
+   "height": 4.5,
+   "shape": {
+    "dome": [
+     0,
+     -13,
+     9,
+     7,
+     8
+    ]
+   }
+  },
+  {
+   "id": "comms",
+   "zone": "comms",
+   "name": "COMMS",
+   "height": 4,
+   "shape": {
+    "chamfer": [
+     -26,
+     -6,
+     -14,
+     6,
+     2
+    ]
+   }
+  },
+  {
+   "id": "enfermeria",
+   "zone": "enfermeria",
+   "name": "ENFERMERÍA",
+   "height": 3.6,
+   "shape": {
+    "chamfer": [
+     14,
+     -6,
+     26,
+     6,
+     2
+    ]
+   }
+  },
+  {
+   "id": "bodega",
+   "zone": "bodega",
+   "name": "BODEGA",
+   "height": 7,
+   "shape": {
+    "chamfer": [
+     -10,
+     13,
+     10,
+     29,
+     2
+    ]
+   }
+  },
+  {
+   "id": "camarotes",
+   "zone": "camarotes",
+   "name": "CAMAROTES",
+   "height": 3.6,
+   "shape": {
+    "chamfer": [
+     -29,
+     15,
+     -17,
+     27,
+     2
+    ]
+   }
+  },
+  {
+   "id": "hipersueno",
+   "zone": "hipersueno",
+   "name": "HIPERSUEÑO",
+   "height": 3.6,
+   "shape": {
+    "chamfer": [
+     17,
+     15,
+     29,
+     27,
+     2
+    ]
+   }
+  },
+  {
+   "id": "motor",
+   "zone": "motor",
+   "name": "MOTOR",
+   "height": 6,
+   "shape": {
+    "chamfer": [
+     -8,
+     35,
+     8,
+     49,
+     2
+    ]
+   }
+  },
+  {
+   "id": "hangar",
+   "zone": "hangar",
+   "name": "HANGAR",
+   "height": 6.5,
+   "shape": {
+    "chamfer": [
+     -12,
+     55,
+     12,
+     73,
+     2
+    ]
+   }
+  },
+  {
+   "id": "p-puente",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     -1.5,
+     -13,
+     1.5,
+     -7
+    ]
+   }
+  },
+  {
+   "id": "p-comms",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     -14,
+     -1.5,
+     -7,
+     1.5
+    ]
+   }
+  },
+  {
+   "id": "p-enfermeria",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     7,
+     -1.5,
+     14,
+     1.5
+    ]
+   }
+  },
+  {
+   "id": "p-bodega",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     -1.5,
+     7,
+     1.5,
+     13
+    ]
+   }
+  },
+  {
+   "id": "p-camarotes",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     -17,
+     19.5,
+     -10,
+     22.5
+    ]
+   }
+  },
+  {
+   "id": "p-hipersueno",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     10,
+     19.5,
+     17,
+     22.5
+    ]
+   }
+  },
+  {
+   "id": "p-motor",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     -1.5,
+     29,
+     1.5,
+     35
+    ]
+   }
+  },
+  {
+   "id": "p-hangar",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     -1.5,
+     49,
+     1.5,
+     55
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": 0,
+   "y": -7
+  },
+  {
+   "x": 0,
+   "y": -13
+  },
+  {
+   "x": -7,
+   "y": 0
+  },
+  {
+   "x": -14,
+   "y": 0
+  },
+  {
+   "x": 7,
+   "y": 0
+  },
+  {
+   "x": 14,
+   "y": 0
+  },
+  {
+   "x": 0,
+   "y": 7
+  },
+  {
+   "x": 0,
+   "y": 13
+  },
+  {
+   "x": -10,
+   "y": 21
+  },
+  {
+   "x": -17,
+   "y": 21
+  },
+  {
+   "x": 10,
+   "y": 21
+  },
+  {
+   "x": 17,
+   "y": 21
+  },
+  {
+   "x": 0,
+   "y": 29
+  },
+  {
+   "x": 0,
+   "y": 35
+  },
+  {
+   "x": 0,
+   "y": 49
+  },
+  {
+   "x": 0,
+   "y": 55
+  }
+ ],
+ "props": [
+  {
+   "gen": "mess"
+  },
+  {
+   "kind": "box",
+   "x": -5.7158,
+   "y": -3.3,
+   "w": 3,
+   "d": 0.7,
+   "h": 1,
+   "yaw": 5.235987755982989
+  },
+  {
+   "kind": "box",
+   "x": -5.9929,
+   "y": -3.46,
+   "w": 3,
+   "d": 0.06,
+   "h": 0.06,
+   "yaw": 5.235987755982989,
+   "z0": 1.75,
+   "glow": 0.5,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -5.8457,
+   "y": -3.375,
+   "w": 3,
+   "d": 0.4,
+   "h": 0.75,
+   "yaw": 5.235987755982989,
+   "z0": 1.9,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -3.3,
+   "y": -5.7158,
+   "w": 3,
+   "d": 0.7,
+   "h": 1,
+   "yaw": 5.759586531581287
+  },
+  {
+   "kind": "box",
+   "x": -3.46,
+   "y": -5.9929,
+   "w": 3,
+   "d": 0.06,
+   "h": 0.06,
+   "yaw": 5.759586531581287,
+   "z0": 1.75,
+   "glow": 0.5,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -3.375,
+   "y": -5.8457,
+   "w": 3,
+   "d": 0.4,
+   "h": 0.75,
+   "yaw": 5.759586531581287,
+   "z0": 1.9,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 2.5186,
+   "y": -6.2824,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 6.806784082777885
+  },
+  {
+   "kind": "box",
+   "x": 3.0729,
+   "y": -5.9624,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 6.806784082777885
+  },
+  {
+   "kind": "box",
+   "x": 3.6271,
+   "y": -5.6424,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 6.806784082777885
+  },
+  {
+   "kind": "box",
+   "x": 4.1814,
+   "y": -5.3224,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 6.806784082777885
+  },
+  {
+   "kind": "box",
+   "x": 5.3224,
+   "y": -4.1814,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 7.330382858376184
+  },
+  {
+   "kind": "box",
+   "x": 5.6424,
+   "y": -3.6271,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 7.330382858376184
+  },
+  {
+   "kind": "box",
+   "x": 5.9624,
+   "y": -3.0729,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 7.330382858376184
+  },
+  {
+   "kind": "box",
+   "x": 6.2824,
+   "y": -2.5186,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "yaw": 7.330382858376184
+  },
+  {
+   "kind": "box",
+   "x": 5.7158,
+   "y": 3.3,
+   "w": 1.2,
+   "d": 0.7,
+   "h": 1.85,
+   "yaw": 2.0943951023931953
+  },
+  {
+   "kind": "box",
+   "x": 5.378,
+   "y": 3.105,
+   "w": 0.8,
+   "d": 0.04,
+   "h": 0.6,
+   "yaw": 2.0943951023931953,
+   "z0": 1,
+   "glow": 0.6,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 3.35,
+   "y": 5.8024,
+   "w": 2.6,
+   "d": 0.5,
+   "h": 0.45,
+   "yaw": 2.617993877991494
+  },
+  {
+   "kind": "box",
+   "x": -5.5426,
+   "y": 3.2,
+   "w": 0.8,
+   "d": 0.8,
+   "h": 0.7,
+   "yaw": 4.388790204786392
+  },
+  {
+   "kind": "box",
+   "x": -3.8171,
+   "y": 4.8857,
+   "w": 0.4,
+   "d": 0.4,
+   "h": 0.03
+  },
+  {
+   "kind": "cyl",
+   "x": -3.8171,
+   "y": 4.8857,
+   "w": 0.32,
+   "h": 0.25,
+   "z0": 0.03
+  },
+  {
+   "kind": "cyl",
+   "x": -3.8171,
+   "y": 4.8857,
+   "w": 0.2,
+   "h": 0.22,
+   "z0": 0.28,
+   "solid": false
+  },
+  {
+   "kind": "cyl",
+   "x": -3.8171,
+   "y": 4.8857,
+   "w": 0.1,
+   "h": 0.2,
+   "z0": 0.5,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -4.8,
+   "y": -16.2,
+   "w": 3,
+   "d": 1.2,
+   "h": 1,
+   "yaw": -0.55,
+   "keyboard": true
+  },
+  {
+   "kind": "box",
+   "x": 0,
+   "y": -18,
+   "w": 3.4,
+   "d": 1.2,
+   "h": 1,
+   "keyboard": true
+  },
+  {
+   "kind": "box",
+   "x": 4.8,
+   "y": -16.2,
+   "w": 3,
+   "d": 1.2,
+   "h": 1,
+   "yaw": 0.55,
+   "keyboard": true
+  },
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": -16.6,
+   "w": 0.6,
+   "h": 0.5
+  },
+  {
+   "kind": "box",
+   "x": 0,
+   "y": -16.95,
+   "w": 0.7,
+   "d": 0.12,
+   "h": 1.25
+  },
+  {
+   "kind": "cyl",
+   "x": -20.4,
+   "y": 0,
+   "w": 1.2,
+   "h": 4,
+   "glow": 0.4
+  },
+  {
+   "kind": "box",
+   "x": -19.4,
+   "y": 4.9,
+   "w": 4.4,
+   "d": 1.1,
+   "h": 1
+  },
+  {
+   "kind": "box",
+   "x": -19.4,
+   "y": -4.9,
+   "w": 4.4,
+   "d": 1.1,
+   "h": 1
+  },
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": -4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": -4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6
+  },
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": 4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": 4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6
+  },
+  {
+   "kind": "box",
+   "x": -6,
+   "y": 17.4,
+   "w": 2.4,
+   "d": 2.4,
+   "h": 2.4
+  },
+  {
+   "kind": "box",
+   "x": 6.4,
+   "y": 16.8,
+   "w": 2.2,
+   "d": 2.2,
+   "h": 1.8
+  },
+  {
+   "kind": "box",
+   "x": 6,
+   "y": 24.4,
+   "w": 3,
+   "d": 2.4,
+   "h": 2.6
+  },
+  {
+   "kind": "box",
+   "x": 3.8,
+   "y": 26.4,
+   "w": 1.4,
+   "d": 1.4,
+   "h": 1
+  },
+  {
+   "kind": "box",
+   "x": -28.2,
+   "y": 18.4,
+   "w": 1.2,
+   "d": 2.4,
+   "h": 1.8
+  },
+  {
+   "kind": "box",
+   "x": -28.2,
+   "y": 21,
+   "w": 1.2,
+   "d": 2.4,
+   "h": 1.8
+  },
+  {
+   "kind": "box",
+   "x": -28.2,
+   "y": 23.65,
+   "w": 1.2,
+   "d": 2.4,
+   "h": 1.8
+  },
+  {
+   "kind": "box",
+   "x": -23,
+   "y": 22.4,
+   "w": 1.6,
+   "d": 0.9,
+   "h": 0.75
+  },
+  {
+   "kind": "box",
+   "x": -22.1,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9
+  },
+  {
+   "kind": "box",
+   "x": -21.25,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9
+  },
+  {
+   "kind": "box",
+   "x": -20.4,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9
+  },
+  {
+   "kind": "box",
+   "x": -19.8,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9
+  },
+  {
+   "gen": "pods",
+   "cx": 23,
+   "cy": 21,
+   "radius": 3.6
+  },
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": 42,
+   "w": 4.4,
+   "h": 6,
+   "glow": 0.55
+  },
+  {
+   "kind": "box",
+   "x": 24.5,
+   "y": 3,
+   "w": 1,
+   "d": 1,
+   "h": 1,
+   "yaw": -0.7854
+  },
+  {
+   "prefab": "objeto-1",
+   "x": 15.25,
+   "y": 3.75
+  }
+ ],
+ "mess": {
+  "tableR": 2.5,
+  "tableTop": 0.76,
+  "chairR": 3.05,
+  "chairs": 8,
+  "crownR": 1.25,
+  "crownZ0": 2.6,
+  "ringD": 9,
+  "bird": {
+   "x": 1,
+   "y": 1.1,
+   "yaw": 1.5707963267948966,
+   "glass": 0.26
+  }
+ },
+ "hangar": {
+  "max": 6,
+  "rows": [
+   60.8,
+   65.4,
+   70
+  ],
+  "x": 7.5,
+  "w": 3.4,
+  "d": 3,
+  "h": 1.6,
+  "z0": 0.3
+ },
+ "screens": [
+  {
+   "id": "puente.turno",
+   "zone": "puente",
+   "on": "dome",
+   "k": 2
+  },
+  {
+   "id": "puente.clima",
+   "zone": "puente",
+   "on": "dome",
+   "k": 3
+  },
+  {
+   "id": "puente.hora",
+   "zone": "puente",
+   "on": "dome",
+   "k": 4
+  },
+  {
+   "id": "puente.rumbo",
+   "zone": "puente",
+   "on": "dome",
+   "k": 5
+  },
+  {
+   "id": "comms.senales",
+   "zone": "comms",
+   "on": "wall",
+   "x": -26,
+   "y": -2,
+   "face": "E"
+  },
+  {
+   "id": "comms.mother",
+   "zone": "comms",
+   "on": "wall",
+   "x": -26,
+   "y": 2,
+   "face": "E"
+  },
+  {
+   "id": "enfermeria.sistema",
+   "zone": "enfermeria",
+   "on": "wall",
+   "x": 26,
+   "y": -2,
+   "face": "W"
+  },
+  {
+   "id": "enfermeria.bitacora",
+   "zone": "enfermeria",
+   "on": "wall",
+   "x": 26,
+   "y": 2,
+   "face": "W"
+  },
+  {
+   "id": "bodega.almacen",
+   "zone": "bodega",
+   "on": "wall",
+   "x": -5,
+   "y": 13,
+   "face": "S"
+  },
+  {
+   "id": "bodega.pantalla",
+   "zone": "bodega",
+   "on": "wall",
+   "x": 5,
+   "y": 13,
+   "face": "S"
+  },
+  {
+   "id": "camarotes.tripulacion",
+   "zone": "camarotes",
+   "on": "wall",
+   "x": -24,
+   "y": 15,
+   "face": "S"
+  },
+  {
+   "id": "hipersueno.alarma",
+   "zone": "hipersueno",
+   "on": "wall",
+   "x": 21,
+   "y": 15,
+   "face": "S"
+  },
+  {
+   "id": "hipersueno.agenda",
+   "zone": "hipersueno",
+   "on": "wall",
+   "x": 25,
+   "y": 15,
+   "face": "S"
+  },
+  {
+   "id": "motor.reserva",
+   "zone": "motor",
+   "on": "wall",
+   "x": -8,
+   "y": 39.4,
+   "face": "E"
+  },
+  {
+   "id": "motor.enlace",
+   "zone": "motor",
+   "on": "wall",
+   "x": 8,
+   "y": 39.4,
+   "face": "W"
+  },
+  {
+   "id": "hangar.flota",
+   "zone": "hangar",
+   "on": "wall",
+   "x": 0,
+   "y": 73,
+   "face": "N",
+   "w": 4,
+   "h": 2,
+   "z": 2
+  },
+  {
+   "id": "hub.buscar",
+   "zone": "hub",
+   "on": "crown",
+   "face": "N"
+  },
+  {
+   "id": "hub.mother",
+   "zone": "hub",
+   "on": "crown",
+   "face": "E"
+  },
+  {
+   "id": "comedor.rancho",
+   "zone": "comedor",
+   "on": "crown",
+   "face": "S"
+  },
+  {
+   "id": "comedor.pista",
+   "zone": "comedor",
+   "on": "crown",
+   "face": "W"
+  }
+ ],
+ "stands": {
+  "comedor": [
+   0,
+   4.6
+  ],
+  "puente": [
+   0,
+   -14.9
+  ],
+  "comms": [
+   -17.4,
+   0
+  ],
+  "enfermeria": [
+   17.4,
+   0
+  ],
+  "bodega": [
+   0,
+   21
+  ],
+  "camarotes": [
+   -19.5,
+   21
+  ],
+  "hipersueno": [
+   23,
+   21
+  ],
+  "motor": [
+   0,
+   37.8
+  ],
+  "hangar": [
+   0,
+   58.4
+  ]
+ },
+ "vias": {
+  "comedor": [
+   [
+    5,
+    0
+   ],
+   [
+    3.5355,
+    3.5355
+   ],
+   [
+    0,
+    5
+   ],
+   [
+    -3.5355,
+    3.5355
+   ],
+   [
+    -5,
+    0
+   ],
+   [
+    -3.5355,
+    -3.5355
+   ],
+   [
+    0,
+    -5
+   ],
+   [
+    3.5355,
+    -3.5355
+   ]
+  ],
+  "bodega": [
+   [
+    0,
+    21
+   ]
+  ],
+  "motor": [
+   [
+    -4.2,
+    42
+   ],
+   [
+    4.2,
+    42
+   ]
+  ]
+ },
+ "signalSlots": [
+  {
+   "x": -21.45,
+   "y": 3.75,
+   "yaw": 3.141592653589793
+  },
+  {
+   "x": -19.5,
+   "y": 3.75,
+   "yaw": 3.141592653589793
+  },
+  {
+   "x": -17.8,
+   "y": 3.75,
+   "yaw": 3.141592653589793
+  },
+  {
+   "x": -21.2,
+   "y": -3.75,
+   "yaw": 0
+  },
+  {
+   "x": -20,
+   "y": -3.75,
+   "yaw": 0
+  },
+  {
+   "x": -18.8,
+   "y": -3.75,
+   "yaw": 0
+  },
+  {
+   "x": -17.6005,
+   "y": -3.7266,
+   "yaw": 0
+  }
+ ],
+ "stencils": [
+  {
+   "room": "comedor",
+   "text": "C0 COMEDOR"
+  },
+  {
+   "room": "puente",
+   "text": "C1 PUENTE"
+  },
+  {
+   "room": "comms",
+   "text": "C2 COMMS"
+  },
+  {
+   "room": "enfermeria",
+   "text": "C3 ENFERMERÍA"
+  },
+  {
+   "room": "bodega",
+   "text": "C4 BODEGA"
+  },
+  {
+   "room": "camarotes",
+   "text": "C5 CAMAROTES"
+  },
+  {
+   "room": "hipersueno",
+   "text": "C6 HIPERSUEÑO"
+  },
+  {
+   "room": "motor",
+   "text": "C7 MOTOR"
+  },
+  {
+   "room": "hangar",
+   "text": "C8 HANGAR"
+  }
+ ],
+ "lamps": {
+  "step": 7,
+  "corridorStep": 6,
+  "power": 2.2
+ },
+ "extraLights": []
+}

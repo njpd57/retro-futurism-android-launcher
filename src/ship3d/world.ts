@@ -1,4 +1,9 @@
 import { yawOf } from './math';
+import type { Prefab } from './prefabData';
+import shipJson from './ship.json';
+import { materialIndex } from './materials';
+import { prefabById } from './prefabs';
+import type { HangarData, LampData, MessData, PropData, PropEntry, ScreenData, ShapeData, ShipData } from './shipData';
 
 /**
  * The ship as data: convex rooms (polygons extruded to a height), the doors between them, what stands in them, the
@@ -43,6 +48,8 @@ export interface Prop
     /** 0..1 how much it shines by itself */
     glow: number;
     solid: boolean;
+    /** index into `MATERIALS`; the kind's own when left out */
+    material?: number;
 }
 
 export interface Light { x: number; y: number; z: number; power: number }
@@ -64,6 +71,7 @@ export interface ScreenDef
     hung?: boolean;
 }
 
+/** Door size. Filled from `ship.json`; the door shader reads `height` once when it is built. */
 export const DOOR = { width: 3, height: 2.6 };
 /** how far a monitor stands off its wall */
 export const SCREEN_OFFSET = 0.04;
@@ -98,52 +106,78 @@ const dome = (cx: number, baseY: number, rx: number, ry: number, steps: number):
 
 const round = (n: number) => Math.round(n * 1e4) / 1e4;
 
+/** The outline a room's shape makes. */
+export function shapeOf(s: ShapeData): V2[]
+{
+    if ('rect' in s) return rect(...s.rect);
+    if ('chamfer' in s) return chamfer(...s.chamfer);
+    if ('ngon' in s) return ngon(...s.ngon);
+    if ('dome' in s) return dome(...s.dome);
+    return s.poly.map((p): V2 => [p[0], p[1]]);
+}
+
 // ---- the ship
+//
+// Everything below is filled by `applyWorld` from `ship.json` (the map editor edits that file). The arrays and records
+// are emptied and refilled in place, so what other modules imported stays valid.
 
-/** The mess, the ship's heart: from its middle to each of its flat sides. Everything else hangs off its four doors. */
-export const MESS_A = 7;
-const BRIDGE_BASE = -13;
-const DOME = dome(0, BRIDGE_BASE, 9, 7, 8);
+const rooms: Room[] = [];
+const portals: Portal[] = [];
+const props: Prop[] = [];
+const consoles: Prop[] = [];
+const screens: ScreenDef[] = [];
+const lights: Light[] = [];
 
-export const ROOMS: readonly Room[] = [
-    { id: 'comedor', zone: 'comedor', name: 'COMEDOR', poly: ngon(0, 0, MESS_A, 12), height: 4.2 },
-    { id: 'puente', zone: 'puente', name: 'PUENTE', poly: DOME, height: 4.5 },
-    { id: 'comms', zone: 'comms', name: 'COMMS', poly: chamfer(-26, -6, -14, 6, 2), height: 4 },
-    { id: 'enfermeria', zone: 'enfermeria', name: 'ENFERMERÍA', poly: chamfer(14, -6, 26, 6, 2), height: 3.6 },
-    { id: 'bodega', zone: 'bodega', name: 'BODEGA', poly: chamfer(-10, 13, 10, 29, 2), height: 7 },
-    { id: 'camarotes', zone: 'camarotes', name: 'CAMAROTES', poly: chamfer(-29, 15, -17, 27, 2), height: 3.6 },
-    { id: 'hipersueno', zone: 'hipersueno', name: 'HIPERSUEÑO', poly: chamfer(17, 15, 29, 27, 2), height: 3.6 },
-    { id: 'motor', zone: 'motor', name: 'MOTOR', poly: chamfer(-8, 35, 8, 49, 2), height: 6 },
-    { id: 'hangar', zone: 'hangar', name: 'HANGAR', poly: chamfer(-12, 55, 12, 73, 2), height: 6.5 },
-    // corridors, 3 m wide, ending exactly on the doorway
-    { id: 'p-puente', zone: 'pasillo', name: 'PASILLO', poly: rect(-1.5, BRIDGE_BASE, 1.5, -MESS_A), height: 3 },
-    { id: 'p-comms', zone: 'pasillo', name: 'PASILLO', poly: rect(-14, -1.5, -MESS_A, 1.5), height: 3 },
-    { id: 'p-enfermeria', zone: 'pasillo', name: 'PASILLO', poly: rect(MESS_A, -1.5, 14, 1.5), height: 3 },
-    { id: 'p-bodega', zone: 'pasillo', name: 'PASILLO', poly: rect(-1.5, MESS_A, 1.5, 13), height: 3 },
-    { id: 'p-camarotes', zone: 'pasillo', name: 'PASILLO', poly: rect(-17, 19.5, -10, 22.5), height: 3 },
-    { id: 'p-hipersueno', zone: 'pasillo', name: 'PASILLO', poly: rect(10, 19.5, 17, 22.5), height: 3 },
-    { id: 'p-motor', zone: 'pasillo', name: 'PASILLO', poly: rect(-1.5, 29, 1.5, 35), height: 3 },
-    { id: 'p-hangar', zone: 'pasillo', name: 'PASILLO', poly: rect(-1.5, 49, 1.5, 55), height: 3 },
-];
+export const ROOMS: readonly Room[] = rooms;
+export const PORTALS: readonly Portal[] = portals;
+/** The consoles of the bridge; the mesh puts a slanted keyboard on each. */
+export const BRIDGE_CONSOLES: readonly Prop[] = consoles;
+export const PROPS: readonly Prop[] = props;
+export const SCREENS: readonly ScreenDef[] = screens;
+export const LIGHTS: readonly Light[] = lights;
+
+/** Where the camera starts: on the bridge, looking up the dome at its monitors. */
+export const START = { x: 0, y: -14.2, yaw: 0, pitch: 0 };
+
+/** Where the camera ends up in each room the data lives in. */
+export const STANDS: Record<string, V2> = {};
+/** Points to route round what stands in the way of a straight leg inside a room. */
+export const VIAS: Record<string, V2[]> = {};
+/** Where the crew of the signals stand in COMMS, facing their desks. */
+export const SIGNAL_SLOTS: { x: number; y: number; yaw: number }[] = [];
+/** The rooms that have a stencil on their wall, and what it says. */
+export const STENCILS: { room: string; text: string }[] = [];
 
 const door = (x: number, y: number): Portal => ({ x, y, ...DOOR });
-
-export const PORTALS: readonly Portal[] = [
-    door(0, -MESS_A), door(0, BRIDGE_BASE),
-    door(-MESS_A, 0), door(-14, 0),
-    door(MESS_A, 0), door(14, 0),
-    door(0, MESS_A), door(0, 13),
-    door(-10, 21), door(-17, 21),
-    door(10, 21), door(17, 21),
-    door(0, 29), door(0, 35),
-    door(0, 49), door(0, 55),
-];
 
 const box = (x: number, y: number, w: number, d: number, h: number, extra: Partial<Prop> = {}): Prop =>
     ({ kind: 'box', x, y, w, d, h, yaw: 0, z0: 0, glow: 0, solid: true, ...extra });
 
 const cyl = (x: number, y: number, diameter: number, h: number, extra: Partial<Prop> = {}): Prop =>
     ({ kind: 'cyl', x, y, w: diameter, d: diameter, h, yaw: 0, z0: 0, glow: 0, solid: true, ...extra });
+
+const propOf = (p: PropData): Prop =>
+{
+    const material = p.material ? materialIndex(p.material) : -1;
+    return {
+        kind: p.kind, x: p.x, y: p.y, w: p.w, d: p.kind === 'cyl' ? p.w : p.d ?? p.w, h: p.h, yaw: p.yaw ?? 0, z0: p.z0 ?? 0, glow: p.glow ?? 0, solid: p.solid ?? true,
+        ...(material >= 0 ? { material } : {}),
+    };
+};
+
+/** The props a prefab makes where it is set down: its parts moved to `(x, y)` and turned `yaw`. */
+export function prefabProps(prefab: Prefab, x: number, y: number, yaw = 0): Prop[]
+{
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    return prefab.parts.map(part =>
+        propOf({
+            ...part,
+            x: round(x + part.x * c - part.y * s),
+            y: round(y + part.x * s + part.y * c),
+            ...(part.kind === 'box' ? { yaw: round((part.yaw ?? 0) + yaw) } : {}),
+        }));
+}
 
 /** Six sleeping capsules in a ring. */
 const pods = (cx: number, cy: number, radius: number): Prop[] =>
@@ -153,30 +187,20 @@ const pods = (cx: number, cy: number, radius: number): Prop[] =>
         return cyl(round(cx + radius * Math.cos(a)), round(cy + radius * Math.sin(a)), 1.4, 1.1, { glow: 0.55 });
     });
 
-/** The three consoles of the bridge; the mesh puts a slanted keyboard on each. */
-export const BRIDGE_CONSOLES: readonly Prop[] = [
-    box(-4.8, -16.2, 3, 1.2, 1, { yaw: -0.55 }),
-    box(0, -18, 3.4, 1.2, 1),
-    box(4.8, -16.2, 3, 1.2, 1, { yaw: 0.55 }),
-];
-
 // ---- the mess: a round table in a sunken ring under a crown of monitors, as on the Torrens
 
 /** Radius of the mess table and the height of its top. */
-export const TABLE_R = 2.5;
-export const TABLE_TOP = 0.76;
+export let TABLE_R = 2.5;
+export let TABLE_TOP = 0.76;
 /** Radius of the ring of chairs round the table, and how many there are. */
-export const CHAIR_R = 3.05;
-export const CHAIRS = 8;
-/** The crown that hangs over the table: its radius and where its monitors are. */
-const CROWN_R = 1.25;
-const CROWN_Z0 = 2.6;
+export let CHAIR_R = 3.05;
+export let CHAIRS = 8;
 
 /** The middle of chair `k`, a quarter turn off the doorways so the way round the table stays open. */
-export function chairAt(k: number): { x: number; y: number; a: number }
+export function chairAt(k: number, radius = CHAIR_R, count = CHAIRS): { x: number; y: number; a: number }
 {
-    const a = ((k + 0.5) * Math.PI * 2) / CHAIRS;
-    return { x: round(CHAIR_R * Math.cos(a)), y: round(CHAIR_R * Math.sin(a)), a };
+    const a = ((k + 0.5) * Math.PI * 2) / count;
+    return { x: round(radius * Math.cos(a)), y: round(radius * Math.sin(a)), a };
 }
 
 /** A point `r` from the middle of the mess toward plan angle `a` (radians, 0 east, clockwise), `t` along the wall. */
@@ -185,100 +209,53 @@ function messAt(a: number, r: number, t = 0): { x: number; y: number; yaw: numbe
     return { x: round(r * Math.cos(a) - t * Math.sin(a)), y: round(r * Math.sin(a) + t * Math.cos(a)), yaw: a + Math.PI / 2 };
 }
 
-const deg = (d: number) => (d * Math.PI) / 180;
-
-/** Something standing against the wall of the mess at plan angle `a`: `w` along the wall, `d` deep, `h` tall. */
-function againstWall(a: number, w: number, d: number, h: number, extra: Partial<Prop> = {}, t = 0, gap = 0.05): Prop
-{
-    const p = messAt(a, MESS_A - gap - d / 2, t);
-    return box(p.x, p.y, w, d, h, { yaw: p.yaw, ...extra });
-}
-
 /** The drinking bird on the table, facing east: the mesh puts its glass where its beak dips. */
 export const BIRD = { x: 1, y: 1.1, yaw: Math.PI / 2 };
 /** How far in front of the bird its glass stands. */
-export const BIRD_GLASS = 0.26;
+export let BIRD_GLASS = 0.26;
 
-function messProps(): Prop[]
+/** The table, the chairs and what is on and over them. The furniture along the walls is plain props in the data. */
+function messProps(m: MessData, height: number): Prop[]
 {
     const out: Prop[] = [
         // the sunken ring the table stands in, a floor of another kind with an edge you can see
-        cyl(0, 0, 9, 0.03, { solid: false }),
-        cyl(0, 0, TABLE_R * 2, TABLE_TOP),
+        cyl(0, 0, m.ringD, 0.03, { solid: false }),
+        cyl(0, 0, m.tableR * 2, m.tableTop),
         // the lit turntable in the middle and the jars on it
-        cyl(0, 0, 1.4, 0.05, { z0: TABLE_TOP, glow: 0.25, solid: false }),
-        ...[0, 1, 2].map(k => cyl(round(0.42 * Math.cos(k * 2.1)), round(0.42 * Math.sin(k * 2.1)), 0.2, 0.3, { z0: TABLE_TOP + 0.05, solid: false })),
+        cyl(0, 0, 1.4, 0.05, { z0: m.tableTop, glow: 0.25, solid: false }),
+        ...[0, 1, 2].map(k => cyl(round(0.42 * Math.cos(k * 2.1)), round(0.42 * Math.sin(k * 2.1)), 0.2, 0.3, { z0: m.tableTop + 0.05, solid: false })),
         // the bird's glass
-        cyl(round(BIRD.x + Math.sin(BIRD.yaw) * BIRD_GLASS), round(BIRD.y - Math.cos(BIRD.yaw) * BIRD_GLASS), 0.1, 0.23, { z0: TABLE_TOP, solid: false }),
+        cyl(round(m.bird.x + Math.sin(m.bird.yaw) * m.bird.glass), round(m.bird.y - Math.cos(m.bird.yaw) * m.bird.glass), 0.1, 0.23, { z0: m.tableTop, solid: false }),
         // the crown over the table and the ring of light under it
-        cyl(0, 0, CROWN_R * 2, 4.2 - CROWN_Z0, { z0: CROWN_Z0, solid: false }),
-        cyl(0, 0, 1.6, 0.12, { z0: CROWN_Z0 - 0.12, glow: 0.8, solid: false }),
+        cyl(0, 0, m.crownR * 2, height - m.crownZ0, { z0: m.crownZ0, solid: false }),
+        cyl(0, 0, 1.6, 0.12, { z0: m.crownZ0 - 0.12, glow: 0.8, solid: false }),
     ];
-    for (let k = 0; k < CHAIRS; k++)
+    for (let k = 0; k < m.chairs; k++)
     {
-        const c = chairAt(k);
-        const back = messAt(c.a, CHAIR_R + 0.24);
-        const mug = messAt(c.a, TABLE_R - 0.35);
+        const c = chairAt(k, m.chairR, m.chairs);
+        const back = messAt(c.a, m.chairR + 0.24);
+        const mug = messAt(c.a, m.tableR - 0.35);
         out.push(
             box(c.x, c.y, 0.56, 0.5, 0.46, { yaw: c.a + Math.PI / 2 }),
             box(back.x, back.y, 0.56, 0.07, 0.55, { yaw: back.yaw, z0: 0.46, solid: false }),
-            cyl(mug.x, mug.y, 0.09, 0.11, { z0: TABLE_TOP, solid: false }),
+            cyl(mug.x, mug.y, 0.09, 0.11, { z0: m.tableTop, solid: false }),
         );
     }
-    // the galley along the two walls between the west and north doors: counter, a lit strip, cupboards over it
-    for (const a of [deg(210), deg(240)])
-        out.push(
-            againstWall(a, 3, 0.7, 1),
-            againstWall(a, 3, 0.06, 0.06, { z0: 1.75, glow: 0.5, solid: false }),
-            againstWall(a, 3, 0.4, 0.75, { z0: 1.9, solid: false }),
-        );
-    // lockers between the north and east doors
-    for (const a of [deg(300), deg(330)])
-        for (const t of [-0.96, -0.32, 0.32, 0.96]) out.push(againstWall(a, 0.6, 0.5, 1.9, {}, t));
-    // a dispenser with a lit panel, and a bench
-    out.push(
-        againstWall(deg(30), 1.2, 0.7, 1.85),
-        againstWall(deg(30), 0.8, 0.04, 0.6, { z0: 1, glow: 0.6, solid: false }, 0, 0.77),
-        againstWall(deg(60), 2.6, 0.5, 0.45),
-    );
-    // a crate and a traffic cone somebody left by the south-west wall
-    const crate = messAt(deg(150), 6.4);
-    const cone = messAt(deg(128), 6.2);
-    out.push(
-        box(crate.x, crate.y, 0.8, 0.8, 0.7, { yaw: crate.yaw + 0.2 }),
-        box(cone.x, cone.y, 0.4, 0.4, 0.03),
-        cyl(cone.x, cone.y, 0.32, 0.25, { z0: 0.03 }),
-        cyl(cone.x, cone.y, 0.2, 0.22, { z0: 0.28, solid: false }),
-        cyl(cone.x, cone.y, 0.1, 0.2, { z0: 0.5, solid: false }),
-    );
     return out;
 }
 
-export const PROPS: readonly Prop[] = [
-    ...messProps(),
-    // bridge: three consoles under the dome and the captain's chair before the middle one; the floor is left open
-    ...BRIDGE_CONSOLES,
-    cyl(0, -16.6, 0.6, 0.5), box(0, -16.95, 0.7, 0.12, 1.25),
-    // comms: the antenna mast and two desks
-    cyl(-20.4, 0, 1.2, 4, { glow: 0.4 }),
-    box(-19.4, 4.9, 4.4, 1.1, 1),
-    box(-19.4, -4.9, 4.4, 1.1, 1),
-    // sickbay: four beds
-    box(18.4, -4.2, 2.2, 1, 0.6), box(22.4, -4.2, 2.2, 1, 0.6),
-    box(18.4, 4.2, 2.2, 1, 0.6), box(22.4, 4.2, 2.2, 1, 0.6),
-    // cargo hold: crates and a stack
-    box(-6, 17.4, 2.4, 2.4, 2.4), box(-6, 23.8, 1.8, 1.8, 1.4), box(-7, 25.4, 2.6, 2.2, 3.4),
-    box(6.4, 16.8, 2.2, 2.2, 1.8), box(6, 24.4, 3, 2.4, 2.6), box(3.8, 26.4, 1.4, 1.4, 1),
-    // crew quarters: four bunks along the west wall, a small table, a row of lockers along the north wall
-    box(-28.2, 17.4, 1.2, 2.4, 1.8), box(-28.2, 21, 1.2, 2.4, 1.8), box(-28.2, 24.4, 1.2, 2.4, 1.8),
-    box(-23, 22.4, 1.6, 0.9, 0.75),
-    ...[-21.6, -21, -20.4, -19.8].map(x => box(x, 15.35, 0.6, 0.5, 1.9)),
-    // hypersleep: the ring of capsules
-    ...pods(23, 21, 3.6),
-    // engine room: the reactor core
-    cyl(0, 42, 4.4, 6, { glow: 0.55 }),
-    // the hangar's shuttles are the favourite apps: see `hangarBays`
-];
+/** What one entry of `data.props` makes: itself, or the props a generator makes from its numbers. */
+export function propsOf(e: PropEntry, data: ShipData): Prop[]
+{
+    if ('prefab' in e)
+    {
+        const prefab = prefabById(e.prefab);
+        return prefab ? prefabProps(prefab, e.x, e.y, e.yaw ?? 0) : [];
+    }
+    if (!('gen' in e)) return [propOf(e)];
+    if (e.gen === 'mess') return messProps(data.mess, data.rooms.find(r => r.id === 'comedor')?.height ?? 4.2);
+    return pods(e.cx, e.cy, e.radius);
+}
 
 /** A shuttle in the hangar: one per favourite app, in two rows facing the middle aisle. */
 export interface Bay
@@ -291,8 +268,8 @@ export interface Bay
     prop: Prop;
 }
 
-export const MAX_BAYS = 6;
-const BAY_ROWS = [60.8, 65.4, 70];
+export let MAX_BAYS = 6;
+let hangar: HangarData = { max: 6, rows: [60.8, 65.4, 70], x: 7.5, w: 3.4, d: 3, h: 1.6, z0: 0.3 };
 
 /** Where the first `n` favourite apps are parked: left then right, front row first, up to `MAX_BAYS`. */
 export function hangarBays(n: number): Bay[]
@@ -300,9 +277,9 @@ export function hangarBays(n: number): Bay[]
     return Array.from({ length: Math.max(0, Math.min(MAX_BAYS, n)) }, (_, i) =>
     {
         const side = i % 2 === 0 ? -1 : 1;
-        const x = side * 7.5;
-        const y = BAY_ROWS[Math.floor(i / 2)];
-        return { x, y, nx: -side, prop: box(x, y, 3.4, 3, 1.6, { z0: 0.3 }) };
+        const x = side * hangar.x;
+        const y = hangar.rows[Math.floor(i / 2)];
+        return { x, y, nx: -side, prop: box(x, y, hangar.w, hangar.d, hangar.h, { z0: hangar.z0 }) };
     });
 }
 
@@ -322,40 +299,94 @@ function onWall(id: string, zone: RoomId, x: number, y: number, face: keyof type
 }
 
 /** A monitor on the crown over the mess table, looking out toward `face`. */
-function onCrown(id: string, zone: ScreenDef['zone'], face: keyof typeof NORMAL)
+function onCrown(id: string, zone: ScreenDef['zone'], face: keyof typeof NORMAL, crownR: number)
 {
     const [nx, ny] = NORMAL[face];
-    return screenAt(id, zone, nx * CROWN_R, ny * CROWN_R, nx, ny, 1.1, 0.62, 3.1, true);
+    return screenAt(id, zone, nx * crownR, ny * crownR, nx, ny, 1.1, 0.62, 3.1, true);
 }
 
 /** A monitor in the middle of side `k` of the bridge's dome, facing into the room. */
-function onDome(id: string, k: number): ScreenDef
+function onDome(id: string, k: number, poly: readonly V2[], centre: V2): ScreenDef
 {
-    const [ax, ay] = DOME[k];
-    const [bx, by] = DOME[k + 1];
+    const [ax, ay] = poly[k];
+    const [bx, by] = poly[k + 1];
     const len = Math.hypot(bx - ax, by - ay);
     let nx = -(by - ay) / len;
     let ny = (bx - ax) / len;
     const mx = (ax + bx) / 2;
     const my = (ay + by) / 2;
     // toward the middle of the room
-    if ((0 - mx) * nx + (BRIDGE_BASE - 3 - my) * ny < 0) { nx = -nx; ny = -ny; }
+    if ((centre[0] - mx) * nx + (centre[1] - my) * ny < 0) { nx = -nx; ny = -ny; }
     return screenAt(id, 'puente', mx, my, nx, ny, 2.2, 1.2);
 }
 
-export const SCREENS: readonly ScreenDef[] = [
-    onDome('puente.turno', 2), onDome('puente.clima', 3), onDome('puente.hora', 4), onDome('puente.rumbo', 5),
-    onWall('comms.senales', 'comms', -26, -2, 'E'), onWall('comms.mother', 'comms', -26, 2, 'E'),
-    onWall('enfermeria.sistema', 'enfermeria', 26, -2, 'W'), onWall('enfermeria.bitacora', 'enfermeria', 26, 2, 'W'),
-    onWall('bodega.almacen', 'bodega', -5, 13, 'S'), onWall('bodega.pantalla', 'bodega', 5, 13, 'S'),
-    onWall('camarotes.tripulacion', 'camarotes', -24, 15, 'S'),
-    onWall('hipersueno.alarma', 'hipersueno', 21, 15, 'S'), onWall('hipersueno.agenda', 'hipersueno', 25, 15, 'S'),
-    onWall('motor.reserva', 'motor', -8, 39.4, 'E'), onWall('motor.enlace', 'motor', 8, 39.4, 'W'),
-    onWall('hangar.flota', 'hangar', 0, 73, 'N', 4, 2, 2),
-    // the crown over the mess table: the ship's terminal (search, MOTHER), the meal and the music
-    onCrown('hub.buscar', 'hub', 'N'), onCrown('hub.mother', 'hub', 'E'),
-    onCrown('comedor.rancho', 'comedor', 'S'), onCrown('comedor.pista', 'comedor', 'W'),
-];
+/** The monitor an entry of `data.screens` places. */
+export function screenOf(s: ScreenData, data: ShipData): ScreenDef
+{
+    if (s.on === 'crown') return onCrown(s.id, s.zone as ScreenDef['zone'], s.face, data.mess.crownR);
+    if (s.on === 'wall') return onWall(s.id, s.zone as RoomId, s.x, s.y, s.face, s.w, s.h, s.z);
+    const shape = data.rooms.find(r => r.id === 'puente')?.shape;
+    if (!shape || !('dome' in shape)) return { id: s.id, zone: s.zone as ScreenDef['zone'], x: 0, y: 0, z: 1.7, w: 2.2, h: 1.2, yaw: 0 };
+    // the dome's screens look toward a point 3 m in from its flat edge
+    return onDome(s.id, s.k, shapeOf(shape), [shape.dome[0], shape.dome[1] - 3]);
+}
+
+const listeners = new Set<() => void>();
+
+/** Calls `fn` after every `applyWorld`, for what a module derived from the world at import (caches, slot tables). Returns the way to stop. */
+export function onWorldChange(fn: () => void): () => void
+{
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+}
+
+/** Replaces the whole ship with the plan in `data` and recomputes what derives from it, in place. */
+export function applyWorld(data: ShipData): void
+{
+    Object.assign(DOOR, data.door);
+    Object.assign(START, data.start);
+
+    rooms.length = 0;
+    for (const r of data.rooms) rooms.push({ id: r.id, zone: r.zone as Zone, name: r.name, poly: shapeOf(r.shape), height: r.height });
+    portals.length = 0;
+    for (const p of data.portals) portals.push(door(p.x, p.y));
+
+    const m = data.mess;
+    TABLE_R = m.tableR;
+    TABLE_TOP = m.tableTop;
+    CHAIR_R = m.chairR;
+    CHAIRS = m.chairs;
+    BIRD_GLASS = m.bird.glass;
+    Object.assign(BIRD, { x: m.bird.x, y: m.bird.y, yaw: m.bird.yaw });
+    hangar = { ...data.hangar, rows: [...data.hangar.rows] };
+    MAX_BAYS = hangar.max;
+
+    props.length = 0;
+    consoles.length = 0;
+    for (const e of data.props)
+    {
+        const made = propsOf(e, data);
+        props.push(...made);
+        if (!('gen' in e) && !('prefab' in e) && e.keyboard) consoles.push(...made);
+    }
+
+    screens.length = 0;
+    for (const s of data.screens) screens.push(screenOf(s, data));
+
+    for (const k of Object.keys(STANDS)) delete STANDS[k];
+    Object.assign(STANDS, data.stands);
+    for (const k of Object.keys(VIAS)) delete VIAS[k];
+    Object.assign(VIAS, data.vias);
+    SIGNAL_SLOTS.length = 0;
+    SIGNAL_SLOTS.push(...data.signalSlots);
+    STENCILS.length = 0;
+    STENCILS.push(...data.stencils);
+
+    lights.length = 0;
+    lampCfg = { ...data.lamps };
+    lights.push(...buildLights(rooms, props, screens, lampCfg, data.extraLights));
+    for (const fn of listeners) fn();
+}
 
 export const roomById = (id: string): Room | undefined => ROOMS.find(r => r.id === id);
 
@@ -502,8 +533,10 @@ export function collisionSegments(rooms: readonly Room[] = ROOMS, props: readonl
 
 // ---- lights
 
-/** Ceiling lamps on a grid inside each room, plus whatever shines by itself. */
-export function buildLights(rooms: readonly Room[] = ROOMS, props: readonly Prop[] = PROPS, screens: readonly ScreenDef[] = SCREENS): Light[]
+let lampCfg: LampData = { step: 7, corridorStep: 6, power: 2.2 };
+
+/** Ceiling lamps on a grid inside each room, plus whatever shines by itself and the lights placed by hand. */
+export function buildLights(rooms: readonly Room[] = ROOMS, props: readonly Prop[] = PROPS, screens: readonly ScreenDef[] = SCREENS, lamps: LampData = lampCfg, extra: readonly Light[] = []): Light[]
 {
     const lights: Light[] = [];
     for (const room of rooms)
@@ -512,7 +545,7 @@ export function buildLights(rooms: readonly Room[] = ROOMS, props: readonly Prop
         const ys = room.poly.map(p => p[1]);
         const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
         const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
-        const step = room.zone === 'pasillo' ? 6 : 7;
+        const step = room.zone === 'pasillo' ? lamps.corridorStep : lamps.step;
         const nx = Math.max(1, Math.round((x1 - x0) / step));
         const ny = Math.max(1, Math.round((y1 - y0) / step));
         for (let i = 0; i < nx; i++)
@@ -520,7 +553,7 @@ export function buildLights(rooms: readonly Room[] = ROOMS, props: readonly Prop
             {
                 const x = round(x0 + ((i + 0.5) * (x1 - x0)) / nx);
                 const y = round(y0 + ((j + 0.5) * (y1 - y0)) / ny);
-                if (inside(room.poly, x, y)) lights.push({ x, y, z: room.height - 0.3, power: 2.2 });
+                if (inside(room.poly, x, y)) lights.push({ x, y, z: room.height - 0.3, power: lamps.power });
             }
     }
     for (const p of props)
@@ -530,13 +563,9 @@ export function buildLights(rooms: readonly Room[] = ROOMS, props: readonly Prop
         const [nx, ny] = screenNormal(s);
         lights.push({ x: round(s.x + nx * 0.5), y: round(s.y + ny * 0.5), z: s.z, power: 0.3 });
     }
+    for (const l of extra) lights.push({ ...l });
     return lights;
 }
-
-export const LIGHTS: readonly Light[] = buildLights();
-
-/** Where the camera starts: on the bridge, looking up the dome at its monitors. */
-export const START = { x: 0, y: -14.2, yaw: 0, pitch: 0 };
 
 /** The plan's bounds, for the minimap. */
 export function bounds(rooms: readonly Room[] = ROOMS): { x0: number; y0: number; x1: number; y1: number }
@@ -545,3 +574,5 @@ export function bounds(rooms: readonly Room[] = ROOMS): { x0: number; y0: number
     const ys = rooms.flatMap(r => r.poly.map(p => p[1]));
     return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
 }
+
+applyWorld(shipJson as unknown as ShipData);

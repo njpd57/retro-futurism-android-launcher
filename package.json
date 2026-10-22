@@ -9,6 +9,8 @@
     "deploy": "bash scripts/deploy.sh",
     "test:unit": "vitest",
     "build-only": "vite build",
+    "ship:check": "vite-node scripts/shipCheck.ts",
+    "ship:edit": "vite --open /editor.html",
     "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false"
   },
   "dependencies": {

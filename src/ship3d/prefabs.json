@@ -1,0 +1,30 @@
+{
+ "prefabs": [
+  {
+   "id": "objeto-1",
+   "name": "Objeto 1",
+   "parts": [
+    {
+     "kind": "box",
+     "w": 1,
+     "d": 1,
+     "h": 1,
+     "yaw": -0.7854,
+     "x": -0.05,
+     "y": 0,
+     "material": "floor"
+    },
+    {
+     "kind": "box",
+     "x": -0.05,
+     "y": 0,
+     "w": 0.6,
+     "d": 0.6,
+     "h": 0.6,
+     "z0": 1,
+     "material": "ceiling"
+    }
+   ]
+  }
+ ]
+}

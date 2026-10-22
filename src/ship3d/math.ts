@@ -63,6 +63,26 @@ export function viewMatrix(eye: V3, yaw: number, pitch: number): Mat4
     return m;
 }
 
+/**
+ * A camera straight above `(x, y)` of the plan, orthographic, the bow (north, -y) up the screen: `half` metres from the
+ * middle to the top edge. Looks down from `height`.
+ */
+export function topDown(x: number, y: number, half: number, aspect: number, height: number, far: number): Mat4
+{
+    const view = new Float32Array(16);
+    view[0] = 1; view[12] = -x;
+    view[9] = -1; view[13] = y;
+    view[6] = 1; view[14] = -height;
+    view[15] = 1;
+    const proj = new Float32Array(16);
+    proj[0] = 1 / (half * aspect);
+    proj[5] = 1 / half;
+    proj[10] = -2 / (far - 0.1);
+    proj[14] = -(far + 0.1) / (far - 0.1);
+    proj[15] = 1;
+    return multiply(proj, view);
+}
+
 export function multiply(a: Mat4, b: Mat4): Mat4
 {
     const out = new Float32Array(16);
@@ -106,6 +126,43 @@ export function rayRect(ray: Ray, center: V3, normal: V3, right: V3, up: V3, hal
     if (t <= 0) return null;
     const p: V3 = [ray.o[0] + ray.d[0] * t - center[0], ray.o[1] + ray.d[1] * t - center[1], ray.o[2] + ray.d[2] * t - center[2]];
     return Math.abs(dot(p, right)) <= halfW && Math.abs(dot(p, up)) <= halfH ? t : null;
+}
+
+/**
+ * Distance along the ray to a box: `center` in GL space, `half` extents across, up and deep (before turning), turned
+ * `yaw` about the vertical (the plan's rotation: x to y). Null when it misses or is behind.
+ */
+export function rayBox(ray: Ray, center: V3, half: V3, yaw: number): number | null
+{
+    // into the box's frame: undo its turn about the vertical axis
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const local = (v: V3, isPoint: boolean): V3 =>
+    {
+        const x = (isPoint ? v[0] - center[0] : v[0]);
+        const z = (isPoint ? v[2] - center[2] : v[2]);
+        const y = isPoint ? v[1] - center[1] : v[1];
+        // the plan's (x, y) is GL (x, z); a turn by yaw takes (u, v) to (u c - v s, u s + v c)
+        return [x * c + z * s, y, -x * s + z * c];
+    };
+    const o = local(ray.o, true);
+    const d = local(ray.d, false);
+    let t0 = 0;
+    let t1 = Infinity;
+    for (let i = 0; i < 3; i++)
+    {
+        if (Math.abs(d[i]) < 1e-9)
+        {
+            if (Math.abs(o[i]) > half[i]) return null;
+            continue;
+        }
+        const a = (-half[i] - o[i]) / d[i];
+        const b = (half[i] - o[i]) / d[i];
+        t0 = Math.max(t0, Math.min(a, b));
+        t1 = Math.min(t1, Math.max(a, b));
+        if (t0 > t1) return null;
+    }
+    return t0 > 0 ? t0 : null;
 }
 
 /** Distance along the ray to a vertical cylinder's side (axis at plan (cx, cy), from `z0` to `z1`), or null. */

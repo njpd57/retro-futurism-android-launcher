@@ -1,4 +1,4 @@
-import { SCREENS } from './world';
+import { onWorldChange, SCREENS } from './world';
 
 /** Every monitor's picture lives in one texture: a grid of equal cells, one per monitor. */
 export const CELL_W = 256;
@@ -16,7 +16,14 @@ export const ATLAS_W = COLS * CELL_W;
 export const ATLAS_H = LABELS_Y + LABEL_ROWS * LABEL_H;
 
 /** Slot of each monitor, in `SCREENS` order. */
-export const SLOT: Readonly<Record<string, number>> = Object.fromEntries(SCREENS.map((s, i) => [s.id, i]));
+export const SLOT: Readonly<Record<string, number>> = {};
+const fillSlots = () =>
+{
+    for (const k of Object.keys(SLOT)) delete (SLOT as Record<string, number>)[k];
+    SCREENS.forEach((s, i) => { (SLOT as Record<string, number>)[s.id] = i; });
+};
+fillSlots();
+onWorldChange(fillSlots);
 
 export interface Rect { x: number; y: number; w: number; h: number }
 

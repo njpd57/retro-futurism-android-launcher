@@ -1,5 +1,5 @@
 import type { V3 } from './math';
-import { LIGHTS, PROPS, propOutline, roomAt, type Light, type Room, type V2 } from './world';
+import { LIGHTS, onWorldChange, PROPS, propOutline, roomAt, type Light, type Room, type V2 } from './world';
 
 /**
  * Light and occlusion baked into the vertices of the ship. Nothing here is computed per frame: every vertex gets how
@@ -28,6 +28,7 @@ function segDist(px: number, py: number, ax: number, ay: number, bx: number, by:
 interface RoomBake { edges: [V2, V2][]; solids: V2[][]; lights: Light[] }
 
 const cache = new Map<string, RoomBake>();
+onWorldChange(() => cache.clear());
 
 function bakeOf(room: Room): RoomBake
 {
