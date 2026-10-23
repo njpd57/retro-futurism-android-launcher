@@ -7,7 +7,7 @@ import { zoneName, type AlertRoom } from '@/ship3d/hud';
 import type { Zone } from '@/ship3d/world';
 
 /** Where you are and what that room says; the room that wants you, a tap away; and a list of every room to go to. */
-defineProps<{ line: string; alert: AlertRoom | null; turn: 'left' | 'right' | 'ahead'; here: Zone | undefined }>();
+defineProps<{ line: string; alert: AlertRoom | null; turn: 'left' | 'right' | 'ahead'; here: Zone | undefined; seated?: boolean }>();
 const emit = defineEmits<{ go: [room: string] }>();
 
 const routes = ref(false);
@@ -21,7 +21,7 @@ function go(room: string)
 </script>
 
 <template>
-    <div class="hud" data-no-swipe @touchstart.stop @mousedown.stop>
+    <div class="hud" :class="{ seated }" data-no-swipe @touchstart.stop @mousedown.stop>
         <button class="line pressable" @click="routes = true">{{ line }}</button>
         <button v-if="alert" class="alert pressable" :class="alert.level" @click="go(alert.zone)">
             <span v-if="turn === 'left'">◄ </span>▲ {{ alert.name }}<span v-if="turn === 'right'"> ►</span>
@@ -45,6 +45,12 @@ function go(room: string)
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+
+    /* [LEVANTARSE] is wider than [II] */
+    &.seated {
+        left: 130px;
+        max-width: calc(100% - 130px - 128px);
+    }
 }
 
 button {

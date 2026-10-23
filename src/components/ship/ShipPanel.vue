@@ -790,7 +790,7 @@ onBeforeUnmount(() =>
         <canvas ref="canvas" class="view" />
         <ShipControls v-if="!unsupported && !focused" :look-only="seated" :grab="onGrab" @move="onMove" @look="onLook" @tap="onTap" @grab-move="onGrabMove" @grab-end="onGrabEnd" />
         <ShipMinimap v-if="!unsupported && !focused && !seated" :pose="ship.pose" :readings="readings" @go="onGo" />
-        <ShipHud v-if="!unsupported && !paused && !focused" :line="hud" :alert="alert" :turn="alertTurn" :here="here" @go="onGo" />
+        <ShipHud v-if="!unsupported && !paused && !focused" :line="hud" :alert="alert" :turn="alertTurn" :here="here" :seated="seated" @go="onGo" />
         <ShipMonitor v-if="monitor" v-bind="monitor" />
         <div v-if="hint" class="hint">{{ hint }}</div>
         <div v-if="denied" class="denied" data-no-swipe>
