@@ -2,6 +2,7 @@
 # Draws the ship panel once from a camera and saves a PNG (headless Chrome, software WebGL). Prints the PNG's path.
 # Usage: ship-shot.sh X Y YAW PITCH [DOORS 0..1] [OUT.png] [WIDTH HEIGHT]
 #   X Y: plan metres (x east, y south); YAW 0 = north, clockwise, radians; PITCH up positive, radians.
+# EYE=1.15 sets the eye height (a seat), 1.6 by default.
 # Needs `npm run dev` on $PORT (default 5173) or starts one for the run.
 set -euo pipefail
 
@@ -24,5 +25,5 @@ fi
 
 "$CHROME" --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist \
     --hide-scrollbars --window-size="$W,$H" --virtual-time-budget=8000 \
-    --screenshot="$OUT" "http://localhost:$PORT/shot.html?x=$X&y=$Y&yaw=$YAW&pitch=$PITCH&doors=$DOORS" >/dev/null 2>&1
+    --screenshot="$OUT" "http://localhost:$PORT/shot.html?x=$X&y=$Y&yaw=$YAW&pitch=$PITCH&doors=$DOORS&eye=${EYE:-1.6}" >/dev/null 2>&1
 echo "$OUT"

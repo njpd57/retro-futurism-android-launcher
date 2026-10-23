@@ -22,6 +22,7 @@ npm run ship:edit      # vite dev server, opens /editor.html
 | `mess`, `hangar` | parameters of those generators; `hangar.rows` holds one `y` per pair of shuttles |
 | `screens` | monitors: `wall` (point on a wall and `face`), `crown` (over the mess table), `dome` (side `k` of the bridge dome); the order is the atlas slot (20 at most) |
 | `lamps`, `extraLights` | the ceiling-lamp grid, and lights placed by hand |
+| `panels`, `controls`, `stations` | panels of switches and lamps, the controls on them and the seats (see `docs/SHIP_PANEL.md`, "Stations"). **Not in the editor yet:** edit them by hand in `ship.json` and look at the result with `scripts/ship-shot.sh` (`EYE=1.15` for a seat's height); the editor keeps them when it saves |
 | `stands`, `vias`, `signalSlots`, `stencils` | where the minimap puts the camera in each room, route points round obstacles, the crew's places in COMMS, the wall stencils (used by `glide.ts`, `crew.ts`, `labels.ts`) |
 
 Rebuilding is cheap (about 50 ms): `applyWorld` + `buildMesh()` + `ShipGL.setMesh`.
@@ -58,6 +59,7 @@ After saving `ship.json`, reload the launcher (or its dev tab) to see it. The ed
 
 ## Not covered
 
+- **Panels, controls and stations** (`panels`, `controls`, `stations`) have no editor layer yet: selecting, moving and turning them, choosing `kind` / `action` and validating them (known action, inside a room, not between a focused monitor and the camera) is the pending phase 5 of the stations plan.
 - Mess furniture along the walls (galley, lockers, dispenser, bench, crate, cone) is a list of plain props, not a generator: edit it like any prop. The table, chairs, crown and bird are `mess` parameters, centred on the origin.
 - The door height is read when the page loads; shaders, the monochrome tint, and the figures (`figures.ts`, `pose.ts`: the crew, Jones, the bird, the shuttles) and the sounds are still code. Surfaces are monochrome: a material is brightness and relief, not colour.
 - A room can't be non-convex (the engine's lighting, collisions and doorway cuts assume convex outlines).

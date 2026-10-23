@@ -1,6 +1,6 @@
 import { LABEL_SLOTS } from './atlas';
 import { fit } from './readings';
-import { SIGNS, STENCILS } from './world';
+import { CONTROLS, SIGNS, STENCILS } from './world';
 
 /**
  * Which name plate of the atlas holds what: the apps of the signals crew in COMMS, the starred contacts at their bunks
@@ -14,6 +14,8 @@ export const SHUTTLE_PLATES = 10;
 export const STENCIL_PLATES = 16;
 /** the printed signs, in `SIGNS` order, after the stencils */
 export const SIGN_PLATES = 25;
+/** the name under each control, in `CONTROLS` order, after the signs */
+export const CONTROL_PLATES = 36;
 
 export { SIGNS, STENCILS };
 
@@ -57,6 +59,14 @@ export function withStencils(texts: readonly (string | undefined)[]): (string | 
 export function withSigns(texts: readonly (string | undefined)[]): (string | undefined)[]
 {
     const out = [...texts];
-    SIGNS.slice(0, LABEL_SLOTS - SIGN_PLATES).forEach((s, i) => { out[SIGN_PLATES + i] = s.text; });
+    SIGNS.slice(0, CONTROL_PLATES - SIGN_PLATES).forEach((s, i) => { out[SIGN_PLATES + i] = s.text; });
+    return out;
+}
+
+/** `texts` with the name of each control (or what `live` says for it, like the next alarm) in its plate. */
+export function withControls(texts: readonly (string | undefined)[], live: Readonly<Record<string, string>> = {}): (string | undefined)[]
+{
+    const out = [...texts];
+    CONTROLS.slice(0, LABEL_SLOTS - CONTROL_PLATES).forEach((c, i) => { out[CONTROL_PLATES + i] = live[c.id] ?? c.label; });
     return out;
 }

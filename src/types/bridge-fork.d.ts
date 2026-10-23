@@ -132,6 +132,16 @@ export interface BridgeStorageStats
     freeBytes: number;
 }
 
+export type BridgeRingerMode = 'normal' | 'vibrate' | 'silent';
+export type BridgeSystemPanel = 'wifi' | 'internet' | 'bluetooth' | 'nfc' | 'volume' | 'location';
+
+export interface BridgeScreenBrightness
+{
+    isAuto: boolean;
+    /** 0-1 */
+    level: number;
+}
+
 export type BridgeForkEvent =
     | { name: 'batteryChanged'; newValue: BridgeBattery }
     | { name: 'connectivityChanged'; newValue: BridgeConnectivity }
@@ -144,7 +154,16 @@ export type BridgeForkEvent =
     | { name: 'nextAlarmChanged'; newValue: BridgeNextAlarm | null }
     | { name: 'canReadContactsChanged'; newValue: boolean }
     | { name: 'contactsChanged' }
-    | { name: 'canReadUsageStatsChanged'; newValue: boolean };
+    | { name: 'canReadUsageStatsChanged'; newValue: boolean }
+    | { name: 'flashlightChanged'; newValue: boolean }
+    | { name: 'screenBrightnessChanged'; newValue: BridgeScreenBrightness }
+    | { name: 'ringerModeChanged'; newValue: BridgeRingerMode }
+    | { name: 'musicVolumeChanged'; newValue: number }
+    | { name: 'wifiEnabledChanged'; newValue: boolean }
+    | { name: 'bluetoothEnabledChanged'; newValue: boolean }
+    | { name: 'locationEnabledChanged'; newValue: boolean }
+    | { name: 'canWriteSystemSettingsChanged'; newValue: boolean }
+    | { name: 'canAccessNotificationPolicyChanged'; newValue: boolean };
 
 declare module '@bridgelauncher/api'
 {
@@ -218,6 +237,36 @@ declare module '@bridgelauncher/api'
         requestStopSpeaking(): void;
         /** Opens Android's text-to-speech settings. */
         requestOpenTtsSettings(showToastIfFailed?: boolean): boolean;
+
+        /** Opens the floating panel (Android 10+) or the settings screen for what apps can't toggle. */
+        requestOpenSystemPanel(panel: BridgeSystemPanel, showToastIfFailed?: boolean): boolean;
+        /** Wi-Fi on (not necessarily connected); read-only. */
+        getWifiEnabled(): boolean;
+        getIsBluetoothAvailable(): boolean;
+        getBluetoothEnabled(): boolean;
+        getLocationEnabled(): boolean;
+
+        getIsFlashlightAvailable(): boolean;
+        getFlashlightOn(): boolean;
+        requestSetFlashlightOn(on: boolean, showToastIfFailed?: boolean): boolean;
+
+        /** "Modify system settings", needed for brightness. */
+        getCanWriteSystemSettings(): boolean;
+        requestOpenWriteSystemSettingsPermission(showToastIfFailed?: boolean): boolean;
+        /** JSON of BridgeScreenBrightness. */
+        getScreenBrightness(): string;
+        requestSetScreenBrightnessAuto(auto: boolean, showToastIfFailed?: boolean): boolean;
+        /** Switches to manual brightness at `level` (0-1). */
+        requestSetScreenBrightnessLevel(level: number, showToastIfFailed?: boolean): boolean;
+
+        /** "Do Not Disturb access", needed for the ringer mode. */
+        getCanAccessNotificationPolicy(): boolean;
+        requestOpenNotificationPolicyAccessSettings(showToastIfFailed?: boolean): boolean;
+        getRingerMode(): BridgeRingerMode;
+        requestSetRingerMode(mode: BridgeRingerMode, showToastIfFailed?: boolean): boolean;
+        /** 0-1, media volume. */
+        getMusicVolume(): number;
+        requestSetMusicVolume(level: number, showToastIfFailed?: boolean): boolean;
 
         /** Vibrates for the given milliseconds (1..500). False if the device can't vibrate. */
         requestVibrate(ms: number): boolean;

@@ -1,7 +1,8 @@
 import type { Agent } from './crew';
 import { rayCylinder, rayFromPixel, rayRect, type V3 } from './math';
-import { screenFrame } from './mesh';
-import { collisionSegments, ROOMS, SCREENS, type Bay, type ScreenDef, type Seg } from './world';
+import { onPanel, panelFrame, panelOf, screenFrame } from './mesh';
+import type { ControlData, StationData } from './shipData';
+import { collisionSegments, CONTROLS, ROOMS, SCREENS, STATIONS, type Bay, type ScreenDef, type Seg } from './world';
 
 /** Walls only (no props): a monitor can be seen over a crate, never through a wall. */
 const WALLS: readonly Seg[] = collisionSegments(ROOMS, []);
@@ -90,5 +91,53 @@ export function pickShuttle(bays: readonly Bay[], eye: V3, yaw: number, pitch: n
         if (t === null || t > wall + 0.05) return;
         if (!best || t < best.distance) best = { index, distance: t };
     });
+    return best;
+}
+
+export interface ControlPick { control: ControlData; distance: number; along: number }
+
+/** How much of a panel's face round each control a finger can land on and still mean it: generous, they are small. */
+const GRIP: Record<ControlData['kind'], [number, number]> = { toggle: [0.1, 0.13], lever: [0.1, 0.2], selector: [0.12, 0.13], button: [0.1, 0.1], lamp: [0.1, 0.1], gauge: [0.11, 0.11] };
+
+/**
+ * The control under pixel (px, py), or null; walls hide it. `along` is where the ray met it up its face, in metres
+ * from its middle, so a lever knows which way it was pushed.
+ */
+export function pickControl(eye: V3, yaw: number, pitch: number, w: number, h: number, px: number, py: number): ControlPick | null
+{
+    const ray = rayFromPixel(eye, yaw, pitch, w, h, px, py);
+    const wall = wallDistance(ray.o, ray.d);
+    let best: ControlPick | null = null;
+    for (const c of CONTROLS)
+    {
+        const p = panelOf(c);
+        if (!p) continue;
+        const f = panelFrame(p);
+        if (ray.d[0] * f.normal[0] + ray.d[1] * f.normal[1] + ray.d[2] * f.normal[2] >= 0) continue;
+        const centre = onPanel(f, c.u, c.v, 0.02);
+        const [gw, gh] = GRIP[c.kind];
+        const t = rayRect(ray, centre, f.normal, f.right, f.up, gw, gh);
+        if (t === null || t > wall + 0.05) continue;
+        if (best && t >= best.distance) continue;
+        const hit: V3 = [ray.o[0] + ray.d[0] * t - centre[0], ray.o[1] + ray.d[1] * t - centre[1], ray.o[2] + ray.d[2] * t - centre[2]];
+        best = { control: c, distance: t, along: hit[0] * f.up[0] + hit[1] * f.up[1] + hit[2] * f.up[2] };
+    }
+    return best;
+}
+
+export interface StationPick { station: StationData; distance: number }
+
+/** The station (a seat, a capsule) under pixel (px, py), or null; walls hide it. */
+export function pickStation(eye: V3, yaw: number, pitch: number, w: number, h: number, px: number, py: number): StationPick | null
+{
+    const ray = rayFromPixel(eye, yaw, pitch, w, h, px, py);
+    const wall = wallDistance(ray.o, ray.d);
+    let best: StationPick | null = null;
+    for (const s of STATIONS)
+    {
+        const t = rayCylinder(ray, s.x, s.y, s.r ?? 0.45, 0, s.h ?? 1.3);
+        if (t === null || t > wall + 0.05) continue;
+        if (!best || t < best.distance) best = { station: s, distance: t };
+    }
     return best;
 }

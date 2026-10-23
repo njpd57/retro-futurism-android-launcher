@@ -1,6 +1,7 @@
 import { BridgeMock } from '@bridgelauncher/api-mock';
 import type {
     BridgeAppShortcut, BridgeAppUsage, BridgeBattery, BridgeCalendarEvent, BridgeContact, BridgeConnectivity, BridgeMediaAction, BridgeMediaSession, BridgeNextAlarm, BridgeNotification,
+    BridgeRingerMode, BridgeScreenBrightness, BridgeSystemPanel,
 } from '@/types/bridge-fork';
 
 const jsonUrl = (data: unknown) => `data:application/json,${encodeURIComponent(JSON.stringify(data))}`;
@@ -240,6 +241,71 @@ class ForkBridgeMock extends BridgeMock
     requestVibrate(ms: number) { console.info('[mock] vibrate', ms); return true; }
     requestOpenTtsSettings() { alert('[mock] ajustes de voz'); return true; }
     getStorageStats() { return JSON.stringify({ totalBytes: 128 * 1024 ** 3, freeBytes: 47 * 1024 ** 3 }); }
+
+    // quick settings: brightness has its permission, the ringer starts without it so [CONCEDER] can be tried
+    private flashlight = false;
+    private brightness: BridgeScreenBrightness = { isAuto: false, level: 0.6 };
+    private ringer: BridgeRingerMode = 'normal';
+    private volume = 0.4;
+    private canWriteSettings = true;
+    private canPolicy = false;
+    requestOpenSystemPanel(panel: BridgeSystemPanel) { alert(`[mock] panel ${panel}`); return true; }
+    getWifiEnabled() { return true; }
+    getIsBluetoothAvailable() { return true; }
+    getBluetoothEnabled() { return false; }
+    getLocationEnabled() { return true; }
+    getIsFlashlightAvailable() { return true; }
+    getFlashlightOn() { return this.flashlight; }
+    requestSetFlashlightOn(on: boolean)
+    {
+        this.flashlight = on;
+        this.emit({ name: 'flashlightChanged', newValue: on });
+        return true;
+    }
+    getCanWriteSystemSettings() { return this.canWriteSettings; }
+    requestOpenWriteSystemSettingsPermission()
+    {
+        this.canWriteSettings = true;
+        this.emit({ name: 'canWriteSystemSettingsChanged', newValue: true });
+        return true;
+    }
+    getScreenBrightness() { return JSON.stringify(this.brightness); }
+    requestSetScreenBrightnessAuto(auto: boolean)
+    {
+        if (!this.canWriteSettings) return false;
+        this.brightness = { ...this.brightness, isAuto: auto };
+        this.emit({ name: 'screenBrightnessChanged', newValue: this.brightness });
+        return true;
+    }
+    requestSetScreenBrightnessLevel(level: number)
+    {
+        if (!this.canWriteSettings) return false;
+        this.brightness = { isAuto: false, level: Math.max(0, Math.min(1, level)) };
+        this.emit({ name: 'screenBrightnessChanged', newValue: this.brightness });
+        return true;
+    }
+    getCanAccessNotificationPolicy() { return this.canPolicy; }
+    requestOpenNotificationPolicyAccessSettings()
+    {
+        this.canPolicy = true;
+        this.emit({ name: 'canAccessNotificationPolicyChanged', newValue: true });
+        return true;
+    }
+    getRingerMode() { return this.ringer; }
+    requestSetRingerMode(mode: BridgeRingerMode)
+    {
+        if (!this.canPolicy) return false;
+        this.ringer = mode;
+        this.emit({ name: 'ringerModeChanged', newValue: mode });
+        return true;
+    }
+    getMusicVolume() { return this.volume; }
+    requestSetMusicVolume(level: number)
+    {
+        this.volume = Math.max(0, Math.min(1, level));
+        this.emit({ name: 'musicVolumeChanged', newValue: this.volume });
+        return true;
+    }
 }
 
 export default function injectBridgeMockInDev()

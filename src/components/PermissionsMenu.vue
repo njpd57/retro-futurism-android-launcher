@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useContactsStore } from '@/stores/useContactsStore';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
+import { useQuickSettingsStore } from '@/stores/useQuickSettingsStore';
 import { useSpeechStore } from '@/stores/useSpeechStore';
 import { useUsageStore } from '@/stores/useUsageStore';
 import { bridgeHas } from '@/utils/bridgeHas';
@@ -17,6 +18,7 @@ const calendar = useCalendarStore();
 const contacts = useContactsStore();
 const usage = useUsageStore();
 const speech = useSpeechStore();
+const quick = useQuickSettingsStore();
 
 type State = 'ok' | 'missing' | 'unavailable';
 
@@ -51,6 +53,16 @@ const rows = computed<Row[]>(() => [
         id: 'usage', label: 'USO DE APPS', note: 'WIDGET USO Y ORDEN POR USO',
         state: !usage.supported ? 'unavailable' : usage.canRead ? 'ok' : 'missing',
         action: { label: 'CONCEDER', run: () => usage.requestAccess() },
+    },
+    {
+        id: 'system-settings', label: 'AJUSTES DEL SISTEMA', note: 'BRILLO DESDE EL PUENTE DE LA NAVE',
+        state: !bridgeHas('getCanWriteSystemSettings') ? 'unavailable' : quick.canWriteSettings ? 'ok' : 'missing',
+        action: { label: 'CONCEDER', run: () => quick.grant('settings') },
+    },
+    {
+        id: 'policy', label: 'NO MOLESTAR', note: 'MODO DE TIMBRE DESDE LA NAVE',
+        state: !bridgeHas('getCanAccessNotificationPolicy') ? 'unavailable' : quick.canPolicy ? 'ok' : 'missing',
+        action: { label: 'CONCEDER', run: () => quick.grant('policy') },
     },
     {
         id: 'shortcuts', label: 'ATAJOS DE APPS', note: 'SOLO SI BRIDGE ES EL LAUNCHER POR DEFECTO',

@@ -75,6 +75,9 @@ export function wallGlow(b: Builder, f: WallFrame, t0: number, t1: number, z0: n
         [[0, 0], [1, 0], [1, 1], [0, 1]], mat, emit);
 }
 
+/** The amber cell of every doorway's status box, as built: the panel lights them all when the phone is silenced. */
+export const QUIET_CELLS: { corners: [V3, V3, V3, V3]; normal: V3 }[] = [];
+
 /**
  * The Nostromo's doorway, seen from a room: a thick white surround with chamfered shoulders stepping up over the
  * opening, lined with orange padding; where the wall has room for them, a lit status box over it and a tube light
@@ -107,6 +110,9 @@ export function addDoorway(b: Builder, f: WallFrame, mid: number, half: number, 
         {
             const t = mid - 0.5 + k * 0.38;
             wallGlow(b, f, t, t + 0.24, z0 + 0.06, z0 + 0.3, 0.15, made(MAT.glow, id), 0.3);
+            if (id === 'amber')
+                QUIET_CELLS.push({ corners: [wallPoint(f, t, z0 + 0.06, 0.155), wallPoint(f, t + 0.24, z0 + 0.06, 0.155), wallPoint(f, t + 0.24, z0 + 0.3, 0.155), wallPoint(f, t, z0 + 0.3, 0.155)],
+                    normal: [f.normal[0], 0, f.normal[1]] });
         });
     }
     if (free > 0.5)

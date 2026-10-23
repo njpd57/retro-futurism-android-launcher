@@ -81,3 +81,14 @@ Read the matching doc before touching an area:
 - **Scrolling:** the dashboard is the scroll container; a window body (`TuiWindow .body`) scrolls only when it exceeds 45vh. Don't put `overscroll-behavior: none` or `touch-action: none` on anything inside a widget, or a drag that starts there won't scroll the dashboard. Handle taps with `click`, not `pointerdown`, on widget surfaces.
 - **Audio** needs a user gesture before it starts (`useSoundStore` unlocks on the first pointer or key event) and is suspended on `beforePause`.
 - **Reduced motion:** any new looping animation must respect `prefers-reduced-motion`.
+
+<!-- rtk-instructions v2 -->
+# Command output
+
+Command output here is condensed to save tokens, keeping every signal and
+dropping costly noise. Treat it as the complete result: run commands
+normally, and batch related commands into one call to avoid extra turns.
+Truncated results state their recovery path in their own output. Re-run a
+command as `rtk bypass <cmd>` only when its result is unusable: empty when
+output was clearly expected, contradicting its exit code, or garbled.
+<!-- /rtk-instructions -->

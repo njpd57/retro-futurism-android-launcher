@@ -6,9 +6,10 @@ import type { BridgeNotification } from '@/types/bridge-fork';
 import { appLabelFor } from '@/utils/notifications';
 import { radarContacts } from '@/utils/radar';
 import MenuItem from './MenuItem.vue';
+import TermInput from './TermInput.vue';
 import TermMenu from './TermMenu.vue';
 
-/** One app's notifications, as the radar's scanner shows them: open, dismiss or run their buttons. */
+/** One app's notifications, as the radar's scanner shows them: open, dismiss, answer or run their buttons. */
 const props = defineProps<{ packageName: string }>();
 const emit = defineEmits<{ (e: 'close'): void }>();
 
@@ -28,7 +29,20 @@ const scanned = computed<BridgeNotification | null>(() =>
 });
 const clearable = computed(() => contact.value?.notifications.filter(n => n.isClearable) ?? []);
 
+/** the reply action being written, by its index, and what is typed */
+const replying = ref<number | null>(null);
+const draft = ref('');
+
 watch(() => props.packageName, () => { picked.value = null; });
+watch(scanned, () => { replying.value = null; draft.value = ''; });
+
+function send()
+{
+    const text = draft.value.trim();
+    if (!text || replying.value === null || !scanned.value) return;
+    const [key, index] = [scanned.value.key, replying.value];
+    act(() => notifications.reply(key, index, text));
+}
 // the app's last signal went away: nothing left to scan
 watch(contact, c => { if (!c) emit('close'); });
 
@@ -59,6 +73,14 @@ function back()
             <MenuItem @click="act(() => notifications.open(scanned!.key))"><span>ABRIR</span></MenuItem>
             <MenuItem v-if="scanned.isClearable" @click="act(() => notifications.dismiss(scanned!.key))"><span>NEUTRALIZAR</span></MenuItem>
             <MenuItem v-for="a in scanned.actions.filter(x => !x.acceptsText)" :key="a.index" @click="act(() => notifications.runAction(scanned!.key, a.index))"><span>{{ a.title.toUpperCase() }}</span></MenuItem>
+            <template v-for="a in scanned.actions.filter(x => x.acceptsText)" :key="`r${a.index}`">
+                <MenuItem v-if="replying !== a.index" @click="replying = a.index; draft = ''"><span>RESPONDER{{ a.title ? ` · ${a.title.toUpperCase()}` : '' }}</span></MenuItem>
+                <div v-else class="reply">
+                    <span>»</span>
+                    <TermInput v-model="draft" enterkeyhint="send" class="field" @submit="send" />
+                    <button class="pressable" @click="send">[TRANSMITIR]</button>
+                </div>
+            </template>
             <MenuItem v-if="contact.notifications.length > 1" @click="picked = null"><span>[VER TODAS]</span></MenuItem>
         </template>
         <template v-else>
@@ -73,6 +95,25 @@ function back()
 
 <style scoped lang="scss">
 .dim { color: var(--ph-dim); }
+
+.reply {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+
+    .field { flex: 1; min-width: 0; }
+
+    button {
+        background: none;
+        border: none;
+        color: var(--ph);
+        font: inherit;
+        @include glow;
+
+        &:active { @include inverse; }
+    }
+}
 .contact { padding: 4px 10px 8px; overflow-wrap: anywhere; }
 .signal { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 </style>

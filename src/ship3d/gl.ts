@@ -33,6 +33,8 @@ export interface GLFrame
     alerts?: ArrayLike<number>;
     /** false paints the ship in the phosphor's one tint; in colour otherwise (the monitors and the crew are phosphor either way) */
     color?: boolean;
+    /** how bright the lamps light the ship, 0..1 (default 1): it follows the phone's screen brightness */
+    dim?: number;
     /** the map editor's plan view: straight down on `(x, y)`, `half` metres to the top edge, everything above `cut` metres removed */
     top?: { x: number; y: number; half: number; cut: number };
 }
@@ -221,7 +223,7 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
         gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.NEAREST);
 
         uniforms = {};
-        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', 'uCut', 'uDetail', 'uLayer', 'uTile', 'uStrength', 'uAlbedo', 'uShin', 'uKs', 'uStyled', 'uKindMat', 'uStyleBase', 'uColor', 'uMono', 'uStyleColor', 'uStyleLamp', 'uStyleAlert'])
+        for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', 'uCut', 'uDim', 'uDetail', 'uLayer', 'uTile', 'uStrength', 'uAlbedo', 'uShin', 'uKs', 'uStyled', 'uKindMat', 'uStyleBase', 'uColor', 'uMono', 'uStyleColor', 'uStyleLamp', 'uStyleAlert'])
             uniforms[name] = gl!.getUniformLocation(program, name);
         if (atlasSource) upload(atlasSource);
         for (const [layer, src] of layerSources) uploadLayer(layer, src);
@@ -516,6 +518,7 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
             gl.uniform1f(uniforms.uHolo, f.holo ?? 0.6);
             gl.uniform1f(uniforms.uSweep, f.sweep);
             gl.uniform1f(uniforms.uCut, f.top ? f.top.cut : 1e4);
+            gl.uniform1f(uniforms.uDim, f.dim ?? 1);
             gl.uniform1fv(uniforms.uDoor, Float32Array.from({ length: 16 }, (_, i) => f.doors[i] ?? 0));
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, texture);

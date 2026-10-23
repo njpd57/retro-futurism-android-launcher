@@ -116,6 +116,8 @@ uniform float uHolo;
 uniform float uSweep;
 // the map editor's plan view cuts everything above this height; far above the ship otherwise
 uniform float uCut;
+// the ship's lamps follow the phone's brightness: 1 is full, lower dims what the lamps lit (not the lamps themselves)
+uniform float uDim;
 layout(location = 0) out vec4 outColor;
 // for the outlines: the distance in three bytes and the kind of surface
 layout(location = 1) out vec4 outNd;
@@ -319,8 +321,8 @@ void main()
     // makes a normal map answer to light that was never computed this frame), plus a share of the nearest lights of the
     // frame, which is what makes a room that wants attention shine brighter or blink
     vec3 view = normalize(uEye - vPos);
-    float lit = 0.03 + vLit * (0.15 + 0.85 * max(dot(n, vDir), 0.0));
-    float spec = vLit * pow(max(dot(n, normalize(vDir + view)), 0.0), shin);
+    float lit = 0.03 + uDim * vLit * (0.15 + 0.85 * max(dot(n, vDir), 0.0));
+    float spec = uDim * vLit * pow(max(dot(n, normalize(vDir + view)), 0.0), shin);
     float live = 0.0;
     float liveSpec = 0.0;
     for (int i = 0; i < ${MAX_LIGHTS}; i++)

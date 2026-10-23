@@ -19,7 +19,6 @@ import { useSoundStore } from '@/stores/useSoundStore';
 import AppList from '@/components/AppList.vue';
 import CrtScreen from '@/components/CrtScreen.vue';
 import Dashboard from '@/components/Dashboard.vue';
-import ShipCard from '@/components/ship/ShipCard.vue';
 import SignalScanner from '@/components/SignalScanner.vue';
 import ShipPanel from '@/components/ship/ShipPanel.vue';
 import { useShipStore } from '@/stores/useShipStore';
@@ -149,7 +148,7 @@ const softKeys = computed<SoftKey[]>(() => settings.activeTab === 'panel'
         { label: 'AJUSTES', action: () => { settingsOpen.value = true; } },
     ]);
 
-const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || quarantineApp.value !== null || quarantine.pending !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open || ship.card !== null || ship.signals !== null);
+const overlayOpen = computed(() => settingsOpen.value || menuApp.value !== null || renameApp.value !== null || folderApp.value !== null || quarantineApp.value !== null || quarantine.pending !== null || notificationsOpen.value || sessionsOpen.value || organizer.open || imagesStore.open || isolation.open || marines.open || ship.focus !== null || ship.seat !== null || ship.signals !== null);
 
 function launch(app: InstalledAppInfo)
 {
@@ -275,7 +274,8 @@ function closeOverlays()
     imagesStore.close();
     isolation.close();
     marines.close();
-    ship.closeCard();
+    ship.leaveFocus();
+    ship.stand();
     ship.closeSignals();
 }
 
@@ -324,6 +324,13 @@ function onPopState()
         // inside the settings page, back steps out of the submenu or section first; the entry is pushed again
         if (settingsOpen.value && settingsView.back())
         {
+            history.pushState({}, '');
+            return;
+        }
+        // seated at a monitor, back leaves the monitor and keeps the seat
+        if (ship.focus && ship.seat)
+        {
+            ship.leaveFocus();
             history.pushState({}, '');
             return;
         }
@@ -421,7 +428,6 @@ onUnmounted(() =>
         <ImageViewer v-if="imagesStore.open" />
         <IsolationGame v-if="isolation.open" />
         <MarinesGame v-if="marines.open" />
-        <ShipCard v-if="ship.card" />
         <SignalScanner v-if="ship.signals" :package-name="ship.signals" @close="ship.closeSignals()" />
         <MotherSessions v-if="sessionsOpen" @close="sessionsOpen = false" />
         <AppRename v-if="renameApp" :app="renameApp" @close="renameApp = null" />

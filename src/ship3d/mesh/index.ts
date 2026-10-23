@@ -6,19 +6,23 @@ import { addDoors } from './doors';
 import { addCorridor } from './corridor';
 import { addHazard, addStencils, addKeyboards, addSigns } from './decor';
 import { addScreen } from './screens';
+import { addPanels } from './controls';
 
 export { propMaterial } from './room';
 export { STRIDE, MAT, STYLE, MAT_STYLE, MAT_SURFACE, Builder, extrude, type Mesh } from './builder';
 export { CELL, tessellate } from './room';
 export { plate, stencilSpot } from './decor';
 export { screenFrame } from './screens';
-export { made } from './doorway';
+export { made, QUIET_CELLS } from './doorway';
+import { QUIET_CELLS } from './doorway';
+export { CONTROL_PLATE_W, facePatch, onPanel, panelFrame, panelOf, PLATE_DROP, type PanelFrame } from './controls';
 
 /** The ship baked into one triangle list: each piece of it is built in its own file here (see `docs/SHIP_MODELS.md`). */
 
 export function buildMesh(): Mesh
 {
     const b = new Builder();
+    QUIET_CELLS.length = 0;
     for (const room of ROOMS)
     {
         addRoom(b, room);
@@ -28,6 +32,7 @@ export function buildMesh(): Mesh
     addStencils(b);
     addSigns(b);
     addKeyboards(b);
+    addPanels(b);
     for (const p of PROPS) addProp(b, p);
     for (const s of SCREENS) addScreen(b, s);
     addDoors(b);

@@ -114,6 +114,39 @@ export interface ShipData
     stencils: { room: string; text: string }[];
     /** printed labels on the walls (`LECHE` over a dispenser): light letters on a dark strip, `w` wide, centred on `(x, z, y)`, facing `(nx, ny)` */
     signs?: SignData[];
+    /** panels of switches, levers and lamps that work the phone (see `controls.ts`) */
+    panels?: PanelData[];
+    controls?: ControlData[];
+    stations?: StationData[];
+}
+
+/** A panel of controls: a plate centred at `(x, z, y)`, its face looking `yaw` (like a monitor), leaning back `tilt` radians. */
+export interface PanelData { id: string; x: number; y: number; z: number; w: number; h: number; yaw: number; tilt?: number }
+
+export type ControlKind = 'toggle' | 'lever' | 'selector' | 'button' | 'lamp' | 'gauge';
+
+/** A control on `panel`, `u` metres to the viewer's right of its middle and `v` up its face; `action` names what it does on the phone. */
+export interface ControlData { id: string; panel: string; u: number; v: number; kind: ControlKind; action: string; label?: string }
+
+/**
+ * A place to sit or lie down: the eye goes to `(x, z, y)` looking `yaw`, and can turn `arc` radians either way and
+ * tilt between `pitchMin` and `pitchMax`. A tap within `r` metres of `(x, y)` and under `h` takes it.
+ */
+export interface StationData
+{
+    id: string;
+    x: number;
+    y: number;
+    z: number;
+    yaw: number;
+    arc: number;
+    pitch?: number;
+    pitchMin?: number;
+    pitchMax?: number;
+    r?: number;
+    h?: number;
+    /** lying in a hypersleep capsule rather than sitting */
+    lying?: boolean;
 }
 
 export interface SignData { text: string; x: number; y: number; z: number; w: number; nx: number; ny: number }

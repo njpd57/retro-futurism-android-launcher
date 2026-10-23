@@ -7,7 +7,8 @@ export type SfxName = 'key' | 'select' | 'back' | 'alert' | 'ping' | 'tick' | 's
     | 'thunk' | 'klaxon' | 'chirp'
     | 'open' | 'close' | 'tab' | 'minimize' | 'error' | 'deny' | 'confirm' | 'toggleOn' | 'toggleOff'
     | 'notify' | 'notifyCall' | 'notifySys' | 'boot' | 'powerOff' | 'powerOn' | 'relay'
-    | 'shipStep' | 'shipGrate' | 'shipDoor' | 'shipDoorShut' | 'shipLaunch' | 'shipSignal' | 'shipMeow' | 'shipAsh';
+    | 'shipStep' | 'shipGrate' | 'shipDoor' | 'shipDoorShut' | 'shipLaunch' | 'shipSignal' | 'shipMeow' | 'shipAsh'
+    | 'shipSwitch' | 'shipKey' | 'shipLever' | 'shipDenied';
 
 /** Which channel each sound belongs to; the games and the tube-sized sounds have their own volume. */
 const GAME_SOUNDS: readonly SfxName[] = ['step', 'door', 'hiss', 'screech', 'vent', 'flame', 'clatter', 'pulse', 'reload', 'hurt', 'kill', 'dry',
@@ -230,6 +231,26 @@ const SOUNDS: Record<SfxName, () => void> = {
     {
         beep(260, 130, 'sawtooth', 0.04, 0, 640);
         beep(640, 110, 'sawtooth', 0.035, 140, 300);
+    },
+    // the panels' controls: a toggle snapping over, a push button, a lever's detent, a locked control's refusal
+    shipSwitch: () =>
+    {
+        noise('highpass', 3800, 2600, 1, 12, 0.22);
+        noise('lowpass', 900, 300, 1, 35, 0.2, 8);
+    },
+    shipKey: () =>
+    {
+        noise('bandpass', 2400, 900, 1, 18, 0.16);
+        beep(1100, 40, 'square', 0.03, 20);
+    },
+    shipLever: () =>
+    {
+        noise('bandpass', 1600 + Math.random() * 300, 700, 1, 20, 0.14);
+    },
+    shipDenied: () =>
+    {
+        beep(180, 120, 'square', 0.05);
+        beep(140, 160, 'square', 0.05, 140);
     },
 
     // AISLAMIENTO: a boot on the deck plating, a pressure door, the creature breathing, the end, the ducts

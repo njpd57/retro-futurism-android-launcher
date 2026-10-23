@@ -4,8 +4,9 @@ import { loadMaterialTextures } from '@/ship3d/details';
 import { createShipGL } from '@/ship3d/gl';
 import { buildMesh } from '@/ship3d/mesh';
 import { ATLAS_H, ATLAS_W, drawLabels } from '@/ship3d/atlas';
-import { withSigns, withStencils } from '@/ship3d/labels';
-import { LIGHTS } from '@/ship3d/world';
+import { withControls, withSigns, withStencils } from '@/ship3d/labels';
+import { controlVertices } from '@/ship3d/controls';
+import { CONTROLS, LIGHTS } from '@/ship3d/world';
 import { nearestLights, packLights } from '@/ship3d/lights';
 
 const q = new URLSearchParams(location.search);
@@ -22,7 +23,10 @@ const atlas = document.createElement('canvas');
 atlas.width = ATLAS_W;
 atlas.height = ATLAS_H;
 // the stencils and signs, so painted lettering shows in the picture
-drawLabels(atlas.getContext('2d')!, withSigns(withStencils([])), '#ffb000', 'monospace');
+drawLabels(atlas.getContext('2d')!, withControls(withSigns(withStencils([]))), '#ffb000', 'monospace');
+// the panels' controls half way, so every kind shows its moving part
+gl.setCrew(controlVertices(Object.fromEntries(CONTROLS.map((c, i) => [c.id, { value: c.kind === 'selector' ? i % 3 : c.kind === 'lever' ? 0.6 : i % 2, lock: null }])),
+    { shown: new Map(), pressed: new Map(), blink: true }));
 gl.setAtlas(atlas);
 
 await loadMaterialTextures(gl, '/');

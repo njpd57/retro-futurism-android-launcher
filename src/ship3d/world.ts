@@ -3,7 +3,7 @@ import type { Prefab } from './prefabData';
 import shipJson from './ship.json';
 import { materialIndex } from './materials';
 import { prefabById } from './prefabs';
-import type { HangarData, LampData, MessData, PropData, PropEntry, ScreenData, ShapeData, ShipData, SignData } from './shipData';
+import type { ControlData, HangarData, LampData, MessData, PanelData, PropData, PropEntry, ScreenData, ShapeData, ShipData, SignData, StationData } from './shipData';
 
 /**
  * The ship as data: convex rooms (polygons extruded to a height), the doors between them, what stands in them, the
@@ -154,6 +154,9 @@ export const SIGNAL_SLOTS: { x: number; y: number; yaw: number }[] = [];
 /** The rooms that have a stencil on their wall, and what it says. */
 export const STENCILS: { room: string; text: string }[] = [];
 export const SIGNS: SignData[] = [];
+export const PANELS: PanelData[] = [];
+export const CONTROLS: ControlData[] = [];
+export const STATIONS: StationData[] = [];
 
 const door = (x: number, y: number): Portal => ({ x, y, ...DOOR });
 
@@ -438,6 +441,12 @@ export function applyWorld(data: ShipData): void
     STENCILS.push(...data.stencils);
     SIGNS.length = 0;
     SIGNS.push(...(data.signs ?? []));
+    PANELS.length = 0;
+    PANELS.push(...(data.panels ?? []));
+    CONTROLS.length = 0;
+    CONTROLS.push(...(data.controls ?? []).filter(c => PANELS.some(p => p.id === c.panel)));
+    STATIONS.length = 0;
+    STATIONS.push(...(data.stations ?? []));
 
     lights.length = 0;
     lampCfg = { ...data.lamps };
@@ -448,6 +457,8 @@ export function applyWorld(data: ShipData): void
 export const roomById = (id: string): Room | undefined => ROOMS.find(r => r.id === id);
 
 export const screenById = (id: string): ScreenDef | undefined => SCREENS.find(s => s.id === id);
+
+export const stationById = (id: string): StationData | undefined => STATIONS.find(s => s.id === id);
 
 /** The unit direction a screen faces, in the plan. */
 export const screenNormal = (s: ScreenDef): V2 => [Math.sin(s.yaw), -Math.cos(s.yaw)];

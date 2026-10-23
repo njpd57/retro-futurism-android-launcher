@@ -53,6 +53,7 @@ Casi todo funciona sin permisos; estas partes los necesitan (y usan el fork de B
 - **Agenda:** permiso de calendario.
 - **Contactos:** permiso de contactos (widget CONTACTOS). Tocar un contacto abre el marcador con el número escrito; nunca llama directamente.
 - **Uso de apps:** acceso de uso en Ajustes de Android (widget USO).
+- **Mandos de la nave (PANEL 3D):** el brillo necesita «Modificar ajustes del sistema» y el timbre «Acceso a No molestar» (ambos en `AJUSTES › PERMISOS`, con `CONCEDER`); el modo nocturno solo se puede conceder por adb (`WRITE_SECURE_SETTINGS`). La linterna y el volumen no piden nada. Wi-Fi, Bluetooth y ubicación solo se leen: sus pilotos abren el panel del sistema.
 - **Atajos de apps:** solo aparecen en el menú de una app si Bridge es el launcher por defecto.
 - **Almacén:** requiere una versión del fork con `getStorageStats`; si no, el widget indica que no está disponible.
 - **Barra de estado propia:** `AJUSTES › BARRA PROPIA` oculta la barra de Android y dibuja una estilo terminal; al tocarla se abre el panel de notificaciones.

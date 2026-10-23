@@ -19,6 +19,7 @@ const SFX_LABELS: Record<SfxName, [Bus, string]> = {
     kill: ['game', 'BAJA'], dry: ['game', 'SIN MUNICIÓN'], shotgun: ['game', 'ESCOPETA'], smart: ['game', 'FUSIL INTELIGENTE'], burn: ['game', 'QUEMADURA'],
     shipStep: ['ui', 'PASOS EN CHAPA'], shipGrate: ['ui', 'PASOS EN REJILLA'], shipDoor: ['ui', 'APERTURA DE PUERTA'], shipDoorShut: ['ui', 'CIERRE DE PUERTA'],
     shipLaunch: ['ui', 'MOTOR DE LANZADERA'], shipSignal: ['ui', 'SEÑAL DE TRIPULANTE'], shipMeow: ['ui', 'MAULLIDO DE JONES'], shipAsh: ['ui', 'SERVOS DE ASH'],
+    shipSwitch: ['ui', 'INTERRUPTOR DE PANEL'], shipKey: ['ui', 'PULSADOR DE PANEL'], shipLever: ['ui', 'PALANCA DE PANEL'], shipDenied: ['ui', 'ACCESO DENEGADO'],
     launch: ['game', 'LANZAMIENTO'], blast: ['game', 'EXPLOSIÓN'], acid: ['game', 'ÁCIDO'], rattle: ['game', 'TRACTEO'],
 };
 

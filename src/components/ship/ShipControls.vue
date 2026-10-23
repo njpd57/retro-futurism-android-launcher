@@ -5,12 +5,17 @@ import { stickAxes, STICK } from '@/games/marines/stick';
 /**
  * The hands on the ship: a floating joystick under the left thumb (it lands anywhere on the left half and what
  * counts is how far it is dragged), a drag on the right half to look around, and a short touch anywhere to tap.
- * Each finger follows its own `Touch.identifier`, so both thumbs work at once.
+ * Each finger follows its own `Touch.identifier`, so both thumbs work at once. A finger that lands on something
+ * `grab` takes (a lever) drags it instead, wherever it lands.
  */
+/** `lookOnly`: seated, the whole screen looks and there is no stick */
+const props = defineProps<{ grab?: (x: number, y: number) => boolean; lookOnly?: boolean }>();
 const emit = defineEmits<{
     move: [strafe: number, forward: number];
     look: [dx: number, dy: number];
     tap: [x: number, y: number];
+    grabMove: [dy: number];
+    grabEnd: [];
 }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -19,15 +24,20 @@ const knob = reactive({ active: false, x: 0, y: 0, originX: 0, originY: 0 });
 const TAP_MOVE_PX = 10;
 const TAP_MS = 350;
 
-interface Finger { id: number | 'mouse'; kind: 'stick' | 'look'; x: number; y: number; startX: number; startY: number; t: number }
+interface Finger { id: number | 'mouse'; kind: 'stick' | 'look' | 'grab'; x: number; y: number; startX: number; startY: number; t: number }
 let fingers: Finger[] = [];
 
 const own = (id: number | 'mouse') => fingers.find(f => f.id === id);
 
 function start(id: number | 'mouse', x: number, y: number)
 {
+    if (props.grab?.(x, y))
+    {
+        fingers.push({ id, kind: 'grab', x, y, startX: x, startY: y, t: Date.now() });
+        return;
+    }
     const box = root.value!.getBoundingClientRect();
-    const left = x < box.left + box.width / 2;
+    const left = !props.lookOnly && x < box.left + box.width / 2;
     if (left && fingers.some(f => f.kind === 'stick')) return;
     fingers.push({ id, kind: left ? 'stick' : 'look', x, y, startX: x, startY: y, t: Date.now() });
     if (left)
@@ -51,6 +61,7 @@ function drag(id: number | 'mouse', x: number, y: number)
         knob.y = a.knobY;
         emit('move', a.strafe, a.forward);
     }
+    else if (f.kind === 'grab') emit('grabMove', y - f.y);
     else emit('look', x - f.x, y - f.y);
     f.x = x;
     f.y = y;
@@ -66,6 +77,7 @@ function end(id: number | 'mouse', cancelled = false)
         knob.active = false;
         emit('move', 0, 0);
     }
+    if (f.kind === 'grab') emit('grabEnd');
     if (!cancelled && Math.hypot(f.x - f.startX, f.y - f.startY) < TAP_MOVE_PX && Date.now() - f.t < TAP_MS) emit('tap', f.x, f.y);
 }
 
@@ -105,7 +117,7 @@ onBeforeUnmount(() =>
 <template>
     <div ref="root" class="controls" data-no-swipe @contextmenu.prevent
         @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd" @touchcancel="onTouchEnd" @mousedown="onMouseDown">
-        <div class="rest"><span>◄ ANDAR</span><span>MIRAR ►</span></div>
+        <div class="rest"><span v-if="!lookOnly">◄ ANDAR</span><span>MIRAR ►</span></div>
         <div v-if="knob.active" class="stick" :style="{ left: knob.originX + 'px', top: knob.originY + 'px', width: STICK.radius * 2 + 'px', height: STICK.radius * 2 + 'px' }">
             <span class="knob" :style="{ transform: `translate(${knob.x}px, ${knob.y}px)` }" />
         </div>

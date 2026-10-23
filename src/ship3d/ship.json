@@ -593,11 +593,31 @@
   {
    "kind": "box",
    "x": 0,
-   "y": -16.95,
+   "y": -16.25,
    "w": 0.7,
    "d": 0.12,
    "h": 1.25,
    "material": "graphite"
+  },
+  {
+   "kind": "box",
+   "x": 0.95,
+   "y": -16.95,
+   "w": 0.9,
+   "d": 0.4,
+   "h": 0.72,
+   "material": "graphite",
+   "yaw": 1.0816
+  },
+  {
+   "kind": "box",
+   "x": -0.95,
+   "y": -16.95,
+   "w": 0.9,
+   "d": 0.4,
+   "h": 0.72,
+   "material": "graphite",
+   "yaw": -1.0816
   },
   {
    "kind": "cyl",
@@ -2028,6 +2048,368 @@
    "w": 0.8,
    "nx": 0.5,
    "ny": 0.866
+  }
+ ],
+ "panels": [
+  {
+   "id": "puente.babor",
+   "x": -0.95,
+   "y": -16.95,
+   "z": 0.8,
+   "w": 1.0,
+   "h": 0.42,
+   "yaw": 2.06,
+   "tilt": 1.05
+  },
+  {
+   "id": "puente.estribor",
+   "x": 0.95,
+   "y": -16.95,
+   "z": 0.8,
+   "w": 1.0,
+   "h": 0.42,
+   "yaw": -2.06,
+   "tilt": 1.05
+  },
+  {
+   "id": "comms.enlaces",
+   "x": -19.4,
+   "y": -5.92,
+   "z": 1.55,
+   "w": 2.0,
+   "h": 0.42,
+   "yaw": 3.1416,
+   "tilt": 0.15
+  },
+  {
+   "id": "comedor.radio",
+   "x": -5.5426,
+   "y": 3.2,
+   "z": 0.78,
+   "w": 0.76,
+   "h": 0.4,
+   "yaw": 1.2484,
+   "tilt": 1.0
+  },
+  {
+   "id": "camarotes.reloj",
+   "x": -23,
+   "y": 22.05,
+   "z": 0.83,
+   "w": 0.5,
+   "h": 0.34,
+   "yaw": 0,
+   "tilt": 1.1
+  },
+  {
+   "id": "motor.diales",
+   "x": -4.8,
+   "y": 35.08,
+   "z": 1.45,
+   "w": 1.8,
+   "h": 0.45,
+   "yaw": 3.1416,
+   "tilt": 0
+  },
+  {
+   "id": "hangar.consola",
+   "x": 5.2,
+   "y": 55.08,
+   "z": 1.35,
+   "w": 2.3,
+   "h": 0.45,
+   "yaw": 3.1416,
+   "tilt": 0.2
+  }
+ ],
+ "controls": [
+  {
+   "id": "puente.luces",
+   "panel": "puente.babor",
+   "u": -0.33,
+   "v": 0.05,
+   "kind": "lever",
+   "action": "brightness",
+   "label": "LUCES CABINA"
+  },
+  {
+   "id": "puente.auto",
+   "panel": "puente.babor",
+   "u": 0,
+   "v": 0.05,
+   "kind": "toggle",
+   "action": "brightnessAuto",
+   "label": "AUTO"
+  },
+  {
+   "id": "puente.foco",
+   "panel": "puente.babor",
+   "u": 0.33,
+   "v": 0.05,
+   "kind": "toggle",
+   "action": "flashlight",
+   "label": "FOCO EXT."
+  },
+  {
+   "id": "puente.alerta",
+   "panel": "puente.estribor",
+   "u": -0.33,
+   "v": 0.05,
+   "kind": "selector",
+   "action": "ringer",
+   "label": "ALERTA"
+  },
+  {
+   "id": "puente.volumen",
+   "panel": "puente.estribor",
+   "u": 0,
+   "v": 0.05,
+   "kind": "lever",
+   "action": "volume",
+   "label": "VOLUMEN"
+  },
+  {
+   "id": "puente.nocturno",
+   "panel": "puente.estribor",
+   "u": 0.33,
+   "v": 0.05,
+   "kind": "toggle",
+   "action": "nightMode",
+   "label": "NOCTURNO"
+  },
+  {
+   "id": "comms.wifi",
+   "panel": "comms.enlaces",
+   "u": -0.72,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "wifi",
+   "label": "ENLACE"
+  },
+  {
+   "id": "comms.bt",
+   "panel": "comms.enlaces",
+   "u": -0.24,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "bluetooth",
+   "label": "BALIZA"
+  },
+  {
+   "id": "comms.gps",
+   "panel": "comms.enlaces",
+   "u": 0.24,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "location",
+   "label": "POSICIÓN"
+  },
+  {
+   "id": "comms.datos",
+   "panel": "comms.enlaces",
+   "u": 0.72,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "online",
+   "label": "DATOS"
+  },
+  {
+   "id": "comedor.anterior",
+   "panel": "comedor.radio",
+   "u": -0.25,
+   "v": 0.05,
+   "kind": "button",
+   "action": "mediaPrev",
+   "label": "ATRÁS"
+  },
+  {
+   "id": "comedor.radio",
+   "panel": "comedor.radio",
+   "u": 0,
+   "v": 0.05,
+   "kind": "button",
+   "action": "mediaPlay",
+   "label": "RADIO"
+  },
+  {
+   "id": "comedor.siguiente",
+   "panel": "comedor.radio",
+   "u": 0.25,
+   "v": 0.05,
+   "kind": "button",
+   "action": "mediaNext",
+   "label": "AVANCE"
+  },
+  {
+   "id": "camarotes.alarma",
+   "panel": "camarotes.reloj",
+   "u": 0,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "alarm",
+   "label": "ALARMA"
+  },
+  {
+   "id": "motor.reserva",
+   "panel": "motor.diales",
+   "u": -0.55,
+   "v": 0.05,
+   "kind": "gauge",
+   "action": "battery",
+   "label": "RESERVA"
+  },
+  {
+   "id": "motor.carga",
+   "panel": "motor.diales",
+   "u": 0,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "charging",
+   "label": "CARGA"
+  },
+  {
+   "id": "motor.almacen",
+   "panel": "motor.diales",
+   "u": 0.55,
+   "v": 0.05,
+   "kind": "gauge",
+   "action": "storage",
+   "label": "ALMACÉN"
+  },
+  {
+   "id": "hangar.atajo1",
+   "panel": "hangar.consola",
+   "u": -0.84,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut0",
+   "label": "---"
+  },
+  {
+   "id": "hangar.atajo2",
+   "panel": "hangar.consola",
+   "u": -0.2799999999999999,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut1",
+   "label": "---"
+  },
+  {
+   "id": "hangar.atajo3",
+   "panel": "hangar.consola",
+   "u": 0.28000000000000014,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut2",
+   "label": "---"
+  },
+  {
+   "id": "hangar.atajo4",
+   "panel": "hangar.consola",
+   "u": 0.8400000000000002,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut3",
+   "label": "---"
+  }
+ ],
+ "stations": [
+  {
+   "id": "puente.capitan",
+   "x": 0,
+   "y": -16.45,
+   "z": 1.15,
+   "yaw": 0,
+   "arc": 1.25,
+   "pitch": -0.2,
+   "pitchMin": -0.85,
+   "pitchMax": 0.5,
+   "r": 0.45,
+   "h": 1.3
+  },
+  {
+   "id": "hipersueno.capsula1",
+   "x": 26.118,
+   "y": 22.8,
+   "z": 1.15,
+   "yaw": -1.0472,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula2",
+   "x": 23.0,
+   "y": 24.6,
+   "z": 1.15,
+   "yaw": 0.0,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula3",
+   "x": 19.882,
+   "y": 22.8,
+   "z": 1.15,
+   "yaw": 1.0472,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula4",
+   "x": 19.882,
+   "y": 19.2,
+   "z": 1.15,
+   "yaw": 2.0944,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula5",
+   "x": 23.0,
+   "y": 17.4,
+   "z": 1.15,
+   "yaw": 3.1416,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula6",
+   "x": 26.118,
+   "y": 19.2,
+   "z": 1.15,
+   "yaw": -2.0944,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
   }
  ]
 }

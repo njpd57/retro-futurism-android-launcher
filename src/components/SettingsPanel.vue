@@ -43,6 +43,7 @@ const DIAGNOSTIC_METHODS = [
     'getWindowInsetsSwapFixed', 'getBattery', 'getConnectivity',
     'getNotificationsURL', 'getMediaSession', 'getCalendarEventsURL', 'getNextAlarm', 'requestOpenUrl',
     'getContactsURL', 'getAppUsageURL', 'getAppShortcutsURL', 'getStorageStats', 'getProxyURL', 'getTtsAvailable', 'requestVibrate',
+    'getFlashlightOn', 'getScreenBrightness', 'getRingerMode', 'getMusicVolume', 'getWifiEnabled', 'requestOpenSystemPanel',
 ] as const;
 const diagnostic = computed(() => DIAGNOSTIC_METHODS.map(m => ({ method: m, ok: bridgeHas(m) })));
 
