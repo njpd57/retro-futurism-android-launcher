@@ -4,7 +4,7 @@ import { onWorldChange, SCREENS } from './world';
 export const CELL_W = 256;
 export const CELL_H = 128;
 export const COLS = 4;
-export const ROWS = 5;
+export const ROWS = 13;
 /** Below the monitors, a band of name plates: the crew's apps and names, the shuttles' apps, the rooms' wall stencils and the signs. */
 export const LABEL_W = 256;
 export const LABEL_H = 64;
