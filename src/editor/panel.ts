@@ -1,5 +1,6 @@
 import { MATERIALS } from '@/ship3d/materials';
 import { PREFABS } from '@/ship3d/prefabs';
+import { TERMINAL_VARIANTS } from '@/ship3d/terminalPlace';
 import { ZONES as ZONE_DEFS } from '@/ship3d/zones';
 import type { Face, PropData, ShapeData } from '@/ship3d/shipData';
 import type { V2 } from '@/ship3d/world';
@@ -268,6 +269,21 @@ export class Panel
                 e.append(el('div', 'hint', 'LAS PANTALLAS SE PINTAN POR EL ORDEN DE ESTA LISTA (HAY 20 HUECOS EN EL ATLAS).'));
                 break;
             }
+            case 'terminal':
+            {
+                const t = data.terminals?.[sel.i];
+                if (!t) break;
+                e.append(el('div', 'title', `TERMINAL ${t.id}`));
+                this.text(e, 'id', () => t.id, v => { t.id = v.trim() || t.id; });
+                this.pick(e, 'zona', [...ROOM_ZONES, 'hub'], () => t.zone, v => { t.zone = v; });
+                this.pick(e, 'variante', TERMINAL_VARIANTS.map(v => v.id), () => t.variant, v => { t.variant = v; });
+                move(() => [t.x, t.y], (x, y) => { t.x = x; t.y = y; });
+                this.num(e, 'giro °', () => deg(t.yaw), v => { t.yaw = rad(v); }, 5);
+                this.num(e, 'altura base z', () => t.z ?? 0, v => { if (v) t.z = v; else delete t.z; }, 0.05);
+                this.num(e, 'escala', () => t.scale ?? 1, v => { if (v && v !== 1) t.scale = v; else delete t.scale; }, 0.05, 0.2);
+                e.append(el('div', 'hint', 'EL GIRO 0 MIRA AL NORTE; LA ESPALDA DEL TERMINAL QUEDA EN EL PUNTO. ARRASTRA EL PUNTO PARA MOVERLO LIBREMENTE.'));
+                break;
+            }
             case 'light':
             {
                 const l = data.extraLights[sel.i];
@@ -377,6 +393,7 @@ export class Panel
         for (const prefab of PREFABS.slice(0, 12)) this.button(bar, `+ ${prefab.name.toUpperCase()}`, make((x, y) => ops.addPrefab(d.data, prefab.id, x, y)));
         this.button(bar, '+ PUERTA', make((x, y) => ops.addPortal(d.data, x, y)));
         this.button(bar, '+ PANTALLA', make((x, y) => ops.addScreen(d.data, x, y)));
+        this.button(bar, '+ TERMINAL', make((x, y) => ops.addTerminal(d.data, x, y)));
         this.button(bar, '+ LUZ', make((x, y) => ops.addLight(d.data, x, y)));
         this.button(bar, '+ SALA', make((x, y) => ops.addRoom(d.data, x, y)));
         this.button(bar, '+ CÁPSULAS', make((x, y) =>

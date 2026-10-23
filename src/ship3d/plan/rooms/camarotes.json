@@ -250,16 +250,6 @@
    "solid": false
   }
  ],
- "screens": [
-  {
-   "id": "camarotes.tripulacion",
-   "zone": "camarotes",
-   "on": "wall",
-   "x": -24,
-   "y": 15,
-   "face": "S"
-  }
- ],
  "panels": [
   {
    "id": "camarotes.reloj",
@@ -294,5 +284,15 @@
    -19.5,
    21
   ]
- }
+ },
+ "terminals": [
+  {
+   "id": "camarotes.tripulacion",
+   "zone": "camarotes",
+   "variant": "mini",
+   "x": -24.0,
+   "y": 15.2,
+   "yaw": 3.1416
+  }
+ ]
 }

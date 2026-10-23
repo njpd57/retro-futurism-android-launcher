@@ -1,6 +1,8 @@
 import type { ShipData } from '@/ship3d/shipData';
 import { MATERIALS } from '@/ship3d/materials';
 import { PREFABS } from '@/ship3d/prefabs';
+import { COLS, ROWS } from '@/ship3d/atlas';
+import { variantById } from '@/ship3d/terminalPlace';
 import { isHall, ZONES } from '@/ship3d/zones';
 import { inside, splitEdge, type Room, type V2 } from '@/ship3d/world';
 import { centroid } from '@/ship3d/world';
@@ -107,6 +109,15 @@ export function validateWorld(data: ShipData, scene: Scene = sceneOf(data)): Iss
         }
     });
 
+    (data.terminals ?? []).forEach((t, i) =>
+    {
+        const sel: Sel = { t: 'terminal', i };
+        if (!variantById(t.variant)) add('error', `${t.id}: VARIANTE DE TERMINAL DESCONOCIDA (${t.variant})`, [t.x, t.y], sel);
+        if (ids.has(t.id)) add('error', `ID DE PANTALLA REPETIDO: ${t.id}`, [t.x, t.y], sel);
+        ids.add(t.id);
+        if (!scene.rooms.some(r => inside(r.poly, t.x, t.y, -0.3))) add('warn', `${t.id}: TERMINAL FUERA DE TODA SALA`, [t.x, t.y], sel);
+    });
+
     // ---- the places the crew uses
     const solids = scene.props.filter(p => p.prop.solid).map(p => p.outline);
     const free = (x: number, y: number) => !solids.some(o => inside(o, x, y, -0.3));
@@ -138,7 +149,8 @@ export function validateWorld(data: ShipData, scene: Scene = sceneOf(data)): Iss
     if (!scene.rooms.some(r => inside(r.poly, data.start.x, data.start.y))) add('error', 'EL PUNTO DE INICIO ESTÁ FUERA DE LA NAVE', [data.start.x, data.start.y]);
     if (data.hangar.rows.length * 2 < data.hangar.max) add('error', 'EL HANGAR TIENE MENOS FILAS QUE PLAZAS', [0, 60]);
     if (data.mess.chairs < 1) add('error', 'EL COMEDOR NECESITA AL MENOS UNA SILLA', [0, 0]);
-    if (data.screens.length > 20) add('error', 'MÁXIMO 20 PANTALLAS (EL ATLAS TIENE 20 HUECOS)', [0, 0]);
+    const monitors = data.screens.length + (data.terminals?.length ?? 0);
+    if (monitors > COLS * ROWS) add('error', `MÁXIMO ${COLS * ROWS} PANTALLAS (EL ATLAS TIENE ${COLS * ROWS} HUECOS)`, [0, 0]);
     if (data.stencils.length > 12) add('error', 'MÁXIMO 12 RÓTULOS DE SALA EN EL ATLAS', [0, 0]);
     if (portals.length > 16) add('error', 'MÁXIMO 16 PUERTAS (EL SHADER TIENE 16 HOJAS)', [0, 0]);
     return out;

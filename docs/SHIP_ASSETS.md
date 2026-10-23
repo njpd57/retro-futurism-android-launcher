@@ -41,14 +41,29 @@ is tuned from the plan (`plan/`), not in code.
 
 ## The plan: `src/ship3d/plan/`
 `global.json` (door, start, mess, hangar, lamps, floodlight, `assets`, and `roomOrder`) and one `rooms/<room id>.json` per
-room holding everything that stands in it: its `rooms` entry, `portals`, `props`, `screens`, `panels`, `controls`,
+room holding everything that stands in it: its `rooms` entry, `portals`, `props`, `screens`, `terminals`, `panels`, `controls`,
 `stations`, `signs`, `stencils`, `stands`, `vias`. `plan.ts` loads them with `import.meta.glob` and `planMerge.ts`
 merges them into the one `ShipData` the engine and the editor use. The editor saves through `splitPlan`, which files each
 thing under the nearest room, so the files stay in step with where things are. A new room is a new file (and a line in
 `roomOrder` if its place in the order matters); nothing else lists it.
 
 `assets` in `global.json` has a `stage` (`pre`: built before the props, `post`: after) set in each asset's `asset.json`.
-Existing assets: `corridor`, `hazard`, `stencil`, `sign`, `keyboard`, `control-panel`, `screen`, `window`, `door`, `lamp`.
+Existing assets: `corridor`, `hazard`, `stencil`, `sign`, `keyboard`, `control-panel`, `screen`, `terminal`, `window`, `door`, `lamp`.
+
+## Terminals: `terminals.json` and `assets/terminal/`
+A terminal is a free-standing monitor with its own body, chosen from a catalogue and placed anywhere: no wall needed. A
+**variant** in `src/ship3d/terminals.json` (types in `terminalData.ts`) is drawn in its own frame (`u` to the viewer's right,
+`v` toward the viewer from its back, `z` up) and knows nothing about where it will stand:
+- `glass`: the picture's rectangle `{u, v, z, w, h, tilt, bezel}` (`tilt` leans it back; a sunk screen looks up).
+- `body`: `box` / `cyl` parts `{u, v, z0, w, d, h, tilt, material, glow}` (materials from `materials.json`).
+- `lights`: grids of lit cells (keys, LED rows, button clusters) `{u, v, z, w, d, cols, rows, tilt, colors, glow}`.
+
+The plan only places and configures it, in `terminals` of a room file: `{ id, zone, variant, x, y, yaw, z?, scale? }`.
+`(x, y)` is the point its back stands on (`v = 0`), `yaw` as for monitors (0 faces north), `z` lifts the base. Each terminal
+also makes a monitor in `SCREENS` by the same `id` (`terminalPlace.ts` `terminalOf`), so the atlas, the readings, picking,
+focus and the room cards work on it like on any screen. To add a look, add a variant to the JSON; to use it, place it.
+Variants today: `karnak`, `pared-crema`, `pared-estrecha`, `pared-ancha`, `crt-sobremesa`, `bandeja-hundida`, `portatil`, `mini`.
+The `screen` asset still draws the plain monitors that have no variant (the crown over the mess table).
 
 ## Monitors' text: `readings/zones/<zone>.ts`
 One file per kind of room, `export function readings(i: ShipInput, put)`, found by name (`readings.ts`); `readings/kit.ts` has

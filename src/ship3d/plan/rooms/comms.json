@@ -90,22 +90,22 @@
    "solid": false
   }
  ],
- "screens": [
+ "terminals": [
   {
    "id": "comms.senales",
    "zone": "comms",
-   "on": "wall",
+   "variant": "pared-crema",
    "x": -26,
    "y": -2,
-   "face": "E"
+   "yaw": 1.5708
   },
   {
    "id": "comms.mother",
    "zone": "comms",
-   "on": "wall",
-   "x": -26,
+   "variant": "karnak",
+   "x": -25.7,
    "y": 2,
-   "face": "E"
+   "yaw": 1.5708
   }
  ],
  "panels": [

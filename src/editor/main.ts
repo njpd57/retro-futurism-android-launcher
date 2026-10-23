@@ -241,6 +241,7 @@ function exists(s: Sel): boolean
         case 'portal': return !!d.portals[s.i];
         case 'prop': return !!d.props[s.i];
         case 'screen': return !!d.screens[s.i];
+        case 'terminal': return !!d.terminals?.[s.i];
         case 'light': return !!d.extraLights[s.i];
         case 'stand': return !!d.stands[s.room];
         case 'via': return !!d.vias[s.room]?.[s.i];

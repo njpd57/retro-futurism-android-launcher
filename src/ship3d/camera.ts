@@ -18,9 +18,11 @@ export function focusShot(s: ScreenDef, aspect: number, fill = FOCUS_FILL): Shot
     const tanY = Math.tan(fovYFor(aspect) / 2);
     const tanX = tanY * aspect;
     const d = Math.max(s.w / (2 * fill * tanX), s.h / (2 * fill * tanY));
-    const nx = Math.sin(s.yaw);
-    const ny = -Math.cos(s.yaw);
-    return { x: s.x + nx * d, y: s.y + ny * d, z: s.z, yaw: wrapAngle(s.yaw + Math.PI), pitch: 0 };
+    const t = s.tilt ?? 0;
+    const nx = Math.sin(s.yaw) * Math.cos(t);
+    const ny = -Math.cos(s.yaw) * Math.cos(t);
+    // a glass leaning back is seen square from above and in front, looking down at it
+    return { x: s.x + nx * d, y: s.y + ny * d, z: s.z + Math.sin(t) * d, yaw: wrapAngle(s.yaw + Math.PI), pitch: -t };
 }
 
 /** The way from `a` to `b` at `t` (0..1), eased at both ends; the turn takes the short way round. */
@@ -44,7 +46,7 @@ export function glassCorners(s: ScreenDef, shot: Shot, w: number, h: number): [n
 {
     const f = screenFrame(s);
     const m = multiply(perspective(fovYFor(w / h), w / h, NEAR, FAR), viewMatrix([shot.x, shot.z, shot.y], shot.yaw, shot.pitch));
-    const corner = (dw: number, dh: number): V3 => [f.center[0] + f.right[0] * dw, f.center[1] + dh, f.center[2] + f.right[2] * dw];
+    const corner = (dw: number, dh: number): V3 => [f.center[0] + f.right[0] * dw + f.up[0] * dh, f.center[1] + f.up[1] * dh, f.center[2] + f.right[2] * dw + f.up[2] * dh];
     const out: [number, number][] = [];
     for (const p of [corner(-s.w / 2, s.h / 2), corner(s.w / 2, s.h / 2), corner(s.w / 2, -s.h / 2), corner(-s.w / 2, -s.h / 2)])
     {

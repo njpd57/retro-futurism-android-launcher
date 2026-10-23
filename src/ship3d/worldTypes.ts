@@ -63,6 +63,12 @@ export interface ScreenDef
     w: number;
     h: number;
     yaw: number;
+    /** the glass leans back this many radians (a sunk screen looks up); 0 when left out */
+    tilt?: number;
+    /** the variant of `terminals.json` whose body stands round it; none for a plain monitor */
+    variant?: string;
+    /** the size of that body, 1 when left out */
+    scale?: number;
     /** hangs in the room (the crown over the mess table) instead of on a wall */
     hung?: boolean;
 }

@@ -94,24 +94,6 @@
    "solid": false
   }
  ],
- "screens": [
-  {
-   "id": "bodega.almacen",
-   "zone": "bodega",
-   "on": "wall",
-   "x": -5,
-   "y": 13,
-   "face": "S"
-  },
-  {
-   "id": "bodega.pantalla",
-   "zone": "bodega",
-   "on": "wall",
-   "x": 5,
-   "y": 13,
-   "face": "S"
-  }
- ],
  "stencils": [
   {
    "room": "bodega",
@@ -131,5 +113,23 @@
     21
    ]
   ]
- }
+ },
+ "terminals": [
+  {
+   "id": "bodega.almacen",
+   "zone": "bodega",
+   "variant": "crt-sobremesa",
+   "x": -5.0,
+   "y": 13.3,
+   "yaw": 3.1416
+  },
+  {
+   "id": "bodega.pantalla",
+   "zone": "bodega",
+   "variant": "pared-crema",
+   "x": 5,
+   "y": 13,
+   "yaw": 3.1416
+  }
+ ]
 }

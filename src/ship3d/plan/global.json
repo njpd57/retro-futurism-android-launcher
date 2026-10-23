@@ -84,6 +84,9 @@
    "kind": "screen"
   },
   {
+   "kind": "terminal"
+  },
+  {
    "kind": "window",
    "room": "puente",
    "from": 2,

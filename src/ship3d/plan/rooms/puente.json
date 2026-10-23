@@ -103,52 +103,6 @@
    "material": "graphite"
   }
  ],
- "screens": [
-  {
-   "id": "puente.hora",
-   "zone": "puente",
-   "on": "wall",
-   "x": -4.03,
-   "y": -16.95,
-   "face": "E",
-   "w": 1.3,
-   "h": 0.72,
-   "z": 1.55
-  },
-  {
-   "id": "puente.rumbo",
-   "zone": "puente",
-   "on": "wall",
-   "x": -4.03,
-   "y": -15.45,
-   "face": "E",
-   "w": 1.3,
-   "h": 0.72,
-   "z": 1.55
-  },
-  {
-   "id": "puente.clima",
-   "zone": "puente",
-   "on": "wall",
-   "x": 4.03,
-   "y": -16.95,
-   "face": "W",
-   "w": 1.3,
-   "h": 0.72,
-   "z": 1.55
-  },
-  {
-   "id": "puente.turno",
-   "zone": "puente",
-   "on": "wall",
-   "x": 4.03,
-   "y": -15.45,
-   "face": "W",
-   "w": 1.3,
-   "h": 0.72,
-   "z": 1.55
-  }
- ],
  "panels": [
   {
    "id": "puente.babor",
@@ -253,5 +207,39 @@
    0,
    -14.9
   ]
- }
+ },
+ "terminals": [
+  {
+   "id": "puente.hora",
+   "zone": "puente",
+   "variant": "pared-estrecha",
+   "x": -4.03,
+   "y": -16.95,
+   "yaw": 1.5708
+  },
+  {
+   "id": "puente.rumbo",
+   "zone": "puente",
+   "variant": "pared-estrecha",
+   "x": -4.03,
+   "y": -15.45,
+   "yaw": 1.5708
+  },
+  {
+   "id": "puente.clima",
+   "zone": "puente",
+   "variant": "pared-estrecha",
+   "x": 4.03,
+   "y": -16.95,
+   "yaw": -1.5708
+  },
+  {
+   "id": "puente.turno",
+   "zone": "puente",
+   "variant": "pared-estrecha",
+   "x": 4.03,
+   "y": -15.45,
+   "yaw": -1.5708
+  }
+ ]
 }

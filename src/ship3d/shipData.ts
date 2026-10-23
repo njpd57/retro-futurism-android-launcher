@@ -65,6 +65,9 @@ export type ScreenData =
     /** the middle of side `k` of a dome-shaped room (`room`, or the screen's `zone` when left out) */
     | { id: string; zone: string; on: 'dome'; k: number; room?: string; w?: number; h?: number; z?: number };
 
+/** A terminal of a variant in `terminals.json`, set down with its back at `(x, y)` and its face looking `yaw` (like a monitor); `z` lifts its base. */
+export interface TerminalData { id: string; zone: string; variant: string; x: number; y: number; yaw: number; z?: number; scale?: number }
+
 export interface MessData
 {
     /** id of the room the mess is built in, `comedor` when left out */
@@ -106,6 +109,8 @@ export interface ShipData
     mess: MessData;
     hangar: HangarData;
     screens: ScreenData[];
+    /** free-standing terminals (`terminals.json`); each also makes a monitor that is picked and focused like a screen */
+    terminals?: TerminalData[];
     lamps: LampData;
     /** lights placed by hand, on top of the lamps and of what shines by itself; at `height - 0.3` they are drawn as lamps */
     extraLights: { x: number; y: number; z: number; power: number }[];

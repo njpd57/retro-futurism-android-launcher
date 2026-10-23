@@ -12,7 +12,7 @@ import type { PropEntry, ShipData } from './shipData';
 /** A file of the plan: any part of `ShipData`, and in `global.json` the order the rooms come in. */
 export type PlanPart = Partial<ShipData> & { roomOrder?: string[] };
 
-const LISTS = ['rooms', 'portals', 'props', 'screens', 'panels', 'controls', 'stations', 'signalSlots', 'stencils', 'signs', 'extraLights'] as const;
+const LISTS = ['rooms', 'portals', 'props', 'screens', 'terminals', 'panels', 'controls', 'stations', 'signalSlots', 'stencils', 'signs', 'extraLights'] as const;
 const RECORDS = ['stands', 'vias'] as const;
 const GLOBALS = ['door', 'start', 'mess', 'hangar', 'lamps', 'assets', 'floodlight'] as const;
 
@@ -89,6 +89,7 @@ export function splitPlan(data: ShipData): { global: PlanPart; rooms: Record<str
     }
     for (const s of data.screens)
         put(s.on === 'wall' ? at(s) : s.on === 'dome' ? byZone(s.room ?? s.zone) : messRoom, 'screens', s);
+    for (const t of data.terminals ?? []) put(at(t), 'terminals', t);
     const panelRoom = new Map<string, string | undefined>();
     for (const p of data.panels ?? []) { const id = at(p); panelRoom.set(p.id, id); put(id, 'panels', p); }
     for (const c of data.controls ?? []) put(panelRoom.get(c.panel), 'controls', c);

@@ -30,24 +30,6 @@
    "radius": 3.6
   }
  ],
- "screens": [
-  {
-   "id": "hipersueno.alarma",
-   "zone": "hipersueno",
-   "on": "wall",
-   "x": 21,
-   "y": 15,
-   "face": "S"
-  },
-  {
-   "id": "hipersueno.agenda",
-   "zone": "hipersueno",
-   "on": "wall",
-   "x": 25,
-   "y": 15,
-   "face": "S"
-  }
- ],
  "stations": [
   {
    "id": "hipersueno.capsula1",
@@ -145,5 +127,23 @@
    23,
    21
   ]
- }
+ },
+ "terminals": [
+  {
+   "id": "hipersueno.alarma",
+   "zone": "hipersueno",
+   "variant": "mini",
+   "x": 21.0,
+   "y": 15.2,
+   "yaw": 3.1416
+  },
+  {
+   "id": "hipersueno.agenda",
+   "zone": "hipersueno",
+   "variant": "portatil",
+   "x": 25.0,
+   "y": 15.25,
+   "yaw": 3.1416
+  }
+ ]
 }

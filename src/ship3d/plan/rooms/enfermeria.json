@@ -207,24 +207,6 @@
    "solid": false
   }
  ],
- "screens": [
-  {
-   "id": "enfermeria.sistema",
-   "zone": "enfermeria",
-   "on": "wall",
-   "x": 26,
-   "y": -2,
-   "face": "W"
-  },
-  {
-   "id": "enfermeria.bitacora",
-   "zone": "enfermeria",
-   "on": "wall",
-   "x": 26,
-   "y": 2,
-   "face": "W"
-  }
- ],
  "stencils": [
   {
    "room": "enfermeria",
@@ -236,5 +218,23 @@
    17.4,
    0
   ]
- }
+ },
+ "terminals": [
+  {
+   "id": "enfermeria.sistema",
+   "zone": "enfermeria",
+   "variant": "bandeja-hundida",
+   "x": 25.6,
+   "y": -2.0,
+   "yaw": -1.5708
+  },
+  {
+   "id": "enfermeria.bitacora",
+   "zone": "enfermeria",
+   "variant": "pared-crema",
+   "x": 26,
+   "y": 2,
+   "yaw": -1.5708
+  }
+ ]
 }

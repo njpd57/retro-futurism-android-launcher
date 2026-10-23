@@ -1,4 +1,5 @@
 import { PREFABS } from '@/ship3d/prefabs';
+import { TERMINAL_VARIANTS } from '@/ship3d/terminalPlace';
 import { ZONES } from '@/ship3d/zones';
 import type { PropData, PropEntry, ScreenData, ShapeData, ShipData } from '@/ship3d/shipData';
 import { shapeOf, type V2 } from '@/ship3d/world';
@@ -55,6 +56,11 @@ export function moveRoom(data: ShipData, base: ShipData, room: number, dx: numbe
     {
         const t = data.screens[i];
         if (s.on === 'wall' && t.on === 'wall' && s.zone === b.zone && onOutline(poly, s.x, s.y)) { t.x = clean(s.x + dx); t.y = clean(s.y + dy); }
+    });
+    base.terminals?.forEach((s, i) =>
+    {
+        const t = data.terminals?.[i];
+        if (t && has(s.x, s.y)) { t.x = clean(s.x + dx); t.y = clean(s.y + dy); }
     });
     base.portals.forEach((p, i) =>
     {
@@ -124,6 +130,15 @@ export function addScreen(data: ShipData, x: number, y: number): Sel
     return { t: 'screen', i: data.screens.length - 1 };
 }
 
+export function addTerminal(data: ShipData, x: number, y: number): Sel
+{
+    const list = (data.terminals ??= []);
+    let n = 1;
+    while ([...data.screens, ...list].some(s => s.id === `terminal.${n}`)) n++;
+    list.push({ id: `terminal.${n}`, zone: data.rooms[0]?.zone ?? 'comedor', variant: TERMINAL_VARIANTS[0]?.id ?? 'karnak', x, y, yaw: 0 });
+    return { t: 'terminal', i: list.length - 1 };
+}
+
 export function addLight(data: ShipData, x: number, y: number): Sel
 {
     data.extraLights.push({ x, y, z: 2.5, power: 1.5 });
@@ -157,6 +172,15 @@ export function duplicate(data: ShipData, sel: Sel): Sel | null
         data.screens.splice(sel.i + 1, 0, s);
         return { t: 'screen', i: sel.i + 1 };
     }
+    if (sel.t === 'terminal')
+    {
+        const list = data.terminals ?? [];
+        const t = structuredClone(list[sel.i]);
+        t.id = `${t.id}.copia`;
+        t.x = clean(t.x + 1);
+        list.splice(sel.i + 1, 0, t);
+        return { t: 'terminal', i: sel.i + 1 };
+    }
     if (sel.t === 'portal') { const p = data.portals[sel.i]; data.portals.push({ x: p.x + 1, y: p.y }); return { t: 'portal', i: data.portals.length - 1 }; }
     if (sel.t === 'light') { data.extraLights.push({ ...data.extraLights[sel.i], x: data.extraLights[sel.i].x + 1 }); return { t: 'light', i: data.extraLights.length - 1 }; }
     if (sel.t === 'room')
@@ -182,6 +206,7 @@ export function remove(data: ShipData, sel: Sel): boolean
         case 'portal': data.portals.splice(sel.i, 1); return true;
         case 'prop': data.props.splice(sel.i, 1); return true;
         case 'screen': data.screens.splice(sel.i, 1); return true;
+        case 'terminal': data.terminals?.splice(sel.i, 1); return true;
         case 'light': data.extraLights.splice(sel.i, 1); return true;
         case 'stand': delete data.stands[sel.room]; return true;
         case 'via': data.vias[sel.room]?.splice(sel.i, 1); return true;

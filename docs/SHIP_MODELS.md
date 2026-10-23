@@ -12,7 +12,8 @@ The static ship is one triangle list built in code (`buildMesh()`), no model fil
 | `corridor.ts` | ribs, quilted cushions (`CUSHIONS`), ceiling pipes and floor hatches of the corridors |
 | `decor.ts` | hazard chevrons, name plates and wall stencils (`plate`, `stencilSpot`), bridge keyboards |
 | `controls.ts` | the panels of controls: slab, bezels and flat name plates (`addPanels`, `panelFrame`, `onPanel`, `facePatch`); the moving parts are drawn each frame by `src/ship3d/controls.ts` |
-| `screens.ts` | monitors: the picture from the atlas and its bezel (`addScreen`, `screenFrame`) |
+| `assets/screen/` | plain monitors: the picture from the atlas and its bezel (`addScreen`, `screenFrame`, with the glass's `tilt`) |
+| `assets/terminal/` | terminals: a variant's body, lit controls and glass (`addTerminal`); the data is `terminals.json` |
 | `assets/window/` | the bridge's window onto space, now an asset folder (see `SHIP_ASSETS.md`); the sky is the `MAT.window` branch of `shaders.ts`, painted from the view ray |
 | `index.ts` | `buildMesh()`: the order everything is added in |
 

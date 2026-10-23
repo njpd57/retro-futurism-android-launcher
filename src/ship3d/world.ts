@@ -1,6 +1,7 @@
 import { round, shapeOf } from './shapes';
 import { configureHangar, configureMess, propsOf } from './worldGen';
 import { screenOf } from './screenPlace';
+import { terminalOf } from './terminalPlace';
 import type { Light, Portal, Prop, Room, ScreenDef, V2, Zone } from './worldTypes';
 
 export * from './worldTypes';
@@ -10,7 +11,7 @@ import { bundledPlan } from './plan';
 import { materialIndex } from './materials';
 import type { AssetPlacement } from './assets';
 import { isHall } from './zones';
-import type { ControlData, HangarData, LampData, MessData, PanelData, PropData, PropEntry, ScreenData, ShapeData, ShipData, SignData, StationData } from './shipData';
+import type { ControlData, HangarData, LampData, MessData, PanelData, PropData, PropEntry, ScreenData, ShapeData, ShipData, SignData, StationData, TerminalData } from './shipData';
 
 /**
  * The ship as data: convex rooms (polygons extruded to a height), the doors between them, what stands in them, the
@@ -37,6 +38,7 @@ const portals: Portal[] = [];
 const props: Prop[] = [];
 const consoles: Prop[] = [];
 const screens: ScreenDef[] = [];
+const terminals: TerminalData[] = [];
 const lights: Light[] = [];
 
 export const ROOMS: readonly Room[] = rooms;
@@ -47,6 +49,9 @@ export const ASSET_PLACEMENTS: AssetPlacement[] = [];
 export const BRIDGE_CONSOLES: readonly Prop[] = consoles;
 export const PROPS: readonly Prop[] = props;
 export const SCREENS: readonly ScreenDef[] = screens;
+
+/** The terminals the plan places (each also has a monitor in `SCREENS`, by the same id). */
+export const TERMINALS: readonly TerminalData[] = terminals;
 export const LIGHTS: readonly Light[] = lights;
 
 /** Where the camera starts: on the bridge, looking up the dome at its monitors. */
@@ -107,6 +112,14 @@ export function applyWorld(data: ShipData): void
 
     screens.length = 0;
     for (const s of data.screens) screens.push(screenOf(s, data));
+    terminals.length = 0;
+    for (const t of data.terminals ?? [])
+    {
+        const s = terminalOf(t);
+        if (!s) continue;
+        terminals.push(t);
+        screens.push(s);
+    }
 
     for (const k of Object.keys(STANDS)) delete STANDS[k];
     Object.assign(STANDS, data.stands);

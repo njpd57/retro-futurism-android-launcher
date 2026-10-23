@@ -81,6 +81,24 @@ export function overlaySvg(scene: Scene, data: ShipData, view: PlanView, sel: Se
             + `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}"/><line x1="${f(m[0])}" y1="${f(m[1])}" x2="${f(t[0])}" y2="${f(t[1])}"/></g>`;
     });
 
+    // terminals: a dot where the body stands, a bar across the glass and a tick toward where it looks
+    scene.terminals.forEach((s, i) =>
+    {
+        const t = data.terminals?.[i];
+        if (!s || !t) return;
+        const nx = Math.sin(s.yaw);
+        const ny = -Math.cos(s.yaw);
+        const a = view.toScreen(s.x - ny * (s.w / 2), s.y + nx * (s.w / 2));
+        const b = view.toScreen(s.x + ny * (s.w / 2), s.y - nx * (s.w / 2));
+        const tick = view.toScreen(s.x + nx * 0.7, s.y + ny * 0.7);
+        const m = view.toScreen(s.x, s.y);
+        const o = view.toScreen(t.x, t.y);
+        const on = same(sel, { t: 'terminal', i });
+        out += `<g class="scr trm${on ? ' sel' : ''}"><line class="hit" data-t="terminal" data-i="${i}" x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}"/>`
+            + `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}"/><line x1="${f(m[0])}" y1="${f(m[1])}" x2="${f(tick[0])}" y2="${f(tick[1])}"/>`
+            + `<circle class="hit" data-t="terminal" data-i="${i}" cx="${f(o[0])}" cy="${f(o[1])}" r="5"/></g>`;
+    });
+
     // doorways: a bar along the wall they cut
     scene.portals.forEach((p, i) =>
     {

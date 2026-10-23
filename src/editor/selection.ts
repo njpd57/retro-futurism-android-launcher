@@ -5,6 +5,8 @@ export type Sel =
     /** an entry of `data.props` (a generator counts as one) */
     | { t: 'prop'; i: number }
     | { t: 'screen'; i: number }
+    /** an entry of `data.terminals` */
+    | { t: 'terminal'; i: number }
     /** an entry of `data.extraLights` */
     | { t: 'light'; i: number }
     | { t: 'stand'; room: string }

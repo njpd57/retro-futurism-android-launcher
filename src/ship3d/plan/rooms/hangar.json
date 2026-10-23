@@ -22,19 +22,6 @@
    "y": 55
   }
  ],
- "screens": [
-  {
-   "id": "hangar.flota",
-   "zone": "hangar",
-   "on": "wall",
-   "x": 0,
-   "y": 73,
-   "face": "N",
-   "w": 4,
-   "h": 2,
-   "z": 2
-  }
- ],
  "panels": [
   {
    "id": "hangar.consola",
@@ -96,5 +83,16 @@
    0,
    58.4
   ]
- }
+ },
+ "terminals": [
+  {
+   "id": "hangar.flota",
+   "zone": "hangar",
+   "variant": "pared-ancha",
+   "x": 0,
+   "y": 73,
+   "yaw": 0,
+   "z": 0.5
+  }
+ ]
 }

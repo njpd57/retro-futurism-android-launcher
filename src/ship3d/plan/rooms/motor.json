@@ -85,24 +85,6 @@
    "solid": false
   }
  ],
- "screens": [
-  {
-   "id": "motor.reserva",
-   "zone": "motor",
-   "on": "wall",
-   "x": -8,
-   "y": 39.4,
-   "face": "E"
-  },
-  {
-   "id": "motor.enlace",
-   "zone": "motor",
-   "on": "wall",
-   "x": 8,
-   "y": 39.4,
-   "face": "W"
-  }
- ],
  "panels": [
   {
    "id": "motor.diales",
@@ -167,5 +149,23 @@
     42
    ]
   ]
- }
+ },
+ "terminals": [
+  {
+   "id": "motor.reserva",
+   "zone": "motor",
+   "variant": "karnak",
+   "x": -7.7,
+   "y": 39.4,
+   "yaw": 1.5708
+  },
+  {
+   "id": "motor.enlace",
+   "zone": "motor",
+   "variant": "crt-sobremesa",
+   "x": 7.7,
+   "y": 39.4,
+   "yaw": -1.5708
+  }
+ ]
 }

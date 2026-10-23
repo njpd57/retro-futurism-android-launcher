@@ -21,6 +21,7 @@ the plan in `plan/` (merged by `planMerge.ts`; types in `src/ship3d/shipData.ts`
 | `props` | boxes and cylinders in order, plus generators: `mess` (ring, table, jars, bird's glass, crown, chairs: numbers in `mess`) and `pods` |
 | `mess`, `hangar` | parameters of those generators; `hangar.rows` holds one `y` per pair of shuttles |
 | `screens` | monitors: `wall` (point on a wall and `face`), `crown` (over the mess table), `dome` (side `k` of the bridge dome); the order is the atlas slot (20 at most) |
+| `terminals` | free-standing terminals of a variant in `terminals.json`: `variant`, point `x, y` (its back), `yaw`, `z`, `scale`; each also takes an atlas slot after the `screens`. Drag the dot to move it anywhere; the inspector sets variant, turn, height and scale. Variants are edited in the JSON (see `SHIP_ASSETS.md`) |
 | `lamps`, `extraLights` | the ceiling-lamp grid, and lights placed by hand |
 | `panels`, `controls`, `stations` | panels of switches and lamps, the controls on them and the seats (see `docs/SHIP_PANEL.md`, "Stations"). **Not in the editor yet:** edit them by hand in the plan (`plan/`) and look at the result with `scripts/ship-shot.sh` (`EYE=1.15` for a seat's height); the editor keeps them when it saves |
 | `stands`, `vias`, `signalSlots`, `stencils` | where the minimap puts the camera in each room, route points round obstacles, the crew's places in COMMS, the wall stencils (used by `glide.ts`, `crew.ts`, `labels.ts`) |

@@ -210,6 +210,13 @@ export function attachTools(c: ToolCtx)
                     if (w) { s.x = w.x; s.y = w.y; s.face = faceOf(w.nx, w.ny); }
                 };
             }
+            case 'terminal':
+            {
+                const t0 = data().terminals?.[i];
+                if (!t0) return undefined;
+                const [ox, oy] = [t0.x, t0.y];
+                return (mx, my) => { const t = data().terminals?.[i]; if (t) { t.x = clean(ox + snap(mx - wx, grid)); t.y = clean(oy + snap(my - wy, grid)); } };
+            }
             case 'light':
             {
                 const [ox, oy] = [data().extraLights[i].x, data().extraLights[i].y];
@@ -241,7 +248,7 @@ export function attachTools(c: ToolCtx)
         const room = target.getAttribute('data-room') ?? '';
         switch (t)
         {
-            case 'room': case 'portal': case 'prop': case 'screen': case 'light': case 'signal': return { t, i } as Sel;
+            case 'room': case 'portal': case 'prop': case 'screen': case 'terminal': case 'light': case 'signal': return { t, i } as Sel;
             case 'stand': return { t, room };
             case 'via': return { t, room, i };
         }
