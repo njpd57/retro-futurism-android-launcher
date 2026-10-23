@@ -19,7 +19,7 @@
   {"id": "amber", "texture": "plain", "tile": 1, "strength": 0, "albedo": 0.5, "color": "#f2a531", "shin": 8, "ks": 0.2, "source": "gen_ship_panels.py (original)"}
  ],
  "kinds": {"wall": "wall", "floor": "floor", "ceiling": "ceiling", "prop": "prop", "frame": "frame", "door": "door"},
- "styles": [0.42, 0.4, 0.36, 0.4, 0.46, 0.42, 0.42, 0.4],
+ "styles": [0.42, 0.24, 0.36, 0.4, 0.46, 0.42, 0.42, 0.4],
  "styleColors": ["#ddd6c8", "#d6d3cb", "#8a857b", "#bdb6a8", "#e8e8e4", "#d8dee2", "#ddd6c8", "#d2cfc6"],
  "styleLamps": ["#fff0dc", "#f2f0ff", "#ffc98a", "#fff3e2", "#eef5ff", "#cfe2ff", "#fff0dc", "#e6efff"],
  "zoneStyle": {"comedor": 0, "camarotes": 0, "comms": 7, "puente": 1, "motor": 2, "bodega": 3, "hangar": 3, "enfermeria": 4, "hipersueno": 5, "pasillo": 6}

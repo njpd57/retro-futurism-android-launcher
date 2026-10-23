@@ -1634,6 +1634,26 @@
    "z0": 4.2,
    "material": "graphite",
    "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -4.12,
+   "y": -16.2,
+   "w": 0.1,
+   "d": 3.1,
+   "h": 0.9,
+   "z0": 1.0,
+   "material": "graphite"
+  },
+  {
+   "kind": "box",
+   "x": 4.12,
+   "y": -16.2,
+   "w": 0.1,
+   "d": 3.1,
+   "h": 0.9,
+   "z0": 1.0,
+   "material": "graphite"
   }
  ],
  "mess": {
@@ -1666,28 +1686,48 @@
  },
  "screens": [
   {
-   "id": "puente.turno",
-   "zone": "puente",
-   "on": "dome",
-   "k": 2
-  },
-  {
-   "id": "puente.clima",
-   "zone": "puente",
-   "on": "dome",
-   "k": 3
-  },
-  {
    "id": "puente.hora",
    "zone": "puente",
-   "on": "dome",
-   "k": 4
+   "on": "wall",
+   "x": -4.03,
+   "y": -16.95,
+   "face": "E",
+   "w": 1.3,
+   "h": 0.72,
+   "z": 1.55
   },
   {
    "id": "puente.rumbo",
    "zone": "puente",
-   "on": "dome",
-   "k": 5
+   "on": "wall",
+   "x": -4.03,
+   "y": -15.45,
+   "face": "E",
+   "w": 1.3,
+   "h": 0.72,
+   "z": 1.55
+  },
+  {
+   "id": "puente.clima",
+   "zone": "puente",
+   "on": "wall",
+   "x": 4.03,
+   "y": -16.95,
+   "face": "W",
+   "w": 1.3,
+   "h": 0.72,
+   "z": 1.55
+  },
+  {
+   "id": "puente.turno",
+   "zone": "puente",
+   "on": "wall",
+   "x": 4.03,
+   "y": -15.45,
+   "face": "W",
+   "w": 1.3,
+   "h": 0.72,
+   "z": 1.55
   },
   {
    "id": "comms.senales",

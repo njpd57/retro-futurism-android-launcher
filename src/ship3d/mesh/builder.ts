@@ -12,7 +12,7 @@ import { centroid, type Room, type V2 } from '../world';
 /** position 3, normal 3, uv 2, material, emit, baked occlusion, baked lamp light, its direction 3 */
 export const STRIDE = 15;
 
-export const MAT = { wall: 0, floor: 1, ceiling: 2, prop: 3, screen: 4, glow: 5, frame: 6, crew: 7, door: 8, label: 9, hazard: 10 } as const;
+export const MAT = { wall: 0, floor: 1, ceiling: 2, prop: 3, screen: 4, glow: 5, frame: 6, crew: 7, door: 8, label: 9, hazard: 10, window: 11 } as const;
 
 /**
  * The look of a room's surfaces. It rides in the material number as `mat + 16 * style` (the shader splits it), so a

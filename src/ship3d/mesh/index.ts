@@ -7,6 +7,7 @@ import { addCorridor } from './corridor';
 import { addHazard, addStencils, addKeyboards, addSigns } from './decor';
 import { addScreen } from './screens';
 import { addPanels } from './controls';
+import { addWindow } from './window';
 
 export { propMaterial } from './room';
 export { STRIDE, MAT, STYLE, MAT_STYLE, MAT_SURFACE, Builder, extrude, type Mesh } from './builder';
@@ -35,6 +36,7 @@ export function buildMesh(): Mesh
     addPanels(b);
     for (const p of PROPS) addProp(b, p);
     for (const s of SCREENS) addScreen(b, s);
+    addWindow(b);
     addDoors(b);
     for (const l of LIGHTS)
     {

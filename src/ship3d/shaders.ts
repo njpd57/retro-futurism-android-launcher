@@ -271,6 +271,67 @@ void main()
         outColor = vec4(mix(uBg, t.rgb, t.a * vEmit * fog), 1.0);
         return;
     }
+    else if (abs(mat - ${F(MAT.window)}) < 0.5)
+    {
+        // the window onto space, painted from the view ray alone so the stars sit at infinity and never slide when
+        // you walk. The sky turns slowly (the ship rolls); with reduced motion (the sweep parked at -1000) it holds still
+        float t = uSweep < -500.0 ? 0.0 : uTime;
+        vec3 d = normalize(vPos - uEye);
+        float ca = cos(t * 0.004);
+        float sa = sin(t * 0.004);
+        d = vec3(ca * d.x + sa * d.z, d.y, -sa * d.x + ca * d.z);
+
+        // stars: one in a few cells of a 3D lattice holds one, a soft point whose size follows the pixel
+        vec3 p = d * 90.0;
+        vec3 cell = floor(p);
+        float h = hash12(cell.xy + cell.z * 57.0);
+        float sky = 0.0;
+        vec3 starColor = vec3(0.8, 0.88, 1.0);
+        if (h > 0.9)
+        {
+            vec3 at = cell + 0.3 + 0.4 * vec3(hash12(cell.yz + 3.1), hash12(cell.zx + 7.7), hash12(cell.xy + 11.3));
+            float px = length(fwidth(p));
+            float r = clamp(max(0.1 + 0.12 * fract(h * 37.0), px * 1.2), 0.0, 0.3);
+            float core = smoothstep(r, 0.0, distance(p, at));
+            // some blink, in steps, out of step with each other
+            float tw = fract(h * 91.0) > 0.7 ? 0.45 + 0.55 * step(0.5, hash12(cell.xy + floor(t * 2.0 + h * 40.0))) : 1.0;
+            sky = core * tw * (0.6 + 0.6 * fract(h * 13.0)) * min(1.0, 0.12 / r);
+            starColor = mix(vec3(1.0, 0.86, 0.7), vec3(0.7, 0.82, 1.0), fract(h * 53.0));
+        }
+        vec3 col = starColor * sky;
+        // a faint band of far stars across the sky
+        col += vec3(0.05, 0.06, 0.09) * smoothstep(0.35, 0.0, abs(d.y * 0.8 + d.x * 0.6 - 0.05)) * (0.4 + 0.6 * valueNoise(d.xz * 14.0 + d.y * 9.0));
+
+        // a planet, banded and lit from one side, with a haze at its edge, and a small grey moon
+        vec3 pd = normalize(vec3(0.5, 0.16, -0.85));
+        float pr = 0.26;
+        float pc = dot(d, pd);
+        float pa = acos(clamp(pc, -1.0, 1.0));
+        if (pa < pr)
+        {
+            vec3 tx = normalize(cross(pd, vec3(0.0, 1.0, 0.0)));
+            vec3 ty = cross(tx, pd);
+            vec2 o = vec2(dot(d, tx), dot(d, ty)) / sin(pr);
+            vec3 nrm = normalize(tx * o.x + ty * o.y + pd * sqrt(max(0.0, 1.0 - dot(o, o))));
+            float band = 0.5 + 0.5 * sin(nrm.y * 16.0 + valueNoise(vec2(nrm.x * 3.0, nrm.y * 9.0)) * 3.0);
+            vec3 surf = mix(vec3(0.32, 0.4, 0.5), vec3(0.62, 0.7, 0.78), band);
+            float sun = max(dot(nrm, normalize(vec3(-0.75, 0.25, 0.45))), 0.0);
+            col = surf * (0.04 + 1.0 * sun) + vec3(0.2, 0.3, 0.5) * pow(1.0 - nrm.z * 0.0 - dot(nrm, pd), 3.0) * sun * 0.4;
+        }
+        else col += vec3(0.25, 0.4, 0.7) * exp(-(pa - pr) * 18.0) * 0.3;
+        vec3 md = normalize(vec3(-0.35, 0.3, -0.9));
+        float ma = acos(clamp(dot(d, md), -1.0, 1.0));
+        if (ma < 0.04)
+        {
+            float shade = 0.55 + 0.45 * valueNoise(d.xy * 70.0) - 0.25 * valueNoise(d.xy * 190.0) + 0.5 * smoothstep(0.04, -0.02, ma - 0.01 * d.x * 4.0);
+            col = vec3(0.55, 0.54, 0.52) * clamp(shade, 0.15, 1.0);
+        }
+
+        // in one tint the sky is the luminance of this, in the phosphor's colour
+        if (uMono > 0.5) col = mix(uBg, tint, clamp(dot(col, vec3(0.2126, 0.7152, 0.0722)) * 1.4, 0.0, 1.0));
+        outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+        return;
+    }
     else if (mat > ${F(MAT.hazard)} - 0.5)
     {
         // chevrons on the floor: diagonal stripes that melt into an even tone when they get finer than a pixel
