@@ -1,5 +1,6 @@
 import { MATERIALS } from '@/ship3d/materials';
 import { PREFABS } from '@/ship3d/prefabs';
+import { ZONES as ZONE_DEFS } from '@/ship3d/zones';
 import type { Face, PropData, ShapeData } from '@/ship3d/shipData';
 import type { V2 } from '@/ship3d/world';
 import type { Doc } from './doc';
@@ -22,7 +23,8 @@ export interface PanelCtx
     focus(x: number, y: number): void;
 }
 
-const ZONES = ['puente', 'comms', 'motor', 'bodega', 'enfermeria', 'hipersueno', 'comedor', 'camarotes', 'hangar', 'pasillo'];
+const ZONES = Object.keys(ZONE_DEFS);
+const ROOM_ZONES = ZONES.filter(z => !ZONE_DEFS[z].hall);
 const FACES: Face[] = ['N', 'E', 'S', 'W'];
 const deg = (r: number) => clean((r * 180) / Math.PI);
 const rad = (d: number) => (d * Math.PI) / 180;
@@ -252,7 +254,7 @@ export class Panel
                 if (!s) break;
                 e.append(el('div', 'title', `PANTALLA ${s.id}`));
                 this.text(e, 'id', () => s.id, v => { s.id = v.trim() || s.id; });
-                this.pick(e, 'zona', [...ZONES.slice(0, 9), 'hub'], () => s.zone, v => { s.zone = v; });
+                this.pick(e, 'zona', [...ROOM_ZONES, 'hub'], () => s.zone, v => { s.zone = v; });
                 if (s.on === 'wall')
                 {
                     move(() => [s.x, s.y], (x, y) => { s.x = x; s.y = y; });

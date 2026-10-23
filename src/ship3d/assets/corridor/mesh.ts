@@ -1,7 +1,8 @@
-import type { V3 } from '../math';
-import { type Room, type V2 } from '../world';
-import { MAT, Builder } from './builder';
-import { made, wallBox, wallPoint, type WallFrame } from './doorway';
+import type { V3 } from '../../math';
+import { ROOMS, type Room, type V2 } from '../../world';
+import { isHall } from '../../zones';
+import { MAT, Builder } from '../../mesh/builder';
+import { made, wallBox, wallPoint, type WallFrame } from '../../mesh/doorway';
 
 export const rectOutline = (x0: number, y0: number, x1: number, y1: number): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
 
@@ -88,3 +89,5 @@ export function addCorridor(b: Builder, room: Room)
     const P = (u: number, v: number): V3 => (alongX ? [u, h - 0.01, v] : [v, h - 0.01, u]);
     b.quad([P(a0 + 0.6, m - hw), P(a1 - 0.6, m - hw), P(a1 - 0.6, m + hw), P(a0 + 0.6, m + hw)], [0, -1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], MAT.glow, 0.9);
 }
+
+export const build = (b: Builder) => { for (const room of ROOMS) if (isHall(room.zone)) addCorridor(b, room); };

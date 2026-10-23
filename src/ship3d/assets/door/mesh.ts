@@ -1,5 +1,5 @@
-import { PORTALS, portalAxis, roomAt } from '../world';
-import { MAT, Builder } from './builder';
+import { PORTALS, portalAxis, roomAt } from '../../world';
+import { MAT, Builder } from '../../mesh/builder';
 
 /**
  * A sliding door in each doorway: a leaf on either face of the opening. The vertices carry the door's number in the
@@ -21,3 +21,5 @@ export function addDoors(b: Builder)
         }
     });
 }
+
+export const build = (b: Builder) => addDoors(b);

@@ -5,7 +5,7 @@ import { createShipGL, type Palette } from '@/ship3d/gl';
 import { openBottoms } from '@/ship3d/meshCheck';
 import { nearestLights, packLights } from '@/ship3d/lights';
 import { buildMesh } from '@/ship3d/mesh';
-import bundled from '@/ship3d/ship.json';
+import { bundledPlan as bundled } from '@/ship3d/plan';
 import type { ShipData } from '@/ship3d/shipData';
 import { applyMaterials, packMaterialUniforms } from '@/ship3d/materials';
 import type { MaterialsFile } from '@/ship3d/materialData';
@@ -321,8 +321,8 @@ async function save(name: string)
     doc.markSaved();
     saveDraft();
     message = name === 'ship'
-        ? 'GUARDADO EN src/ship3d/ship.json. RECARGA EL LAUNCHER PARA VERLO ALLÍ.'
-        : `GUARDADO EN src/ship3d/variants/${name}.json (EL LAUNCHER SOLO CARGA ship.json).`;
+        ? 'GUARDADO EN src/ship3d/plan/. RECARGA EL LAUNCHER PARA VERLO ALLÍ.'
+        : `GUARDADO EN src/ship3d/variants/${name}.json (EL LAUNCHER SOLO CARGA plan/).`;
     renderFile();
 }
 

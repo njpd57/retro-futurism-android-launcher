@@ -1,6 +1,7 @@
 import type { ShipData } from '@/ship3d/shipData';
 import { MATERIALS } from '@/ship3d/materials';
 import { PREFABS } from '@/ship3d/prefabs';
+import { isHall, ZONES } from '@/ship3d/zones';
 import { inside, splitEdge, type Room, type V2 } from '@/ship3d/world';
 import { centroid } from '@/ship3d/world';
 import { area, isConvex, nearestEdge, overlaps } from './geometry';
@@ -16,8 +17,8 @@ export interface Issue
     sel?: Sel;
 }
 
-/** The nine rooms the hud, the sounds and the crew expect to exist. */
-const REQUIRED = ['puente', 'comms', 'motor', 'bodega', 'enfermeria', 'hipersueno', 'comedor', 'camarotes', 'hangar'];
+/** The rooms the hud, the sounds and the crew expect to exist (`required` in `zones/*.json`). */
+const REQUIRED = Object.values(ZONES).filter(z => z.required).map(z => z.id);
 
 const asRoom = (r: Scene['rooms'][number]) => r as unknown as Room;
 
@@ -70,7 +71,7 @@ export function validateWorld(data: ShipData, scene: Scene = sceneOf(data)): Iss
     });
     scene.rooms.forEach((r, i) =>
     {
-        if (r.zone !== 'pasillo') return;
+        if (!isHall(r.zone)) return;
         const doors = portals.filter((p, k) => hosts[k].includes(r)).length;
         if (doors < 2) add('warn', `${r.id}: PASILLO CON ${doors} PUERTA(S); NECESITA UNA EN CADA EXTREMO`, centroid(r.poly), { t: 'room', i });
     });

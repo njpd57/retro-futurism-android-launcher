@@ -1,0 +1,106 @@
+{
+ "roomOrder": [
+  "comedor",
+  "puente",
+  "comms",
+  "enfermeria",
+  "bodega",
+  "camarotes",
+  "hipersueno",
+  "motor",
+  "hangar",
+  "p-puente",
+  "p-comms",
+  "p-enfermeria",
+  "p-bodega",
+  "p-camarotes",
+  "p-hipersueno",
+  "p-motor",
+  "p-hangar"
+ ],
+ "door": {
+  "width": 3,
+  "height": 2.6
+ },
+ "start": {
+  "x": 0,
+  "y": -14.2,
+  "yaw": 0,
+  "pitch": 0
+ },
+ "mess": {
+  "tableR": 2.5,
+  "tableTop": 0.76,
+  "chairR": 3.05,
+  "chairs": 8,
+  "crownR": 1.25,
+  "crownZ0": 2.6,
+  "ringD": 9,
+  "bird": {
+   "x": 1,
+   "y": 1.1,
+   "yaw": 1.5707963267948966,
+   "glass": 0.26
+  }
+ },
+ "hangar": {
+  "max": 6,
+  "rows": [
+   60.8,
+   65.4,
+   70
+  ],
+  "x": 7.5,
+  "w": 3.4,
+  "d": 3,
+  "h": 1.6,
+  "z0": 0.3
+ },
+ "lamps": {
+  "step": 7,
+  "corridorStep": 6,
+  "power": 2.2
+ },
+ "assets": [
+  {
+   "kind": "corridor"
+  },
+  {
+   "kind": "hazard"
+  },
+  {
+   "kind": "stencil"
+  },
+  {
+   "kind": "sign"
+  },
+  {
+   "kind": "keyboard"
+  },
+  {
+   "kind": "control-panel"
+  },
+  {
+   "kind": "screen"
+  },
+  {
+   "kind": "window",
+   "room": "puente",
+   "from": 2,
+   "to": 6
+  },
+  {
+   "kind": "door"
+  },
+  {
+   "kind": "lamp"
+  }
+ ],
+ "floodlight": {
+  "x": 0,
+  "y": -18.8,
+  "z": 3.4,
+  "power": 3,
+  "zone": "puente"
+ }
+}

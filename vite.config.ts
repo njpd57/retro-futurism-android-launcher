@@ -1,10 +1,35 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import { mergePlan, splitPlan, type PlanPart } from './src/ship3d/planMerge';
 
 const SHIP_DIR = fileURLToPath(new URL('./src/ship3d', import.meta.url));
+
+const PLAN_DIR = `${SHIP_DIR}/plan`;
+
+const readJson = <T>(file: string) => JSON.parse(readFileSync(file, 'utf8')) as T;
+const writeJson = (file: string, data: unknown) => writeFileSync(file, `${JSON.stringify(data, null, 1)}\n`);
+
+/** The ship's plan on disk: `plan/global.json` and `plan/rooms/*.json`, merged into the one document the editor works on. */
+function readPlan()
+{
+  const dir = `${PLAN_DIR}/rooms`;
+  const rooms = Object.fromEntries((existsSync(dir) ? readdirSync(dir).filter(f => f.endsWith('.json')) : []).map(f => [f.slice(0, -5), readJson<PlanPart>(`${dir}/${f}`)]));
+  return mergePlan(readJson<PlanPart>(`${PLAN_DIR}/global.json`), rooms);
+}
+
+/** Writes the editor's document back as the files of the plan: each thing in the file of the room it stands in, and no file for a room that is gone. */
+function writePlan(data: Parameters<typeof splitPlan>[0])
+{
+  const { global, rooms } = splitPlan(data);
+  const dir = `${PLAN_DIR}/rooms`;
+  mkdirSync(dir, { recursive: true });
+  writeJson(`${PLAN_DIR}/global.json`, global);
+  for (const [id, part] of Object.entries(rooms)) writeJson(`${dir}/${id}.json`, part);
+  for (const f of readdirSync(dir)) if (f.endsWith('.json') && !(f.slice(0, -5) in rooms)) rmSync(`${dir}/${f}`);
+}
 
 const PUBLIC_SHIP = fileURLToPath(new URL('./public/ship', import.meta.url));
 
@@ -19,7 +44,7 @@ function shipEditor(): Plugin
     if (kind === 'materials') return `${SHIP_DIR}/materials.json`;
     if (kind === 'prefabs') return `${SHIP_DIR}/prefabs.json`;
     if (kind && kind !== 'plans') return null;
-    return name && NAME.test(name) ? (name === 'ship' ? `${SHIP_DIR}/ship.json` : `${SHIP_DIR}/variants/${name}.json`) : null;
+    return name && NAME.test(name) ? (name === 'ship' ? `${PLAN_DIR}/global.json` : `${SHIP_DIR}/variants/${name}.json`) : null;
   };
   const valid: Record<string, (d: Record<string, unknown>) => boolean> = {
     plans: d => Array.isArray(d.rooms) && Array.isArray(d.props),
@@ -45,7 +70,7 @@ function shipEditor(): Plugin
         const file = fileOf(q(req).get('kind'), q(req).get('name'));
         if (!file || !existsSync(file)) { res.statusCode = 404; res.end('no such file'); return; }
         res.setHeader('Content-Type', 'application/json');
-        res.end(readFileSync(file, 'utf8'));
+        res.end(file === `${PLAN_DIR}/global.json` ? JSON.stringify(readPlan()) : readFileSync(file, 'utf8'));
       });
       server.middlewares.use('/__ship/save', (req, res) =>
       {
@@ -62,7 +87,8 @@ function shipEditor(): Plugin
             if (!valid[kind]?.(data)) throw new Error(`not a ${kind} file`);
             mkdirSync(`${SHIP_DIR}/variants`, { recursive: true });
             savedAt = Date.now();
-            writeFileSync(file, JSON.stringify(data, null, 1));
+            if (file === `${PLAN_DIR}/global.json`) writePlan(data);
+            else writeFileSync(file, JSON.stringify(data, null, 1));
             res.end('ok');
           }
           catch (e)

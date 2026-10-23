@@ -1,0 +1,100 @@
+{
+ "rooms": [
+  {
+   "id": "hangar",
+   "zone": "hangar",
+   "name": "HANGAR",
+   "height": 6.5,
+   "shape": {
+    "chamfer": [
+     -12,
+     55,
+     12,
+     73,
+     2
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": 0,
+   "y": 55
+  }
+ ],
+ "screens": [
+  {
+   "id": "hangar.flota",
+   "zone": "hangar",
+   "on": "wall",
+   "x": 0,
+   "y": 73,
+   "face": "N",
+   "w": 4,
+   "h": 2,
+   "z": 2
+  }
+ ],
+ "panels": [
+  {
+   "id": "hangar.consola",
+   "x": 5.2,
+   "y": 55.08,
+   "z": 1.35,
+   "w": 2.3,
+   "h": 0.45,
+   "yaw": 3.1416,
+   "tilt": 0.2
+  }
+ ],
+ "controls": [
+  {
+   "id": "hangar.atajo1",
+   "panel": "hangar.consola",
+   "u": -0.84,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut0",
+   "label": "---"
+  },
+  {
+   "id": "hangar.atajo2",
+   "panel": "hangar.consola",
+   "u": -0.2799999999999999,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut1",
+   "label": "---"
+  },
+  {
+   "id": "hangar.atajo3",
+   "panel": "hangar.consola",
+   "u": 0.28000000000000014,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut2",
+   "label": "---"
+  },
+  {
+   "id": "hangar.atajo4",
+   "panel": "hangar.consola",
+   "u": 0.8400000000000002,
+   "v": 0.05,
+   "kind": "button",
+   "action": "shortcut3",
+   "label": "---"
+  }
+ ],
+ "stencils": [
+  {
+   "room": "hangar",
+   "text": "C8 HANGAR"
+  }
+ ],
+ "stands": {
+  "hangar": [
+   0,
+   58.4
+  ]
+ }
+}

@@ -1,6 +1,6 @@
 # Ship map and asset editor
 
-A dev-only page that draws the ship with the real engine and edits its data: the plan (`src/ship3d/ship.json`), the materials and their textures (`materials.json`, `public/ship/*.png`) and the prefabs (`prefabs.json`). It has three tabs, MAPA, MATERIALES and PREFABS; each has its own undo history and its own file, and the tab bar marks the ones with unsaved work (●).
+A dev-only page that draws the ship with the real engine and edits its data: the plan (`src/ship3d/plan/`: `global.json` and one `rooms/<id>.json` per room), the materials and their textures (`materials.json`, `public/ship/*.png`) and the prefabs (`prefabs.json`). It has three tabs, MAPA, MATERIALES and PREFABS; each has its own undo history and its own file, and the tab bar marks the ones with unsaved work (●).
 
 ```bash
 npm run ship:edit      # vite dev server, opens /editor.html
@@ -10,19 +10,19 @@ npm run ship:edit      # vite dev server, opens /editor.html
 
 ## The data
 
-`ship.json` (types in `src/ship3d/shipData.ts`) is the source of truth. `world.ts` expands it with `applyWorld(data)` at import and exports the same constants as before (`ROOMS`, `PORTALS`, `PROPS`, `SCREENS`, `LIGHTS`, `START`, `STANDS`, `VIAS`, `SIGNAL_SLOTS`, `STENCILS`, `TABLE_R`, `CHAIRS`, `BIRD`...). **`applyWorld` empties and refills the arrays and records in place**, so what other modules imported stays valid; modules that derive something at import register with `onWorldChange(fn)` (`bake.ts` clears its cache, `atlas.ts` refills `SLOT`). Don't copy a world export into a module-level constant if the editor needs to see changes (`glide.ts` `SEGS`, `pick.ts` `WALLS`, `acoustics.ts` `SOURCES`, `hud.ts` `NAMES` / `ORDER` and `crew.ts` `SEATS` do, and are only correct because the launcher applies the world once, at import).
+the plan in `plan/` (merged by `planMerge.ts`; types in `src/ship3d/shipData.ts`) is the source of truth. `world.ts` expands it with `applyWorld(data)` at import and exports the same constants as before (`ROOMS`, `PORTALS`, `PROPS`, `SCREENS`, `LIGHTS`, `START`, `STANDS`, `VIAS`, `SIGNAL_SLOTS`, `STENCILS`, `TABLE_R`, `CHAIRS`, `BIRD`...). **`applyWorld` empties and refills the arrays and records in place**, so what other modules imported stays valid; modules that derive something at import register with `onWorldChange(fn)` (`bake.ts` clears its cache, `atlas.ts` refills `SLOT`). Don't copy a world export into a module-level constant if the editor needs to see changes (`glide.ts` `SEGS`, `pick.ts` `WALLS`, `acoustics.ts` `SOURCES`, `hud.ts` `NAMES` / `ORDER` and `crew.ts` `SEATS` do, and are only correct because the launcher applies the world once, at import).
 
 | Key | What |
 |---|---|
 | `door` | width and height of every doorway (the shader reads the height once at load) |
 | `start` | where the camera begins |
-| `rooms` | `id`, `zone` (one of the nine rooms or `pasillo`), `name`, `height`, `shape`: `rect`, `chamfer`, `ngon`, `dome` (parameters) or `poly` (literal convex outline); optional `floor`, `wall`, `ceiling`: ids in `materials.json` for that room's surfaces (the kind's own when left out; set by hand in `ship.json`, the editor keeps them) |
+| `rooms` | `id`, `zone` (one of the nine rooms or `pasillo`), `name`, `height`, `shape`: `rect`, `chamfer`, `ngon`, `dome` (parameters) or `poly` (literal convex outline); optional `floor`, `wall`, `ceiling`: ids in `materials.json` for that room's surfaces (the kind's own when left out; set by hand in the plan (`plan/`), the editor keeps them) |
 | `portals` | doorway centres; each must sit on a wall shared by two rooms |
 | `props` | boxes and cylinders in order, plus generators: `mess` (ring, table, jars, bird's glass, crown, chairs: numbers in `mess`) and `pods` |
 | `mess`, `hangar` | parameters of those generators; `hangar.rows` holds one `y` per pair of shuttles |
 | `screens` | monitors: `wall` (point on a wall and `face`), `crown` (over the mess table), `dome` (side `k` of the bridge dome); the order is the atlas slot (20 at most) |
 | `lamps`, `extraLights` | the ceiling-lamp grid, and lights placed by hand |
-| `panels`, `controls`, `stations` | panels of switches and lamps, the controls on them and the seats (see `docs/SHIP_PANEL.md`, "Stations"). **Not in the editor yet:** edit them by hand in `ship.json` and look at the result with `scripts/ship-shot.sh` (`EYE=1.15` for a seat's height); the editor keeps them when it saves |
+| `panels`, `controls`, `stations` | panels of switches and lamps, the controls on them and the seats (see `docs/SHIP_PANEL.md`, "Stations"). **Not in the editor yet:** edit them by hand in the plan (`plan/`) and look at the result with `scripts/ship-shot.sh` (`EYE=1.15` for a seat's height); the editor keeps them when it saves |
 | `stands`, `vias`, `signalSlots`, `stencils` | where the minimap puts the camera in each room, route points round obstacles, the crew's places in COMMS, the wall stencils (used by `glide.ts`, `crew.ts`, `labels.ts`) |
 
 Rebuilding is cheap (about 50 ms): `applyWorld` + `buildMesh()` + `ShipGL.setMesh`.
@@ -36,9 +36,9 @@ Rebuilding is cheap (about 50 ms): `applyWorld` + `buildMesh()` + `ShipGL.setMes
 - Keys: arrows nudge, Delete removes, Ctrl+D duplicates, Ctrl+Z / Ctrl+Shift+Z undo and redo, Tab walks.
 - **Walk (Tab)**: first person with the launcher's own `walker`, collisions and doors; WASD, drag or arrows to look, Esc returns to the plan where you stood.
 - **Avisos** (`validate.ts`, plus the mesh check from `ship3d/meshCheck.ts`): room not convex, overlapping or without area; doorway off any wall, joining fewer than two rooms or blocked by a solid prop; corridors without a door at each end; props through a wall or outside the ship; screens off their wall or duplicated; stands and route points outside their room or inside a solid; more than 20 screens or 16 doorways; solids open underneath. Click one to jump to it.
-- **Files**: *Guardar* writes the active plan. *Guardar como…* writes `src/ship3d/variants/<name>.json`; only `ship.json` is loaded by the launcher. *Cambios* shows a line diff against what is on disk. A draft of unsaved work is kept in `localStorage`.
+- **Files**: *Guardar* writes the active plan. *Guardar como…* writes `src/ship3d/variants/<name>.json`; only `plan/` is loaded by the launcher. *Cambios* shows a line diff against what is on disk. A draft of unsaved work is kept in `localStorage`.
 
-After saving `ship.json`, reload the launcher (or its dev tab) to see it. The editor's own page is not reloaded when the file it wrote changes, so the undo history survives.
+After saving the plan, reload the launcher (or its dev tab) to see it. The editor's own page is not reloaded when the file it wrote changes, so the undo history survives.
 
 ## Materials and textures (MATERIALES tab)
 

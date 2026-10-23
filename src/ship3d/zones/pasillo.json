@@ -1,0 +1,19 @@
+{
+ "id": "pasillo",
+ "required": false,
+ "voice": {
+  "level": 0.5,
+  "hush": {
+   "filter": "bandpass",
+   "freq": 220,
+   "q": 0.9,
+   "gain": 0.7
+  }
+ },
+ "step": "grate",
+ "work": false,
+ "widgets": [],
+ "keyScreens": [],
+ "hall": true,
+ "label": "PASILLO"
+}

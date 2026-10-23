@@ -6,6 +6,7 @@ import ShipMinimap from './ShipMinimap.vue';
 import ShipMonitor from './ShipMonitor.vue';
 import { useShipInput } from '@/composables/useShipInput';
 import { useShipControls } from '@/composables/useShipControls';
+import { useShipPlates } from '@/composables/useShipPlates';
 import { prefersReducedMotion } from '@/composables/useReducedMotion';
 import { aimPixels } from '@/games/marines/aim';
 import { useAppsStore } from '@/stores/useAppsStore';
@@ -46,7 +47,7 @@ import { pickAgent, pickControl, pickScreen, pickShuttle, pickStation, REACH, ty
 import { wrapAngle } from '@/ship3d/math';
 import { fovYFor } from '@/ship3d/math';
 import { clampLook, focusShot, glassCorners, SHOT_SECONDS, stationShot, tweenShot, type Shot } from '@/ship3d/camera';
-import { bounds, type Light, collisionSegments, CONTROLS, hangarBays, LIGHTS, PORTALS, PROPS, roomAt, ROOMS, screenById, stationById, type ScreenDef, type V2 } from '@/ship3d/world';
+import { bounds, FLOODLIGHT, type Light, collisionSegments, CONTROLS, hangarBays, LIGHTS, PORTALS, PROPS, roomAt, ROOMS, screenById, stationById, type ScreenDef, type V2 } from '@/ship3d/world';
 import { appLabelFor } from '@/utils/notifications';
 import { HEAVY_CONTACT, radarContacts } from '@/utils/radar';
 import { bendK, correctPoint } from '@/utils/curvature';
@@ -101,22 +102,7 @@ let last = 0;
 let lastSync = 0;
 let backgrounded = false;
 // ---- what the crew and the shuttles stand for: the apps with signals, the starred contacts, the favourite apps
-const labelOf = (pkg: string) => appLabelFor(pkg, appsStore.apps);
-const signalApps = computed(() => radarContacts(notifications.visible, SIGNAL_SLOTS.length));
-const starred = computed(() => contacts.starred.slice(0, CONTACT_SEATS));
-const bays = computed(() => hangarBays(settings.favorites.length));
-const plates = computed(() =>
-{
-    const texts = plateTexts({
-        signals: settings.shipLabels ? signalApps.value.map(c => ({ label: labelOf(c.packageName), count: c.notifications.length })) : [],
-        contacts: settings.shipLabels ? starred.value.map(c => c.name) : [],
-        shuttles: settings.favorites.slice(0, bays.value.length).map(labelOf),
-    });
-    return withControls(withSigns(settings.shipLabels ? withStencils(texts) : texts), shipControls.labels.value);
-});
-const shuttles = computed(() => shuttleVertices(bays.value));
-// the shuttles are walked round like any crate
-const segs = computed(() => collisionSegments(ROOMS, [...PROPS, ...bays.value.map(b => b.prop)]));
+const { labelOf, signalApps, starred, bays, plates, shuttles, segs } = useShipPlates();
 // ---- life aboard: the doors, the crew that stays and the two that wander
 let doors = shutDoors();
 let lastStep = 0;
@@ -131,11 +117,12 @@ const stay = computed(() => stationaryAgents(signalApps.value.length, starred.va
 /** how many times the table has been talked to, so a diner doesn't repeat itself */
 let chats = 0;
 const lightZone = LIGHTS.map(l => roomAt(l.x, l.y)?.zone);
-// ---- the ship answers to the phone: the flashlight is a floodlight over the bridge, the lamps dim with the screen's
+// ---- the ship answers to the phone: the flashlight is a floodlight, the lamps dim with the screen's
 // brightness, and silence (or vibration) lights the amber cell of every door's status box
-const FLOOD: Light = { x: 0, y: -18.8, z: 3.4, power: 3 };
-const LIGHTS_FLOOD = [...LIGHTS, FLOOD];
-const floodZone = [...lightZone, 'puente'];
+// the flashlight is one more light, in the room the plan names (`floodlight`)
+const FLOOD = FLOODLIGHT.light;
+const LIGHTS_FLOOD: readonly Light[] = FLOOD ? [...LIGHTS, FLOOD] : LIGHTS;
+const floodZone = FLOOD ? [...lightZone, FLOODLIGHT.zone ?? undefined] : lightZone;
 const dim = computed(() => (quick.brightness && !quick.brightness.isAuto ? 0.35 + 0.65 * quick.brightness.level : 1));
 const quiet = computed(() => quick.ringer === 'silent' || quick.ringer === 'vibrate');
 /** the lit amber cells, built once the mesh has recorded where they are */

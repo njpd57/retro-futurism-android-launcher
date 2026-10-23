@@ -1,6 +1,7 @@
 import type { V3 } from '../math';
 import { propOutline, roomAt, splitEdge, type Light, type Prop, type Room, type V2 } from '../world';
 import { MAT, MAT_SURFACE, STYLE, MAT_STYLE, Builder, extrude } from './builder';
+import { isHall } from '../zones';
 import { addDoorway } from './doorway';
 
 /** Edge in metres of the cells the big surfaces are cut into: small enough for the baked light to follow the corners. */
@@ -102,7 +103,7 @@ export function addRoom(b: Builder, room: Room)
                 wallGrid(b, t => at(t, 0.003), d.from, d.to, top, h, n, MAT.wall + st + wl);
             }
             // the moulded surround on the room's side (a corridor's ends are all doorway: its own kit frames them)
-            if (room.zone !== 'pasillo')
+            if (!isHall(room.zone))
                 addDoorway(b, { origin: at(0), along: [e.dx, e.dy], normal: [e.nx, e.ny] }, (d.from + d.to) / 2, (d.to - d.from) / 2, top,
                     Math.min(d.from, length - d.to), h);
         }
@@ -117,12 +118,4 @@ export function addProp(b: Builder, p: Prop)
 {
     b.room = roomAt(p.x, p.y) ?? null;
     extrude(b, propOutline(p, p.kind === 'cyl' ? (p.sides ?? 16) : 4), p.z0, p.z0 + p.h, propMaterial(p), p.glow);
-}
-
-/** A glowing lamp panel on the ceiling under each ceiling light. */
-export function addLamp(b: Builder, l: Light, room: Room)
-{
-    b.room = null;
-    const y = room.height - 0.02;
-    b.quad([[l.x - 0.8, y, l.y - 0.25], [l.x + 0.8, y, l.y - 0.25], [l.x + 0.8, y, l.y + 0.25], [l.x - 0.8, y, l.y + 0.25]], [0, -1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], MAT.glow, 1);
 }

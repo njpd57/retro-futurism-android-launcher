@@ -1,0 +1,171 @@
+{
+ "rooms": [
+  {
+   "id": "motor",
+   "zone": "motor",
+   "name": "MOTOR",
+   "height": 6,
+   "shape": {
+    "chamfer": [
+     -8,
+     35,
+     8,
+     49,
+     2
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": 0,
+   "y": 35
+  },
+  {
+   "x": 0,
+   "y": 49
+  }
+ ],
+ "props": [
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": 42,
+   "w": 4.4,
+   "h": 6,
+   "glow": 0.3,
+   "material": "amber"
+  },
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": 42,
+   "w": 5,
+   "h": 0.5,
+   "material": "graphite"
+  },
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": 42,
+   "w": 5,
+   "h": 0.4,
+   "z0": 5.6,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": 42,
+   "w": 4.6000000000000005,
+   "h": 0.2,
+   "z0": 1.4,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": 42,
+   "w": 4.6000000000000005,
+   "h": 0.2,
+   "z0": 2.8,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "cyl",
+   "x": 0,
+   "y": 42,
+   "w": 4.6000000000000005,
+   "h": 0.2,
+   "z0": 4.2,
+   "material": "graphite",
+   "solid": false
+  }
+ ],
+ "screens": [
+  {
+   "id": "motor.reserva",
+   "zone": "motor",
+   "on": "wall",
+   "x": -8,
+   "y": 39.4,
+   "face": "E"
+  },
+  {
+   "id": "motor.enlace",
+   "zone": "motor",
+   "on": "wall",
+   "x": 8,
+   "y": 39.4,
+   "face": "W"
+  }
+ ],
+ "panels": [
+  {
+   "id": "motor.diales",
+   "x": -4.8,
+   "y": 35.08,
+   "z": 1.45,
+   "w": 1.8,
+   "h": 0.45,
+   "yaw": 3.1416,
+   "tilt": 0
+  }
+ ],
+ "controls": [
+  {
+   "id": "motor.reserva",
+   "panel": "motor.diales",
+   "u": -0.55,
+   "v": 0.05,
+   "kind": "gauge",
+   "action": "battery",
+   "label": "RESERVA"
+  },
+  {
+   "id": "motor.carga",
+   "panel": "motor.diales",
+   "u": 0,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "charging",
+   "label": "CARGA"
+  },
+  {
+   "id": "motor.almacen",
+   "panel": "motor.diales",
+   "u": 0.55,
+   "v": 0.05,
+   "kind": "gauge",
+   "action": "storage",
+   "label": "ALMACÉN"
+  }
+ ],
+ "stencils": [
+  {
+   "room": "motor",
+   "text": "C7 MOTOR"
+  }
+ ],
+ "stands": {
+  "motor": [
+   0,
+   37.8
+  ]
+ },
+ "vias": {
+  "motor": [
+   [
+    -4.2,
+    42
+   ],
+   [
+    4.2,
+    42
+   ]
+  ]
+ }
+}

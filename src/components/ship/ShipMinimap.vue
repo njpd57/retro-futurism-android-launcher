@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { miniMap } from '@/ship3d/minimap';
 import { roomLevel, type ScreenReading } from '@/ship3d/readings';
 import { STANDS } from '@/ship3d/glide';
+import { isHall } from '@/ship3d/zones';
 import type { ShipPose } from '@/stores/useShipStore';
 
 const props = defineProps<{ pose: ShipPose; readings: Record<string, ScreenReading> }>();
@@ -17,7 +18,7 @@ const level = (zone: string) => roomLevel(props.readings, zone);
 <template>
     <div class="minimap" data-no-swipe>
         <svg :width="map.w" :height="map.h" :viewBox="`0 0 ${map.w} ${map.h}`">
-            <polygon v-for="r in map.rooms" :key="r.id" class="room" :class="[r.zone === 'pasillo' ? 'hall' : level(r.zone), { go: r.id in STANDS }]"
+            <polygon v-for="r in map.rooms" :key="r.id" class="room" :class="[isHall(r.zone) ? 'hall' : level(r.zone), { go: r.id in STANDS }]"
                 :points="r.points" @click.stop="r.id in STANDS && emit('go', r.id)" />
             <polygon class="you" :points="map.you" />
         </svg>

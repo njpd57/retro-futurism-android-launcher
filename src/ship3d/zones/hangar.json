@@ -1,0 +1,37 @@
+{
+ "id": "hangar",
+ "required": true,
+ "voice": {
+  "level": 0.7,
+  "tone": {
+   "freq": 60,
+   "wave": "sine",
+   "gain": 0.25
+  },
+  "hush": {
+   "filter": "bandpass",
+   "freq": 700,
+   "q": 0.8,
+   "gain": 0.6
+  },
+  "wobble": {
+   "hz": 0.1,
+   "depth": 0.4
+  }
+ },
+ "step": "grate",
+ "work": true,
+ "widgets": [
+  {
+   "kind": "favorites",
+   "rows": 2
+  },
+  {
+   "kind": "recent",
+   "rows": 1
+  }
+ ],
+ "keyScreens": [
+  "hangar.flota"
+ ]
+}

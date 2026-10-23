@@ -1,4 +1,5 @@
 import { PREFABS } from '@/ship3d/prefabs';
+import { ZONES } from '@/ship3d/zones';
 import type { PropData, PropEntry, ScreenData, ShapeData, ShipData } from '@/ship3d/shipData';
 import { shapeOf, type V2 } from '@/ship3d/world';
 import { clean, nearestOnSegment, pointInPoly } from './geometry';
@@ -133,7 +134,7 @@ export function addRoom(data: ShipData, x: number, y: number): Sel
 {
     let n = 1;
     while (data.rooms.some(r => r.id === `sala-${n}`)) n++;
-    data.rooms.push({ id: `sala-${n}`, zone: 'pasillo', name: `SALA ${n}`, height: 3, shape: { rect: [x - 3, y - 3, x + 3, y + 3] } });
+    data.rooms.push({ id: `sala-${n}`, zone: Object.values(ZONES).find(z => z.hall)?.id ?? 'pasillo', name: `SALA ${n}`, height: 3, shape: { rect: [x - 3, y - 3, x + 3, y + 3] } });
     return { t: 'room', i: data.rooms.length - 1 };
 }
 

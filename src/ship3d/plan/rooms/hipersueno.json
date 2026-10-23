@@ -1,0 +1,149 @@
+{
+ "rooms": [
+  {
+   "id": "hipersueno",
+   "zone": "hipersueno",
+   "name": "HIPERSUEÑO",
+   "height": 3.6,
+   "shape": {
+    "chamfer": [
+     17,
+     15,
+     29,
+     27,
+     2
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": 17,
+   "y": 21
+  }
+ ],
+ "props": [
+  {
+   "gen": "pods",
+   "cx": 23,
+   "cy": 21,
+   "radius": 3.6
+  }
+ ],
+ "screens": [
+  {
+   "id": "hipersueno.alarma",
+   "zone": "hipersueno",
+   "on": "wall",
+   "x": 21,
+   "y": 15,
+   "face": "S"
+  },
+  {
+   "id": "hipersueno.agenda",
+   "zone": "hipersueno",
+   "on": "wall",
+   "x": 25,
+   "y": 15,
+   "face": "S"
+  }
+ ],
+ "stations": [
+  {
+   "id": "hipersueno.capsula1",
+   "x": 26.118,
+   "y": 22.8,
+   "z": 1.15,
+   "yaw": -1.0472,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula2",
+   "x": 23,
+   "y": 24.6,
+   "z": 1.15,
+   "yaw": 0,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula3",
+   "x": 19.882,
+   "y": 22.8,
+   "z": 1.15,
+   "yaw": 1.0472,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula4",
+   "x": 19.882,
+   "y": 19.2,
+   "z": 1.15,
+   "yaw": 2.0944,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula5",
+   "x": 23,
+   "y": 17.4,
+   "z": 1.15,
+   "yaw": 3.1416,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  },
+  {
+   "id": "hipersueno.capsula6",
+   "x": 26.118,
+   "y": 19.2,
+   "z": 1.15,
+   "yaw": -2.0944,
+   "arc": 1.6,
+   "pitch": 0.55,
+   "pitchMin": 0.1,
+   "pitchMax": 1.45,
+   "r": 0.75,
+   "h": 1.1,
+   "lying": true
+  }
+ ],
+ "stencils": [
+  {
+   "room": "hipersueno",
+   "text": "C6 HIPERSUEÑO"
+  }
+ ],
+ "stands": {
+  "hipersueno": [
+   23,
+   21
+  ]
+ }
+}

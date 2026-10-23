@@ -2,39 +2,26 @@ import { STANDS } from './glide';
 import { HFOV, wrapAngle, yawOf } from './math';
 import type { Level, ScreenReading } from './readings';
 import { ROOMS, type RoomId, type Zone } from './world';
+import { isHall, zoneDef } from './zones';
 
 /**
  * The strip at the top of the walk: where you are, what that room's monitors say in a word, and the room that wants
  * attention most so a tap takes you there. Pure.
  */
 
-/** The monitors whose first line sums up each room, in the order they are joined. */
-const KEY_SCREENS: Readonly<Record<Zone, readonly string[]>> = {
-    puente: ['puente.hora', 'puente.clima'],
-    comms: ['comms.senales'],
-    motor: ['motor.reserva', 'motor.enlace'],
-    bodega: ['bodega.almacen'],
-    enfermeria: ['enfermeria.sistema'],
-    hipersueno: ['hipersueno.alarma'],
-    comedor: ['comedor.rancho', 'comedor.pista'],
-    camarotes: ['camarotes.tripulacion'],
-    hangar: ['hangar.flota'],
-    pasillo: [],
-};
+const NAMES: Readonly<Record<string, string>> = Object.fromEntries(ROOMS.filter(r => !isHall(r.zone)).map(r => [r.zone, r.name]));
 
-const NAMES: Readonly<Record<string, string>> = Object.fromEntries(ROOMS.filter(r => r.zone !== 'pasillo').map(r => [r.zone, r.name]));
-
-export const zoneName = (zone: Zone | undefined): string => (zone && NAMES[zone]) || (zone === 'pasillo' ? 'PASILLO' : 'EXTERIOR');
+export const zoneName = (zone: Zone | undefined): string => (zone && NAMES[zone]) || (zoneDef(zone)?.label ?? 'EXTERIOR');
 
 /** `PUENTE · 14:32 · 18 °C`. */
 export function hudLine(readings: Readonly<Record<string, ScreenReading>>, zone: Zone | undefined): string
 {
-    const parts = (zone ? KEY_SCREENS[zone] : []).map(id => readings[id]?.lines[0]).filter((l): l is string => !!l);
+    const parts = (zoneDef(zone)?.keyScreens ?? []).map(id => readings[id]?.lines[0]).filter((l): l is string => !!l);
     return [zoneName(zone), ...parts].join(' · ');
 }
 
 /** The rooms in the order a tie is broken: the ship's data rooms as `ROOMS` lists them. */
-const ORDER: readonly RoomId[] = ROOMS.map(r => r.zone).filter((z): z is RoomId => z !== 'pasillo');
+const ORDER: readonly RoomId[] = ROOMS.map(r => r.zone).filter((z): z is RoomId => !isHall(z));
 
 export interface AlertRoom { zone: RoomId; name: string; level: Exclude<Level, 'idle'> }
 

@@ -4,17 +4,26 @@
 //    box, seen through from below
 // Exits 1 when a solid is open. The coplanar count is only a guide: it can't tell a face that is hidden from one in view,
 // so compare it with the figure before a change rather than reading it as a fault. The fingerprint is the vertex count and a hash of the mesh, to compare a refactor before and after.
+import { ASSET_SHADERS } from '@/ship3d/assets';
 import { buildMesh, MAT, STRIDE } from '@/ship3d/mesh';
 import { openBottoms } from '@/ship3d/meshCheck';
 
 const { data, vertices } = buildMesh();
-const MAT_NAME = Object.fromEntries(Object.entries(MAT).map(([k, v]) => [v, k]));
+const MAT_NAME = Object.fromEntries([...Object.entries(MAT), ...ASSET_SHADERS.map(a => [a.kind, a.mat] as const)].map(([k, v]) => [v, k]));
 const matOf = (t: number) => MAT_NAME[Math.round(data[t * 3 * STRIDE + 8]) % 16] ?? '?';
 const at = (t: number, k: number) => [0, 1, 2].map(c => data[(t * 3 + k) * STRIDE + c]);
 
 let hash = 2166136261;
 for (const b of new Uint8Array(data.buffer)) hash = Math.imul(hash ^ b, 16777619) >>> 0;
-const lines = [`mesh ${vertices} vertices, hash ${hash.toString(16)}`];
+// the same geometry in any order: the sum of a hash of each triangle, so moving a piece in the build order doesn't show
+let setHash = 0;
+for (let t = 0; t < vertices / 3; t++)
+{
+    let h = 2166136261;
+    for (const b of new Uint8Array(data.buffer, t * 3 * STRIDE * 4, 3 * STRIDE * 4)) h = Math.imul(h ^ b, 16777619) >>> 0;
+    setHash = (setHash + h) >>> 0;
+}
+const lines = [`mesh ${vertices} vertices, hash ${hash.toString(16)}, set ${setHash.toString(16)}`];
 
 const tris = vertices / 3;
 const PLANE_TOL = 0.001;

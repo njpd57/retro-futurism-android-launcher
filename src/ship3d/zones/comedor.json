@@ -1,0 +1,38 @@
+{
+ "id": "comedor",
+ "required": true,
+ "voice": {
+  "level": 0.45,
+  "tone": {
+   "freq": 100,
+   "wave": "sine",
+   "gain": 0.25
+  },
+  "hush": {
+   "filter": "bandpass",
+   "freq": 520,
+   "q": 1.2,
+   "gain": 0.35
+  },
+  "wobble": {
+   "hz": 0.6,
+   "depth": 0.25
+  }
+ },
+ "step": "plate",
+ "work": false,
+ "widgets": [
+  {
+   "kind": "media",
+   "rows": 2
+  },
+  {
+   "kind": "contacts",
+   "rows": 2
+  }
+ ],
+ "keyScreens": [
+  "comedor.rancho",
+  "comedor.pista"
+ ]
+}

@@ -1,0 +1,210 @@
+{
+ "rooms": [
+  {
+   "id": "comms",
+   "zone": "comms",
+   "name": "COMMS",
+   "height": 4,
+   "shape": {
+    "chamfer": [
+     -26,
+     -6,
+     -14,
+     6,
+     2
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": -14,
+   "y": 0
+  }
+ ],
+ "props": [
+  {
+   "kind": "cyl",
+   "x": -20.4,
+   "y": 0,
+   "w": 1.2,
+   "h": 4,
+   "glow": 0.4
+  },
+  {
+   "kind": "box",
+   "x": -19.4,
+   "y": 4.9,
+   "w": 4.4,
+   "d": 1.1,
+   "h": 1,
+   "material": "graphite"
+  },
+  {
+   "kind": "box",
+   "x": -19.4,
+   "y": -4.9,
+   "w": 4.4,
+   "d": 1.1,
+   "h": 1,
+   "material": "graphite"
+  },
+  {
+   "kind": "cyl",
+   "x": -20.4,
+   "y": 0,
+   "w": 1.3599999999999999,
+   "h": 0.15,
+   "z0": 0,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "cyl",
+   "x": -20.4,
+   "y": 0,
+   "w": 1.3599999999999999,
+   "h": 0.15,
+   "z0": 1.3,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "cyl",
+   "x": -20.4,
+   "y": 0,
+   "w": 1.3599999999999999,
+   "h": 0.15,
+   "z0": 2.6,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "cyl",
+   "x": -20.4,
+   "y": 0,
+   "w": 1.3599999999999999,
+   "h": 0.15,
+   "z0": 3.85,
+   "material": "graphite",
+   "solid": false
+  }
+ ],
+ "screens": [
+  {
+   "id": "comms.senales",
+   "zone": "comms",
+   "on": "wall",
+   "x": -26,
+   "y": -2,
+   "face": "E"
+  },
+  {
+   "id": "comms.mother",
+   "zone": "comms",
+   "on": "wall",
+   "x": -26,
+   "y": 2,
+   "face": "E"
+  }
+ ],
+ "panels": [
+  {
+   "id": "comms.enlaces",
+   "x": -19.4,
+   "y": -5.92,
+   "z": 1.55,
+   "w": 2,
+   "h": 0.42,
+   "yaw": 3.1416,
+   "tilt": 0.15
+  }
+ ],
+ "controls": [
+  {
+   "id": "comms.wifi",
+   "panel": "comms.enlaces",
+   "u": -0.72,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "wifi",
+   "label": "ENLACE"
+  },
+  {
+   "id": "comms.bt",
+   "panel": "comms.enlaces",
+   "u": -0.24,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "bluetooth",
+   "label": "BALIZA"
+  },
+  {
+   "id": "comms.gps",
+   "panel": "comms.enlaces",
+   "u": 0.24,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "location",
+   "label": "POSICIÓN"
+  },
+  {
+   "id": "comms.datos",
+   "panel": "comms.enlaces",
+   "u": 0.72,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "online",
+   "label": "DATOS"
+  }
+ ],
+ "signalSlots": [
+  {
+   "x": -21.45,
+   "y": 3.75,
+   "yaw": 3.141592653589793
+  },
+  {
+   "x": -19.5,
+   "y": 3.75,
+   "yaw": 3.141592653589793
+  },
+  {
+   "x": -17.8,
+   "y": 3.75,
+   "yaw": 3.141592653589793
+  },
+  {
+   "x": -21.2,
+   "y": -3.75,
+   "yaw": 0
+  },
+  {
+   "x": -20,
+   "y": -3.75,
+   "yaw": 0
+  },
+  {
+   "x": -18.8,
+   "y": -3.75,
+   "yaw": 0
+  },
+  {
+   "x": -17.6005,
+   "y": -3.7266,
+   "yaw": 0
+  }
+ ],
+ "stencils": [
+  {
+   "room": "comms",
+   "text": "C2 COMMS"
+  }
+ ],
+ "stands": {
+  "comms": [
+   -17.4,
+   0
+  ]
+ }
+}

@@ -1,0 +1,298 @@
+{
+ "rooms": [
+  {
+   "id": "camarotes",
+   "zone": "camarotes",
+   "name": "CAMAROTES",
+   "height": 3.6,
+   "shape": {
+    "chamfer": [
+     -29,
+     15,
+     -17,
+     27,
+     2
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": -17,
+   "y": 21
+  }
+ ],
+ "props": [
+  {
+   "kind": "box",
+   "x": -28.2,
+   "y": 18.4,
+   "w": 1.2,
+   "d": 2.4,
+   "h": 1.8,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": -28.2,
+   "y": 21,
+   "w": 1.2,
+   "d": 2.4,
+   "h": 1.8,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": -28.2,
+   "y": 23.65,
+   "w": 1.2,
+   "d": 2.4,
+   "h": 1.8,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": -23,
+   "y": 22.4,
+   "w": 1.6,
+   "d": 0.9,
+   "h": 0.75,
+   "material": "graphite"
+  },
+  {
+   "kind": "box",
+   "x": -22.1,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": -21.25,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": -20.4,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": -19.8,
+   "y": 15.35,
+   "w": 0.6,
+   "d": 0.5,
+   "h": 1.9,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": -28.15,
+   "y": 18.4,
+   "w": 1.1,
+   "d": 2.2,
+   "h": 0.16,
+   "z0": 0.45,
+   "material": "quilt",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -28.15,
+   "y": 18.4,
+   "w": 1.1,
+   "d": 2.2,
+   "h": 0.16,
+   "z0": 1.25,
+   "material": "quilt",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -28.15,
+   "y": 21,
+   "w": 1.1,
+   "d": 2.2,
+   "h": 0.16,
+   "z0": 0.45,
+   "material": "quilt",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -28.15,
+   "y": 21,
+   "w": 1.1,
+   "d": 2.2,
+   "h": 0.16,
+   "z0": 1.25,
+   "material": "quilt",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -28.15,
+   "y": 23.65,
+   "w": 1.1,
+   "d": 2.2,
+   "h": 0.16,
+   "z0": 0.45,
+   "material": "quilt",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -28.15,
+   "y": 23.65,
+   "w": 1.1,
+   "d": 2.2,
+   "h": 0.16,
+   "z0": 1.25,
+   "material": "quilt",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -22.1,
+   "y": 15.61,
+   "w": 0.38,
+   "d": 0.02,
+   "h": 0.22,
+   "z0": 1.5,
+   "material": "louvre",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -21.9,
+   "y": 15.615,
+   "w": 0.04,
+   "d": 0.03,
+   "h": 0.22,
+   "z0": 0.95,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -21.25,
+   "y": 15.61,
+   "w": 0.38,
+   "d": 0.02,
+   "h": 0.22,
+   "z0": 1.5,
+   "material": "louvre",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -21.05,
+   "y": 15.615,
+   "w": 0.04,
+   "d": 0.03,
+   "h": 0.22,
+   "z0": 0.95,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -20.4,
+   "y": 15.61,
+   "w": 0.38,
+   "d": 0.02,
+   "h": 0.22,
+   "z0": 1.5,
+   "material": "louvre",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -20.2,
+   "y": 15.615,
+   "w": 0.04,
+   "d": 0.03,
+   "h": 0.22,
+   "z0": 0.95,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -19.8,
+   "y": 15.61,
+   "w": 0.38,
+   "d": 0.02,
+   "h": 0.22,
+   "z0": 1.5,
+   "material": "louvre",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": -19.6,
+   "y": 15.615,
+   "w": 0.04,
+   "d": 0.03,
+   "h": 0.22,
+   "z0": 0.95,
+   "material": "graphite",
+   "solid": false
+  }
+ ],
+ "screens": [
+  {
+   "id": "camarotes.tripulacion",
+   "zone": "camarotes",
+   "on": "wall",
+   "x": -24,
+   "y": 15,
+   "face": "S"
+  }
+ ],
+ "panels": [
+  {
+   "id": "camarotes.reloj",
+   "x": -23,
+   "y": 22.05,
+   "z": 0.83,
+   "w": 0.5,
+   "h": 0.34,
+   "yaw": 0,
+   "tilt": 1.1
+  }
+ ],
+ "controls": [
+  {
+   "id": "camarotes.alarma",
+   "panel": "camarotes.reloj",
+   "u": 0,
+   "v": 0.05,
+   "kind": "lamp",
+   "action": "alarm",
+   "label": "ALARMA"
+  }
+ ],
+ "stencils": [
+  {
+   "room": "camarotes",
+   "text": "C5 CAMAROTES"
+  }
+ ],
+ "stands": {
+  "camarotes": [
+   -19.5,
+   21
+  ]
+ }
+}

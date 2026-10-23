@@ -1,0 +1,240 @@
+{
+ "rooms": [
+  {
+   "id": "enfermeria",
+   "zone": "enfermeria",
+   "name": "ENFERMERÍA",
+   "height": 3.6,
+   "shape": {
+    "chamfer": [
+     14,
+     -6,
+     26,
+     6,
+     2
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": 14,
+   "y": 0
+  }
+ ],
+ "props": [
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": -4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": -4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": 4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": 4.2,
+   "w": 2.2,
+   "d": 1,
+   "h": 0.6,
+   "material": "frame"
+  },
+  {
+   "kind": "box",
+   "x": 24.5,
+   "y": 3,
+   "w": 1,
+   "d": 1,
+   "h": 1,
+   "yaw": -0.7854,
+   "material": "frame"
+  },
+  {
+   "prefab": "cajas-2",
+   "x": 15.25,
+   "y": 3.75
+  },
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": -4.2,
+   "w": 2,
+   "d": 0.85,
+   "h": 0.12,
+   "z0": 0.6,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 17.65,
+   "y": -4.2,
+   "w": 0.35,
+   "d": 0.6,
+   "h": 0.1,
+   "z0": 0.72,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": -4.2,
+   "w": 1.2,
+   "d": 0.3,
+   "h": 0.05,
+   "z0": 3.5,
+   "glow": 0.8,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": -4.2,
+   "w": 2,
+   "d": 0.85,
+   "h": 0.12,
+   "z0": 0.6,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 21.65,
+   "y": -4.2,
+   "w": 0.35,
+   "d": 0.6,
+   "h": 0.1,
+   "z0": 0.72,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": -4.2,
+   "w": 1.2,
+   "d": 0.3,
+   "h": 0.05,
+   "z0": 3.5,
+   "glow": 0.8,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": 4.2,
+   "w": 2,
+   "d": 0.85,
+   "h": 0.12,
+   "z0": 0.6,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 17.65,
+   "y": 4.2,
+   "w": 0.35,
+   "d": 0.6,
+   "h": 0.1,
+   "z0": 0.72,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 18.4,
+   "y": 4.2,
+   "w": 1.2,
+   "d": 0.3,
+   "h": 0.05,
+   "z0": 3.5,
+   "glow": 0.8,
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": 4.2,
+   "w": 2,
+   "d": 0.85,
+   "h": 0.12,
+   "z0": 0.6,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 21.65,
+   "y": 4.2,
+   "w": 0.35,
+   "d": 0.6,
+   "h": 0.1,
+   "z0": 0.72,
+   "material": "prop",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 22.4,
+   "y": 4.2,
+   "w": 1.2,
+   "d": 0.3,
+   "h": 0.05,
+   "z0": 3.5,
+   "glow": 0.8,
+   "solid": false
+  }
+ ],
+ "screens": [
+  {
+   "id": "enfermeria.sistema",
+   "zone": "enfermeria",
+   "on": "wall",
+   "x": 26,
+   "y": -2,
+   "face": "W"
+  },
+  {
+   "id": "enfermeria.bitacora",
+   "zone": "enfermeria",
+   "on": "wall",
+   "x": 26,
+   "y": 2,
+   "face": "W"
+  }
+ ],
+ "stencils": [
+  {
+   "room": "enfermeria",
+   "text": "C3 ENFERMERÍA"
+  }
+ ],
+ "stands": {
+  "enfermeria": [
+   17.4,
+   0
+  ]
+ }
+}

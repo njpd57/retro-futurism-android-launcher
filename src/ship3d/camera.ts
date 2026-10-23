@@ -1,6 +1,6 @@
 /** Where the camera is put when it is not walking: in front of a monitor or at a station, and the move there and back. Pure. */
 import { fovYFor, multiply, perspective, transform, viewMatrix, wrapAngle, type V3 } from './math';
-import { screenFrame } from './mesh/screens';
+import { screenFrame } from './assets/screen/mesh';
 import type { StationData } from './shipData';
 import type { ScreenDef } from './world';
 

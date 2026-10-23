@@ -1,0 +1,18 @@
+{
+ "rooms": [
+  {
+   "id": "p-hangar",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     -1.5,
+     49,
+     1.5,
+     55
+    ]
+   }
+  }
+ ]
+}

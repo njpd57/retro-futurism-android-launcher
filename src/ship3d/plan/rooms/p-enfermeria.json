@@ -1,0 +1,18 @@
+{
+ "rooms": [
+  {
+   "id": "p-enfermeria",
+   "zone": "pasillo",
+   "name": "PASILLO",
+   "height": 3,
+   "shape": {
+    "rect": [
+     7,
+     -1.5,
+     14,
+     1.5
+    ]
+   }
+  }
+ ]
+}

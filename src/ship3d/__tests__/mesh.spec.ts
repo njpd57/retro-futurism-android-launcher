@@ -3,6 +3,7 @@ import { ATLAS_H, ATLAS_W, COLS, ROWS, SLOT, slotRect, slotUv } from '../atlas';
 import { nearestLights, packLights } from '../lights';
 import { buildMesh, CELL, MAT, MAT_STYLE, screenFrame, STRIDE, STYLE, stencilSpot, tessellate } from '../mesh';
 import { STENCIL_PLATES, STENCILS } from '../labels';
+import { ASSET_SHADERS } from '../assets';
 import { bounds, LIGHTS, PORTALS, ROOMS, roomAt, SCREENS } from '../world';
 
 describe('buildMesh', () =>
@@ -34,7 +35,7 @@ describe('buildMesh', () =>
 
     it('has unit normals and known materials', () =>
     {
-        const mats = new Set(Object.values(MAT));
+        const mats = new Set<number>([...Object.values(MAT), ...ASSET_SHADERS.map(a => a.mat)]);
         for (let i = 0; i < mesh.vertices; i++)
         {
             const o = i * STRIDE;

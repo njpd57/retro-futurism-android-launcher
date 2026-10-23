@@ -1,0 +1,38 @@
+{
+ "id": "puente",
+ "required": true,
+ "voice": {
+  "level": 0.5,
+  "tone": {
+   "freq": 164,
+   "wave": "sine",
+   "gain": 0.35
+  },
+  "hush": {
+   "filter": "highpass",
+   "freq": 4200,
+   "q": 0.7,
+   "gain": 0.25
+  }
+ },
+ "step": "plate",
+ "work": false,
+ "widgets": [
+  {
+   "kind": "clock",
+   "rows": 1
+  },
+  {
+   "kind": "compass",
+   "rows": 2
+  },
+  {
+   "kind": "forecast",
+   "rows": 2
+  }
+ ],
+ "keyScreens": [
+  "puente.hora",
+  "puente.clima"
+ ]
+}

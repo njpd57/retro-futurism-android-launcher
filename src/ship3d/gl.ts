@@ -5,6 +5,8 @@ import { fovYFor, multiply, perspective, topDown, viewMatrix, type V3 } from './
 import { MAX_LIGHTS } from './lights';
 import { ATLAS_H, ATLAS_W } from './atlas';
 import { FAR_PLANE } from './shaders';
+import { ASSET_SHADERS, assetUniforms } from './assets';
+import { ASSET_PLACEMENTS } from './world';
 import { DETAIL_SIZE, MAX_STYLES, packMaterialUniforms, type MaterialUniforms } from './materials';
 
 /** Everything one frame needs. */
@@ -225,6 +227,8 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
         uniforms = {};
         for (const name of ['uViewProj', 'uEye', 'uPh', 'uBg', 'uLights', 'uAtlas', 'uTime', 'uBlink', 'uHolo', 'uDoor', 'uSweep', 'uCut', 'uDim', 'uDetail', 'uLayer', 'uTile', 'uStrength', 'uAlbedo', 'uShin', 'uKs', 'uStyled', 'uKindMat', 'uStyleBase', 'uColor', 'uMono', 'uStyleColor', 'uStyleLamp', 'uStyleAlert'])
             uniforms[name] = gl!.getUniformLocation(program, name);
+        for (const a of ASSET_SHADERS)
+            for (const name of Object.keys(a.uniforms)) uniforms[name] = gl!.getUniformLocation(program, name);
         if (atlasSource) upload(atlasSource);
         for (const [layer, src] of layerSources) uploadLayer(layer, src);
     }
@@ -517,6 +521,13 @@ export function createShipGL(canvas: HTMLCanvasElement, initialMesh: Mesh): Ship
             gl.uniform1f(uniforms.uBlink, f.blink ? 1 : 0);
             gl.uniform1f(uniforms.uHolo, f.holo ?? 0.6);
             gl.uniform1f(uniforms.uSweep, f.sweep);
+            for (const { name, value } of assetUniforms(ASSET_PLACEMENTS))
+            {
+                if (value.length === 1) gl.uniform1f(uniforms[name], value[0]);
+                else if (value.length === 2) gl.uniform2fv(uniforms[name], value);
+                else if (value.length === 3) gl.uniform3fv(uniforms[name], value);
+                else gl.uniform4fv(uniforms[name], value);
+            }
             gl.uniform1f(uniforms.uCut, f.top ? f.top.cut : 1e4);
             gl.uniform1f(uniforms.uDim, f.dim ?? 1);
             gl.uniform1fv(uniforms.uDoor, Float32Array.from({ length: 16 }, (_, i) => f.doors[i] ?? 0));

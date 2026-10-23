@@ -1,0 +1,33 @@
+{
+ "id": "bodega",
+ "required": true,
+ "voice": {
+  "level": 0.5,
+  "tone": {
+   "freq": 50,
+   "wave": "sine",
+   "gain": 0.4
+  },
+  "hush": {
+   "filter": "lowpass",
+   "freq": 320,
+   "q": 0.7,
+   "gain": 0.3
+  }
+ },
+ "step": "grate",
+ "work": true,
+ "widgets": [
+  {
+   "kind": "storage",
+   "rows": 1
+  },
+  {
+   "kind": "screentime",
+   "rows": 1
+  }
+ ],
+ "keyScreens": [
+  "bodega.almacen"
+ ]
+}

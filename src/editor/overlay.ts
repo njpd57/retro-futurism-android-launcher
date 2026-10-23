@@ -1,5 +1,6 @@
 import type { ShipData } from '@/ship3d/shipData';
 import { centroid, type V2 } from '@/ship3d/world';
+import { isHall } from '@/ship3d/zones';
 import { nearestEdge } from './geometry';
 import type { Scene } from './scene';
 import { same, type Sel } from './selection';
@@ -55,8 +56,8 @@ export function overlaySvg(scene: Scene, data: ShipData, view: PlanView, sel: Se
         const [mx] = centroid(r.poly);
         const [cx] = view.toScreen(mx, 0);
         const cy = view.toScreen(0, Math.min(...r.poly.map(p => p[1])))[1] + 16;
-        out += `<polygon class="room${r.zone === 'pasillo' ? ' corr' : ''}${on ? ' sel' : ''}" data-t="room" data-i="${i}" points="${pts(view, r.poly)}"/>`;
-        if (layers.names && r.zone !== 'pasillo') out += `<text class="nm" x="${f(cx)}" y="${f(cy)}">${esc(r.name)}</text>`;
+        out += `<polygon class="room${isHall(r.zone) ? ' corr' : ''}${on ? ' sel' : ''}" data-t="room" data-i="${i}" points="${pts(view, r.poly)}"/>`;
+        if (layers.names && !isHall(r.zone)) out += `<text class="nm" x="${f(cx)}" y="${f(cy)}">${esc(r.name)}</text>`;
     });
 
     // props

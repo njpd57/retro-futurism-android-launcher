@@ -1,0 +1,135 @@
+{
+ "rooms": [
+  {
+   "id": "bodega",
+   "zone": "bodega",
+   "name": "BODEGA",
+   "height": 7,
+   "shape": {
+    "chamfer": [
+     -10,
+     13,
+     10,
+     29,
+     2
+    ]
+   }
+  }
+ ],
+ "portals": [
+  {
+   "x": 0,
+   "y": 13
+  },
+  {
+   "x": -10,
+   "y": 21
+  },
+  {
+   "x": 10,
+   "y": 21
+  },
+  {
+   "x": 0,
+   "y": 29
+  }
+ ],
+ "props": [
+  {
+   "kind": "box",
+   "x": -6,
+   "y": 17.4,
+   "w": 2.4,
+   "d": 2.4,
+   "h": 2.4,
+   "material": "orange"
+  },
+  {
+   "kind": "box",
+   "x": 6.4,
+   "y": 16.8,
+   "w": 2.2,
+   "d": 2.2,
+   "h": 1.8,
+   "material": "graphite"
+  },
+  {
+   "kind": "box",
+   "x": 6,
+   "y": 24.4,
+   "w": 3,
+   "d": 2.4,
+   "h": 2.6,
+   "material": "seat"
+  },
+  {
+   "kind": "box",
+   "x": 3.8,
+   "y": 26.4,
+   "w": 1.4,
+   "d": 1.4,
+   "h": 1,
+   "material": "graphite"
+  },
+  {
+   "kind": "box",
+   "x": -6,
+   "y": 17.4,
+   "w": 2.46,
+   "d": 2.46,
+   "h": 0.1,
+   "z0": 1.15,
+   "material": "graphite",
+   "solid": false
+  },
+  {
+   "kind": "box",
+   "x": 6,
+   "y": 24.4,
+   "w": 3.06,
+   "d": 2.46,
+   "h": 0.1,
+   "z0": 1.25,
+   "material": "graphite",
+   "solid": false
+  }
+ ],
+ "screens": [
+  {
+   "id": "bodega.almacen",
+   "zone": "bodega",
+   "on": "wall",
+   "x": -5,
+   "y": 13,
+   "face": "S"
+  },
+  {
+   "id": "bodega.pantalla",
+   "zone": "bodega",
+   "on": "wall",
+   "x": 5,
+   "y": 13,
+   "face": "S"
+  }
+ ],
+ "stencils": [
+  {
+   "room": "bodega",
+   "text": "C4 BODEGA"
+  }
+ ],
+ "stands": {
+  "bodega": [
+   0,
+   21
+  ]
+ },
+ "vias": {
+  "bodega": [
+   [
+    0,
+    21
+   ]
+  ]
+ }
+}

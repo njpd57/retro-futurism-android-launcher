@@ -1,3 +1,4 @@
+import crewData from './crew.json';
 import { glideRoute, pointAt, routeLength, STANDS } from './glide';
 import { CONTACT_PLATES, SIGNAL_PLATES } from './labels';
 import { yawOf } from './math';
@@ -76,13 +77,11 @@ export interface Roamer
     pool: readonly string[];
 }
 
+/** Who wanders the ship, where from and where to (`crew.json`: `home` is a room id, `pool` the rooms it may go to). */
 export function newRoamers(): Roamer[]
 {
     const at = (room: string) => ({ x: STANDS[room][0], y: STANDS[room][1] });
-    return [
-        { id: 'jones', kind: 'cat', ...at('comedor'), yaw: 0, room: 'comedor', route: null, s: 0, length: 0, wait: 1, speed: 2.4, pool: ['comedor', 'camarotes', 'bodega', 'hipersueno', 'puente', 'enfermeria'] },
-        { id: 'ash', kind: 'android', ...at('puente'), yaw: 0, room: 'puente', route: null, s: 0, length: 0, wait: 3, speed: 1.7, pool: ['puente', 'comedor', 'comms', 'enfermeria', 'bodega', 'motor', 'hangar'] },
-    ];
+    return crewData.roamers.map((r): Roamer => ({ id: r.id, kind: r.kind as Roamer['kind'], ...at(r.home), yaw: 0, room: r.home, route: null, s: 0, length: 0, wait: r.wait, speed: r.speed, pool: r.pool }));
 }
 
 /** One step of `dt` seconds; `rng` gives 0..1. Pure: returns the next state. */

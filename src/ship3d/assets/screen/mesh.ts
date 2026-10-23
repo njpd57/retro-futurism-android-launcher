@@ -1,7 +1,7 @@
-import { slotUv, SLOT } from '../atlas';
-import type { V3 } from '../math';
-import { type ScreenDef } from '../world';
-import { MAT, Builder } from './builder';
+import { slotUv, SLOT } from '../../atlas';
+import type { V3 } from '../../math';
+import { SCREENS, type ScreenDef } from '../../world';
+import { MAT, Builder } from '../../mesh/builder';
 
 /** The frame of a screen as the viewer sees it: right, up and normal in GL space. */
 export function screenFrame(s: ScreenDef): { center: V3; normal: V3; right: V3; up: V3 }
@@ -34,3 +34,5 @@ export function addScreen(b: Builder, s: ScreenDef)
     const bz = 0.12;
     b.quad([corner(-hw - bz, hh + bz), corner(hw + bz, hh + bz), corner(hw + bz, -hh - bz), corner(-hw - bz, -hh - bz)], f.normal, [[0, 0], [1, 0], [1, 1], [0, 1]], MAT.frame, 0.1);
 }
+
+export const build = (b: Builder) => { for (const s of SCREENS) addScreen(b, s); };

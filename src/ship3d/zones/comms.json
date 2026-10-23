@@ -1,0 +1,28 @@
+{
+ "id": "comms",
+ "required": true,
+ "voice": {
+  "level": 0.55,
+  "hush": {
+   "filter": "bandpass",
+   "freq": 3000,
+   "q": 2,
+   "gain": 0.5
+  },
+  "wobble": {
+   "hz": 3.1,
+   "depth": 0.35
+  }
+ },
+ "step": "plate",
+ "work": false,
+ "widgets": [
+  {
+   "kind": "radar",
+   "rows": 2
+  }
+ ],
+ "keyScreens": [
+  "comms.senales"
+ ]
+}

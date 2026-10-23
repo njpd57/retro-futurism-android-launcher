@@ -1,0 +1,36 @@
+{
+ "id": "hipersueno",
+ "required": true,
+ "voice": {
+  "level": 0.55,
+  "hush": {
+   "filter": "bandpass",
+   "freq": 420,
+   "q": 1,
+   "gain": 0.7
+  },
+  "wobble": {
+   "hz": 0.22,
+   "depth": 0.5
+  }
+ },
+ "step": "plate",
+ "work": false,
+ "widgets": [
+  {
+   "kind": "alarm",
+   "rows": 1
+  },
+  {
+   "kind": "agenda",
+   "rows": 2
+  },
+  {
+   "kind": "reminders",
+   "rows": 2
+  }
+ ],
+ "keyScreens": [
+  "hipersueno.alarma"
+ ]
+}

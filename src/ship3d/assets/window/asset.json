@@ -1,0 +1,61 @@
+{
+ "kind": "window",
+ "stage": "post",
+ "params": {
+  "room": "",
+  "from": 0,
+  "to": 1,
+  "sill": 0.95,
+  "head": 3.55,
+  "post": 0.22,
+  "depth": 0.16,
+  "rail": 0.16,
+  "frame": "graphite",
+  "seal": "orange",
+  "skyDrift": 0.004,
+  "skyDensity": 0.1,
+  "skyPlanet": [
+   0.5,
+   0.16,
+   -0.85,
+   0.26
+  ],
+  "skyMoon": [
+   -0.35,
+   0.3,
+   -0.9,
+   0.04
+  ],
+  "skySun": [
+   -0.75,
+   0.25,
+   0.45
+  ],
+  "skyPlanetA": [
+   0.32,
+   0.4,
+   0.5
+  ],
+  "skyPlanetB": [
+   0.62,
+   0.7,
+   0.78
+  ],
+  "skyHalo": [
+   0.25,
+   0.4,
+   0.7
+  ]
+ },
+ "shader": true,
+ "uniforms": {
+  "uSkyDrift": "skyDrift",
+  "uSkyDensity": "skyDensity",
+  "uSkyPlanet": "skyPlanet",
+  "uSkyMoon": "skyMoon",
+  "uSkySun": "skySun",
+  "uSkyPlanetA": "skyPlanetA",
+  "uSkyPlanetB": "skyPlanetB",
+  "uSkyHalo": "skyHalo"
+ }
+}

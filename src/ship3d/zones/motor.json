@@ -1,0 +1,42 @@
+{
+ "id": "motor",
+ "required": true,
+ "voice": {
+  "level": 0.9,
+  "tone": {
+   "freq": 41,
+   "wave": "sawtooth",
+   "gain": 0.5
+  },
+  "hush": {
+   "filter": "lowpass",
+   "freq": 220,
+   "q": 0.7,
+   "gain": 0.6
+  },
+  "wobble": {
+   "hz": 0.7,
+   "depth": 0.3
+  }
+ },
+ "step": "grate",
+ "work": true,
+ "widgets": [
+  {
+   "kind": "power",
+   "rows": 1
+  },
+  {
+   "kind": "link",
+   "rows": 1
+  },
+  {
+   "kind": "telemetry",
+   "rows": 1
+  }
+ ],
+ "keyScreens": [
+  "motor.reserva",
+  "motor.enlace"
+ ]
+}

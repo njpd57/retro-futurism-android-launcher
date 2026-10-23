@@ -1,10 +1,10 @@
-import { labelUv } from '../atlas';
-import { CONTROL_PLATES } from '../labels';
-import type { V3 } from '../math';
-import type { ControlData, PanelData } from '../shipData';
-import { CONTROLS, PANELS, roomAt } from '../world';
-import { MAT, type Builder } from './builder';
-import { made } from './doorway';
+import { labelUv } from '../../atlas';
+import { CONTROL_PLATES } from '../../labels';
+import type { V3 } from '../../math';
+import type { ControlData, PanelData } from '../../shipData';
+import { CONTROLS, PANELS, roomAt } from '../../world';
+import { MAT, type Builder } from '../../mesh/builder';
+import { made } from '../../mesh/doorway';
 
 /** A panel's frame in GL space: its middle, the viewer's right, up its (leaning) face and out of it. */
 export interface PanelFrame { center: V3; right: V3; up: V3; normal: V3 }
@@ -92,3 +92,5 @@ export function addPanels(b: Builder)
         });
     }
 }
+
+export const build = (b: Builder) => addPanels(b);

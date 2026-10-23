@@ -1,3 +1,4 @@
+import type { AssetPlacement } from './assets';
 /**
  * The shape of `ship.json`, the ship's plan as data. `world.ts` expands it into rooms, props and screens (`applyWorld`);
  * the map editor reads and writes it. Metres, `(x east, y south)`.
@@ -61,11 +62,13 @@ export type Face = 'N' | 'E' | 'S' | 'W';
 export type ScreenData =
     | { id: string; zone: string; on: 'wall'; x: number; y: number; face: Face; w?: number; h?: number; z?: number }
     | { id: string; zone: string; on: 'crown'; face: Face }
-    /** the middle of side `k` of the `puente` dome */
-    | { id: string; zone: string; on: 'dome'; k: number };
+    /** the middle of side `k` of a dome-shaped room (`room`, or the screen's `zone` when left out) */
+    | { id: string; zone: string; on: 'dome'; k: number; room?: string; w?: number; h?: number; z?: number };
 
 export interface MessData
 {
+    /** id of the room the mess is built in, `comedor` when left out */
+    room?: string;
     tableR: number;
     tableTop: number;
     chairR: number;
@@ -118,6 +121,10 @@ export interface ShipData
     panels?: PanelData[];
     controls?: ControlData[];
     stations?: StationData[];
+    /** pieces made by an asset folder (`assets/<kind>/`): the kind and the parameters this one overrides */
+    assets?: AssetPlacement[];
+    /** the phone's flashlight, as a floodlight in the room of kind `zone`: `power` at `(x, y, z)` */
+    floodlight?: { x: number; y: number; z: number; power: number; zone: string };
 }
 
 /** A panel of controls: a plate centred at `(x, z, y)`, its face looking `yaw` (like a monitor), leaning back `tilt` radians. */
