@@ -12,7 +12,7 @@ export function usePausableInterval(fn: () => void, ms: number)
     let wanted = false;
 
     const clear = () => { window.clearInterval(timer); timer = undefined; };
-    const begin = () => { if (wanted && timer === undefined) timer = window.setInterval(fn, ms); };
+    const begin = () => { if (wanted && !document.hidden && timer === undefined) timer = window.setInterval(fn, ms); };
 
     function onBridgeEvent(ev: { name: string })
     {
@@ -20,7 +20,8 @@ export function usePausableInterval(fn: () => void, ms: number)
         else if (ev.name === 'afterResume') begin();
     }
 
-    // Bridge's resume event can go missing (screen off, app returning), so the page's own visibility also drives it
+    // Bridge's resume event can go missing (screen off, app returning, a pause during startup),
+    // so the page's own visibility, focus and pageshow also drive it
     function onVisibility()
     {
         if (document.hidden) clear();
@@ -29,11 +30,15 @@ export function usePausableInterval(fn: () => void, ms: number)
 
     bridgeEvents.addEventListener(onBridgeEvent);
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', begin);
+    window.addEventListener('pageshow', begin);
     onBeforeUnmount(() =>
     {
         wanted = false;
         clear();
         document.removeEventListener('visibilitychange', onVisibility);
+        window.removeEventListener('focus', begin);
+        window.removeEventListener('pageshow', begin);
         bridgeEvents.removeEventListener(onBridgeEvent);
     });
 

@@ -29,6 +29,8 @@ onMounted(() =>
 {
     measure();
     document.fonts?.ready.then(measure);
+    // print the first character now so the tape is never blank while waiting for the first interval
+    if (!reduced.value) step();
 });
 
 const cells = computed(() => Math.max(8, Math.floor(width.value / charPx.value)));
@@ -38,7 +40,11 @@ let cursor = 0;
 const strip = ref<Strip>(emptyStrip(cells.value));
 
 watch(() => props.restart, () => { tape = buildTape(props.messages); cursor = 0; });
-watch(cells, n => { strip.value = emptyStrip(n); });
+watch(cells, n =>
+{
+    strip.value = emptyStrip(n);
+    if (!reduced.value) step();
+});
 
 function step()
 {
